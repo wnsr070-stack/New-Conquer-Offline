@@ -23,7 +23,7 @@ boot-readiness:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   before_script:
     - apt-get update
-    - apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0
+    - apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0
     - rm -rf /var/lib/apt/lists/*
     - mkdir -p .cache/godot artifacts
     - python -m pip install --disable-pip-version-check --cache-dir "$PIP_CACHE_DIR" "huggingface_hub>=0.26,<1.0"
