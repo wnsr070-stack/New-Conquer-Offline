@@ -112,8 +112,8 @@ func _build_city() -> void:
  for sign_x in [-1.0,1.0]:
   for sign_z in [-1.0,1.0]:
    for lane in range(2):
-    var lane_x:=sign_x*(82.0+lane*35.0)
-    var lane_z:=sign_z*(82.0+lane*35.0)
+    var lane_x: float = sign_x * (82.0 + float(lane) * 35.0)
+    var lane_z: float = sign_z * (82.0 + float(lane) * 35.0)
     _box("ResidentialLaneX",Vector3(112,0.10,10),Vector3(sign_x*96,0.02,lane_z),road)
     _box("ResidentialLaneZ",Vector3(10,0.10,112),Vector3(lane_x,0.02,sign_z*96),road)
  # Inner stone-edged canal; four small bridges; cherry trees on both banks.
