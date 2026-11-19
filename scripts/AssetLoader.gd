@@ -2,94 +2,80 @@ extends RefCounted
 class_name AssetLoader
 
 const DEFAULT_FALLBACK_ID := "boulder_01"
-const APPROVED_MANIFEST := "assets/universal_nature_pack/imperial_approved_assets.json"
-
-static func load_model(asset_id: String, fallback_id: String = DEFAULT_FALLBACK_ID) -> Node3D:
-	var manifest := _read_manifest()
-	if manifest.is_empty():
-		push_warning("AssetLoader: approved manifest unavailable; cannot load " + asset_id)
-		return null
-	var instance := _load_gltf(_resolve_asset_path(manifest, asset_id))
-	if instance != null:
-		return instance
-	push_warning("AssetLoader: failed to load '%s'; trying approved fallback '%s'." % [asset_id, fallback_id])
-	instance = _load_gltf(_resolve_asset_path(manifest, fallback_id))
-	if instance != null:
-		instance.name = "Fallback_" + fallback_id
-		return instance
-	var fallback_path := _first_available_approved_asset(manifest)
-	if fallback_path != "":
-		push_warning("AssetLoader: trying first available approved model.")
-		instance = _load_gltf(fallback_path)
-		if instance != null:
-			instance.name = "Fallback_FirstApproved"
-			return instance
-	push_warning("AssetLoader: no approved GLB could be loaded for '%s'." % asset_id)
-	return null
+static var _catalog: Dictionary = {}
+static var _prototypes: Dictionary = {}
 
 static func _cache_root() -> String:
-	var configured := OS.get_environment("HF_ASSET_CACHE_DIR")
-	if configured.strip_edges() != "":
-		return configured.simplify_path()
-	return ProjectSettings.globalize_path("res://.cache/hf-assets").simplify_path()
+ var configured := OS.get_environment("HF_ASSET_CACHE_DIR")
+ return configured.simplify_path() if configured.strip_edges() != "" else ProjectSettings.globalize_path("res://.cache/hf-assets").simplify_path()
 
-static func _read_manifest() -> Dictionary:
-	var path := _cache_root().path_join(APPROVED_MANIFEST)
-	if not FileAccess.file_exists(path):
-		push_warning("AssetLoader: missing approved manifest: " + path)
-		return {}
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		push_warning("AssetLoader: cannot open approved manifest: " + path)
-		return {}
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		push_warning("AssetLoader: approved manifest JSON is invalid.")
-		return {}
-	return parsed
+static func _read_catalog() -> Dictionary:
+ if not _catalog.is_empty(): return _catalog
+ var path := _cache_root().path_join("twin_city_runtime_assets.json")
+ if not FileAccess.file_exists(path): return {}
+ var f := FileAccess.open(path,FileAccess.READ)
+ if f == null: return {}
+ var parsed: Variant = JSON.parse_string(f.get_as_text())
+ if typeof(parsed) == TYPE_DICTIONARY: _catalog = parsed
+ return _catalog
 
-static func _resolve_asset_path(manifest: Dictionary, asset_id: String) -> String:
-	var categories: Dictionary = manifest.get("categories", {})
-	for category_value in categories.values():
-		if typeof(category_value) != TYPE_DICTIONARY:
-			continue
-		for asset_value in category_value.get("assets", []):
-			if typeof(asset_value) != TYPE_DICTIONARY:
-				continue
-			if String(asset_value.get("asset_id", "")) == asset_id:
-				var relative_file := String(asset_value.get("file", ""))
-				if relative_file.is_empty():
-					return ""
-				return _cache_root().path_join("assets/universal_nature_pack").path_join(relative_file)
-	return ""
-
-static func _first_available_approved_asset(manifest: Dictionary) -> String:
-	var nature: Dictionary = manifest.get("categories", {}).get("nature", {})
-	for asset_value in nature.get("assets", []):
-		if typeof(asset_value) != TYPE_DICTIONARY:
-			continue
-		if not bool(asset_value.get("validation", {}).get("validated", false)):
-			continue
-		var candidate := _cache_root().path_join("assets/universal_nature_pack").path_join(String(asset_value.get("file", "")))
-		if FileAccess.file_exists(candidate):
-			return candidate
-	return ""
+static func load_model(asset_id: String, fallback_id: String = DEFAULT_FALLBACK_ID) -> Node3D:
+ var catalog := _read_catalog()
+ var actual_id := asset_id
+ if not catalog.has(actual_id):
+  push_warning("AssetLoader: missing '%s'; trying fallback '%s'." % [asset_id,fallback_id])
+  actual_id = fallback_id
+ if not catalog.has(actual_id):
+  for key in catalog:
+   if String(catalog[key].get("kind","")) in ["nature","architecture","candidate"]:
+    actual_id = String(key); break
+ if not catalog.has(actual_id): return null
+ if _prototypes.has(actual_id): return (_prototypes[actual_id] as Node3D).duplicate(true) as Node3D
+ var path := String(catalog[actual_id].get("path",""))
+ var instance := _load_gltf(path)
+ if instance == null and actual_id != fallback_id: return load_model(fallback_id,"")
+ if instance == null: return null
+ _prototypes[actual_id] = instance.duplicate(true)
+ return instance
 
 static func _load_gltf(path: String) -> Node3D:
-	if path.is_empty() or not FileAccess.file_exists(path):
-		return null
-	var document := GLTFDocument.new()
-	var state := GLTFState.new()
-	# Godot's GLTFDocument importer handles supported glTF extensions, including
-	# KHR_mesh_quantization, while decoding accessors into engine mesh data.
-	var err: Error = document.append_from_file(path, state)
-	if err != OK:
-		push_warning("AssetLoader: GLTFDocument append failed (%s): %s" % [err, path])
-		return null
-	var generated: Node = document.generate_scene(state)
-	if generated == null or not generated is Node3D:
-		push_warning("AssetLoader: GLTF scene generation returned no Node3D: " + path)
-		if generated != null:
-			generated.free()
-		return null
-	return generated as Node3D
+ if path.is_empty() or not FileAccess.file_exists(path): return null
+ var doc := GLTFDocument.new()
+ var state := GLTFState.new()
+ var err: Error = doc.append_from_file(path,state)
+ if err != OK:
+  push_warning("AssetLoader: GLB import failed (%s): %s" % [err,path])
+  return null
+ var node: Node = doc.generate_scene(state)
+ if node == null or not node is Node3D:
+  if node != null: node.free()
+  return null
+ return node as Node3D
+
+static func fit_height(model: Node3D, target_height: float) -> float:
+ var bounds := _measure_bounds(model,Transform3D.IDENTITY)
+ if bounds.size.y <= 0.0001:
+  push_warning("AssetLoader: empty AABB; cannot scale " + model.name)
+  return 1.0
+ var factor := target_height / bounds.size.y
+ model.scale = model.scale * Vector3.ONE * factor
+ model.position.y -= bounds.position.y * factor
+ return factor
+
+static func _measure_bounds(node: Node, parent_xform: Transform3D) -> AABB:
+ var result := AABB()
+ var has_bounds := false
+ var xform := parent_xform * node.transform if node is Node3D else parent_xform
+ if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+  var a := (node as MeshInstance3D).get_aabb()
+  for i in range(8):
+   var corner := a.position + Vector3((a.size.x if (i&1)!=0 else 0.0),(a.size.y if (i&2)!=0 else 0.0),(a.size.z if (i&4)!=0 else 0.0))
+   var point := xform * corner
+   if not has_bounds: result=AABB(point,Vector3.ZERO); has_bounds=true
+   else: result=result.expand(point)
+ for child in node.get_children():
+  var child_bounds := _measure_bounds(child,xform)
+  if child_bounds.size.length_squared() > 0.0 or child is MeshInstance3D:
+   if not has_bounds: result=child_bounds; has_bounds=true
+   else: result=result.merge(child_bounds)
+ return result

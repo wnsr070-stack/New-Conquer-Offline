@@ -9,18 +9,17 @@ variables:
   CI_CAPTURE: "1"
   GIT_DEPTH: "1"
 cache:
-  key: "godot43-hf-assets-$CI_COMMIT_REF_SLUG"
+  key: "godot43-twin-city-$CI_COMMIT_REF_SLUG"
   paths:
     - .cache/godot/
     - .cache/huggingface/
     - .cache/hf-assets/
     - .cache/pip/
-boot-readiness:
+twin-city-build-and-capture:
   stage: verify
   image: python:3.11-slim-bookworm
   rules:
     - if: '$CI_COMMIT_BRANCH == "twin-city/imperial-visual-prototype"'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   before_script:
     - apt-get update
     - apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0
@@ -38,17 +37,21 @@ boot-readiness:
       fi
       GODOT_BIN=".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64"
       "$GODOT_BIN" --version
-      xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --quit-after 180 2>&1 | tee artifacts/godot.log
-      test -s artifacts/boot_check.png
-      grep -q "BOOT_CAPTURE_OK:" artifacts/godot.log
-      grep -q "BOOT_ASSET_OK: boulder_01" artifacts/godot.log
-      grep -q "BOOT_ASSET_OK: mountainside" artifacts/godot.log
-      grep -q "BOOT_ASSET_OK: dead_tree_trunk" artifacts/godot.log
-      ! grep -E "SCRIPT ERROR|Parse Error|BOOT_CAPTURE_FAILED" artifacts/godot.log
+      "$GODOT_BIN" --headless --editor --path "$CI_PROJECT_DIR" --import --quit
+      xvfb-run -a -s "-screen 0 1600x900x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --quit-after 900 2>&1 | tee artifacts/godot.log
+      test -s artifacts/twin_city_overview.png
+      test -s artifacts/twin_city_palace_pagoda.png
+      test -s artifacts/twin_city_gate_moat.png
+      grep -q "TWIN_CITY_BUILDINGS_PLACED: 244" artifacts/godot.log
+      grep -q "TWIN_CITY_BRIDGES_PLACED: 4" artifacts/godot.log
+      grep -q "TWIN_CITY_CAPTURE_OK:" artifacts/godot.log
+      ! grep -E "SCRIPT ERROR|Parse Error|TWIN_CITY_CAPTURE_FAILED" artifacts/godot.log
   artifacts:
     when: always
     expire_in: 14 days
     paths:
-      - artifacts/boot_check.png
+      - artifacts/twin_city_overview.png
+      - artifacts/twin_city_palace_pagoda.png
+      - artifacts/twin_city_gate_moat.png
       - artifacts/godot.log
       - artifacts/asset_fetch.log
