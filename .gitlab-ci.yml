@@ -45,7 +45,8 @@ twin-city-build-and-capture:
       test -s artifacts/twin_city_gate_moat.png
       test -s artifacts/landmarks_preview.png
       test -s artifacts/landmark_sources.txt
-      grep -q "TWIN_CITY_BUILDINGS_PLACED: 244" artifacts/godot.log
+      grep -q "TWIN_CITY_BUILDINGS_PLACED:" artifacts/godot.log
+      grep -q "TWIN_CITY_QUADRANT_COUNTS_OK:" artifacts/godot.log
       grep -q "TWIN_CITY_ARCHITECTURE_WHITELIST_OK: 3" artifacts/godot.log
       grep -q "TWIN_CITY_MOAT_BOUNDS_OK: inner=164 outer=182 width=18 closed_square" artifacts/godot.log
       grep -q "TWIN_CITY_BUILDING_CLEARANCE_MIN_M" artifacts/godot.log
