@@ -14,8 +14,9 @@ objaverse-visual-shortlist:
     - if: '$CI_COMMIT_BRANCH == "preview/objaverse-candidates"'
   before_script:
     - apt-get update
-    - apt-get install -y --no-install-recommends xvfb xauth libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libosmesa6 libx11-6 libxext6 libxrender1
+    - apt-get install -y --no-install-recommends xvfb xauth libglu1-mesa libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libosmesa6 libx11-6 libxext6 libxrender1
     - rm -rf /var/lib/apt/lists/*
+    - python -c "import ctypes; ctypes.CDLL(\"libGLU.so.1\"); print(\"GLU_LIBRARY_OK\")"
     - python -m pip install --no-cache-dir "trimesh>=4.0,<5" "pyglet<2" pillow numpy
   script:
     - |

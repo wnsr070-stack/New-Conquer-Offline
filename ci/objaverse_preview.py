@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a visual-only shortlist of 15 licensed Objaverse 1.0 GLBs."""
+"""Build a visual-only shortlist of up to 15 licensed Objaverse 1.0 GLBs."""
 import gzip, json, os, re, sys, time, urllib.request, zlib
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -107,45 +107,6 @@ def load_metadata_shard(i):
     print(f"SHARD_READY {shard} records={len(data):,}", flush=True)
     return shard,data
 
-def github_json(url):
-    req=urllib.request.Request(url,headers={"User-Agent":"ClashOfLegends-Preview/1.0","Accept":"application/vnd.github+json"})
-    with urllib.request.urlopen(req,timeout=25) as r: return json.load(r)
-def github_license(spdx):
-    x=(spdx or "").upper()
-    if x=="CC0-1.0": return "CC0"
-    if x.startswith("CC-BY-SA-"): return "CC-BY-SA"
-    if x.startswith("CC-BY-"): return "CC-BY"
-    return ""
-def add_repository_fallback(best):
-    sources=[
-      ("ZzwahwahzZ/clash-of-legends-terrain-assets",None),
-      ("ZzwahwahzZ/clash-of-legends","wuxia_imperial_pack"),
-    ]
-    for repo,subpath in sources:
-      try:
-        info=github_json(f"https://api.github.com/repos/{repo}")
-        spdx=(info.get("license") or {}).get("spdx_id")
-        lic=github_license(spdx)
-        if lic not in ALLOWED:
-          print(f"FALLBACK_REPO_SKIP {repo} reason=license_not_explicitly_allowed spdx={spdx}",flush=True)
-          continue
-        branch=info.get("default_branch") or "main"
-        tree=github_json(f"https://api.github.com/repos/{repo}/git/trees/{branch}?recursive=1")
-        for ent in tree.get("tree",[]):
-          path=ent.get("path",""); low=path.lower()
-          if ent.get("type")!="blob" or not low.endswith(".glb"): continue
-          if subpath and not low.startswith(subpath.lower()+"/"): continue
-          for key,spec in CATEGORIES.items():
-            sc=score(path.replace("_"," ").replace("-"," "),spec)
-            if sc<=0 or any(x["uid"]==f"github:{repo}:{path}" for x in best[key]): continue
-            best[key].append({"uid":f"github:{repo}:{path}","path":path,"name":Path(path).stem[:180],
-              "author":repo.split("/")[0],"license":lic,"license_raw":spdx,"score":sc,"shard":"github-fallback",
-              "download_url":f"https://raw.githubusercontent.com/{repo}/{branch}/{path}","source_repository":f"https://github.com/{repo}"})
-            best[key].sort(key=lambda x:x["score"],reverse=True); best[key]=best[key][:3]
-        print(f"FALLBACK_REPO_SCANNED {repo} license={lic}",flush=True)
-      except Exception as exc:
-        print(f"FALLBACK_REPO_UNAVAILABLE {repo} error={type(exc).__name__}: {exc}",flush=True)
-
 def main():
     print("Downloading authoritative Objaverse 1.0 UID-to-path map...")
     paths_file=CACHE/"object-paths.json.gz"
@@ -179,8 +140,6 @@ def main():
         if all(len(items)>=3 for items in best.values()):
             print("EARLY_EXIT: all five categories have 3 open-license candidates; skipping remaining metadata shards.",flush=True)
             break
-    print("Applying licensed repository fallback for categories with fewer than 3 Objaverse candidates...",flush=True)
-    add_repository_fallback(best)
     chosen={}
     for key,items in best.items():
         chosen[key]=items[:3]
@@ -190,7 +149,7 @@ def main():
         p=CACHE/"models"/(c["uid"]+".glb")
         fetch(c.get("download_url") or f"{ROOT}/{c['path']}",p)
         return c,p
-    print("Downloading 15 GLBs using exact object-paths.json.gz paths...")
+    print(f"Downloading {len(allc)} Objaverse GLBs using exact object-paths.json.gz paths; per_category=" + ", ".join(f"{k}={len(v)}" for k,v in chosen.items()), flush=True)
     with ThreadPoolExecutor(max_workers=5) as pool:
         downloads=list(pool.map(dl,allc))
     manifest=[]
@@ -226,7 +185,7 @@ def main():
         manifest.append(c)
         print(f"RENDER_OK {key} #{candidate_number} {c['uid']} {c['license']} {dims}",flush=True)
     (OUT/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8")
-    lines=["Objaverse 1.0 visual shortlist — 15 candidates","Source: allenai/objaverse (not Objaverse-XL)","UID paths resolved from object-paths.json.gz","Allowed licenses: CC0, CC-BY, CC-BY-SA",""]
+    lines=["Objaverse 1.0 visual shortlist — up to 15 candidates","Source: allenai/objaverse (not Objaverse-XL)","UID paths resolved from object-paths.json.gz","Allowed licenses: CC0, CC-BY, CC-BY-SA",""]
     for key,spec in CATEGORIES.items():
         lines.append(spec["title"]+" ["+key+"] — "+str(len(chosen[key]))+" candidate(s)")
         for c in chosen[key]:
