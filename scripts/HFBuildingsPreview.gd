@@ -40,11 +40,13 @@ func _build_lighting() -> void:
     world.environment = env
     add_child(world)
     var sun := DirectionalLight3D.new()
+    sun.name = "PreviewSun"
     sun.rotation_degrees = Vector3(-48, -32, 0)
     sun.light_energy = 1.35
     sun.shadow_enabled = true
     add_child(sun)
     var fill := DirectionalLight3D.new()
+    fill.name = "PreviewFill"
     fill.rotation_degrees = Vector3(-20, 145, 0)
     fill.light_energy = 0.5
     fill.light_color = Color(0.72, 0.82, 1.0)
@@ -118,7 +120,7 @@ func _render_page(items: Array, page: int, measured: Array) -> void:
         return
     print("HF_BUILDINGS_PREVIEW_CAPTURE_OK: ", path)
     for child in get_children():
-        if child != get_node_or_null("WorldEnvironment"):
+        if child.name not in ["WorldEnvironment", "PreviewSun", "PreviewFill"]:
             child.queue_free()
     await get_tree().process_frame
 

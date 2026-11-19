@@ -11,6 +11,7 @@ ROOT.mkdir(parents=True, exist_ok=True)
 OUT.mkdir(parents=True, exist_ok=True)
 api = HfApi()
 repo_files = api.list_repo_files(repo_id=REPO, repo_type="dataset")
+repo_files_set = set(repo_files)
 manifest_paths = [
     "project-assets/wuxia_imperial_pack/manifest.json",
     "assets/wuxia_imperial_pack/manifest.json",
@@ -31,8 +32,13 @@ for mp in manifest_paths:
         for item in items:
             rel = item.get("file", "")
             if rel.lower().endswith(".glb"):
+                repo_path = prefix + rel
+                if repo_path not in repo_files_set:
+                    alternate = "assets/wuxia_imperial_pack/" + rel
+                    if alternate in repo_files_set:
+                        repo_path = alternate
                 item2 = dict(item)
-                item2["_repo_path"] = prefix + rel
+                item2["_repo_path"] = repo_path
                 item2["_manifest"] = mp
                 records.append(item2)
     except Exception as exc:
