@@ -73,3 +73,24 @@ twin-city-build-and-capture:
       - artifacts/landmark_sources.txt
       - artifacts/godot.log
       - artifacts/asset_fetch.log
+
+
+# Isolated transfer job: runs only on the five-building import branch.
+download-five-buildings:
+  stage: verify
+  image: python:3.11-slim-bookworm
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "assets/five-buildings-import"'
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ca-certificates curl
+    - rm -rf /var/lib/apt/lists/*
+    - python -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+  script:
+    - python ci/download_five_buildings.py 2>&1 | tee artifacts/five_buildings_transfer.log
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - artifacts/five_buildings/
+      - artifacts/five_buildings_transfer.log
