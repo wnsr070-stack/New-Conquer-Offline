@@ -1,7 +1,9 @@
 extends RefCounted
 class_name AssetLoader
+
 const DEFAULT_FALLBACK_ID := "boulder_01"
 const APPROVED_MANIFEST := "assets/universal_nature_pack/imperial_approved_assets.json"
+
 static func load_model(asset_id: String, fallback_id: String = DEFAULT_FALLBACK_ID) -> Node3D:
 	var manifest := _read_manifest()
 	if manifest.is_empty():
@@ -18,14 +20,19 @@ static func load_model(asset_id: String, fallback_id: String = DEFAULT_FALLBACK_
 	var fallback_path := _first_available_approved_asset(manifest)
 	if fallback_path != "":
 		push_warning("AssetLoader: trying first available approved model.")
-		return _load_gltf(fallback_path)
+		instance = _load_gltf(fallback_path)
+		if instance != null:
+			instance.name = "Fallback_FirstApproved"
+			return instance
 	push_warning("AssetLoader: no approved GLB could be loaded for '%s'." % asset_id)
 	return null
+
 static func _cache_root() -> String:
 	var configured := OS.get_environment("HF_ASSET_CACHE_DIR")
 	if configured.strip_edges() != "":
 		return configured.simplify_path()
 	return ProjectSettings.globalize_path("res://.cache/hf-assets").simplify_path()
+
 static func _read_manifest() -> Dictionary:
 	var path := _cache_root().path_join(APPROVED_MANIFEST)
 	if not FileAccess.file_exists(path):
@@ -40,6 +47,7 @@ static func _read_manifest() -> Dictionary:
 		push_warning("AssetLoader: approved manifest JSON is invalid.")
 		return {}
 	return parsed
+
 static func _resolve_asset_path(manifest: Dictionary, asset_id: String) -> String:
 	var categories: Dictionary = manifest.get("categories", {})
 	for category_value in categories.values():
@@ -54,6 +62,7 @@ static func _resolve_asset_path(manifest: Dictionary, asset_id: String) -> Strin
 					return ""
 				return _cache_root().path_join("assets/universal_nature_pack").path_join(relative_file)
 	return ""
+
 static func _first_available_approved_asset(manifest: Dictionary) -> String:
 	var nature: Dictionary = manifest.get("categories", {}).get("nature", {})
 	for asset_value in nature.get("assets", []):
@@ -65,11 +74,14 @@ static func _first_available_approved_asset(manifest: Dictionary) -> String:
 		if FileAccess.file_exists(candidate):
 			return candidate
 	return ""
+
 static func _load_gltf(path: String) -> Node3D:
 	if path.is_empty() or not FileAccess.file_exists(path):
 		return null
 	var document := GLTFDocument.new()
 	var state := GLTFState.new()
+	# Godot's GLTFDocument importer handles supported glTF extensions, including
+	# KHR_mesh_quantization, while decoding accessors into engine mesh data.
 	var err: Error = document.append_from_file(path, state)
 	if err != OK:
 		push_warning("AssetLoader: GLTFDocument append failed (%s): %s" % [err, path])

@@ -1,14 +1,20 @@
 extends Node3D
+
+# Explicit preload avoids relying on the editor-generated global class cache in CI.
+const AssetLoaderScript = preload("res://scripts/AssetLoader.gd")
+
 const SHOWCASE_ASSETS := [
 	{"id": "boulder_01", "position": Vector3(-5.0, 0.0, 0.0)},
 	{"id": "mountainside", "position": Vector3(0.0, 0.0, 0.0)},
 	{"id": "dead_tree_trunk", "position": Vector3(5.0, 0.0, 0.0)}
 ]
+
 func _ready() -> void:
 	_setup_lighting()
 	_load_showcase_models()
 	if OS.get_environment("CI_CAPTURE") == "1":
 		_capture_boot_image.call_deferred()
+
 func _setup_lighting() -> void:
 	var world_environment := WorldEnvironment.new()
 	var environment := Environment.new()
@@ -38,17 +44,19 @@ func _setup_lighting() -> void:
 	camera.current = true
 	camera.fov = 55.0
 	add_child(camera)
+
 func _load_showcase_models() -> void:
 	for item in SHOWCASE_ASSETS:
 		var asset_id := String(item["id"])
-		var model := AssetLoader.load_model(asset_id)
+		var model: Node3D = AssetLoaderScript.load_model(asset_id)
 		if model == null:
-			push_error("BootTest: no approved model could be loaded for " + asset_id)
+			push_error("BootTest: Auto-Fallback exhausted; no approved model for " + asset_id)
 			continue
 		model.name = asset_id
 		model.position = item["position"]
 		add_child(model)
-		print("BOOT_ASSET_OK:", asset_id)
+		print("BOOT_ASSET_OK: ", asset_id)
+
 func _capture_boot_image() -> void:
 	for frame_index in range(120):
 		await get_tree().process_frame
