@@ -50,7 +50,8 @@ func _lighting() -> void:
  sun.directional_shadow_mode=DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
  add_child(sun)
 
-func _box(name:String, size:Vector3, pos:Vector3, material:Material, parent:Node=self) -> MeshInstance3D:
+func _box(name:String, size:Vector3, pos:Vector3, material:Material, parent:Node=null) -> MeshInstance3D:
+ if parent==null: parent=self
  var node:=MeshInstance3D.new()
  node.name=name
  var mesh:=BoxMesh.new()
