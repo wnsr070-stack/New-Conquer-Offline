@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fetch approved nature and Twin City architecture; emit a runtime asset catalog."""
-import hashlib, json
+import hashlib, json, shutil
 from pathlib import Path
 from huggingface_hub import hf_hub_download, HfApi
 REPO_ID = "ZzwahwahzZ/clash-of-legends-terrain-assets"
@@ -20,6 +20,7 @@ CHERRY_BLOSSOM = {
  "cherry_blossom_detag": "engine/detag-cherry-blossom-tree-db1b6985/detag-cherry-blossom-tree-db1b6985.glb",
 }
 CACHE_ROOT = Path(".cache/hf-assets")
+WORKSPACE_ROOT = Path("assets/hf_imported")
 NATURE = "assets/universal_nature_pack/imperial_approved_assets.json"
 CITY = "assets/wuxia_imperial_pack/twin_city_selected_17_assets.json"
 IMPERIAL = "assets/wuxia_imperial_pack/manifest.json"
@@ -39,7 +40,12 @@ CANDIDATE_PREFIXES = (
  "opengameart-wooden-bridge-",
 )
 def download(name):
- return Path(hf_hub_download(repo_id=REPO_ID, repo_type="dataset", filename=name, local_dir=str(CACHE_ROOT)))
+ cached = Path(hf_hub_download(repo_id=REPO_ID, repo_type="dataset", filename=name, local_dir=str(CACHE_ROOT)))
+ target = WORKSPACE_ROOT / name
+ target.parent.mkdir(parents=True, exist_ok=True)
+ if cached.resolve() != target.resolve():
+  shutil.copy2(cached, target)
+ return target
 def digest(path):
  h=hashlib.sha256()
  with path.open("rb") as f:
@@ -52,6 +58,7 @@ def verify(path, item, label):
   raise RuntimeError(f"SHA256 mismatch: {label}")
  if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF":
   raise RuntimeError(f"Invalid GLB header: {label}")
+ print(f"ASSET_OK {label} size_mb={path.stat().st_size / (1024*1024):.2f} validation=PASS", flush=True)
 def main():
  catalog={}
  approved=json.loads(download(NATURE).read_text(encoding="utf-8"))
@@ -100,10 +107,13 @@ def main():
   path=download(repo_path)
   if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF": raise RuntimeError(f"Invalid candidate GLB: {repo_path}")
   catalog[Path(repo_path).stem]={"path":str(path),"kind":"candidate"}
-  print(f"CANDIDATE_GLB_OK {Path(repo_path).name}")
+  print(f"CANDIDATE_GLB_OK {Path(repo_path).name} size_mb={path.stat().st_size / (1024*1024):.2f} validation=PASS", flush=True)
  objaverse_root = CACHE_ROOT / "objaverse-clean-glb"
- metadata_path = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",
+ metadata_cached = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",
   filename="metadata.jsonl", local_dir=str(objaverse_root)))
+ metadata_path = WORKSPACE_ROOT / "objaverse-clean-glb/metadata.jsonl"
+ metadata_path.parent.mkdir(parents=True, exist_ok=True)
+ shutil.copy2(metadata_cached, metadata_path)
  metadata_by_path = {}
  for line in metadata_path.read_text(encoding="utf-8").splitlines():
   if not line.strip(): continue
@@ -116,8 +126,11 @@ def main():
   if not row: raise RuntimeError(f"Objaverse attribution metadata missing: {repo_path}")
   if row.get("license") not in ("CC0-1.0", "CC-BY-4.0", "CC0", "CC-BY"):
    raise RuntimeError(f"Unsupported or missing landmark license for {repo_path}: {row.get('license')}")
-  path = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",
+  cached_path = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",
    filename=repo_path, local_dir=str(objaverse_root)))
+  path = WORKSPACE_ROOT / "objaverse-clean-glb" / repo_path
+  path.parent.mkdir(parents=True, exist_ok=True)
+  shutil.copy2(cached_path, path)
   if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF":
    raise RuntimeError(f"Invalid landmark GLB: {repo_path}")
   kind = "landmark_preview" if asset_id.startswith("landmark_") else ("nature" if asset_id.startswith("cherry_blossom_") else "residential_building")
@@ -126,8 +139,8 @@ def main():
   print(f"OBJAVERSE_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')} | author={row.get('authors')}")
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
- out=Path(".cache/hf-assets/twin_city_runtime_assets.json")
+ out=WORKSPACE_ROOT / "twin_city_runtime_assets.json"
  out.parent.mkdir(parents=True,exist_ok=True)
  out.write_text(json.dumps(catalog,indent=2),encoding="utf-8")
- print(f"TWIN_CITY_ASSET_CATALOG_OK: {len(catalog)} entries; candidates={len(candidates)}")
+ print(f"TWIN_CITY_ASSET_CATALOG_OK: {len(catalog)} entries; candidates={len(candidates)}; workspace={WORKSPACE_ROOT}", flush=True)
 if __name__=="__main__": main()

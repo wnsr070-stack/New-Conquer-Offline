@@ -75,22 +75,44 @@ twin-city-build-and-capture:
       - artifacts/asset_fetch.log
 
 
-# Isolated transfer job: runs only on the five-building import branch.
-download-five-buildings:
+# Isolated eastern architecture preview; this job is restricted to the asset-test branch.
+preview-eastern-buildings:
   stage: verify
   image: python:3.11-slim-bookworm
   rules:
     - if: '$CI_COMMIT_BRANCH == "assets/five-buildings-import"'
   before_script:
     - apt-get update
-    - apt-get install -y --no-install-recommends ca-certificates curl
+    - apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0
     - rm -rf /var/lib/apt/lists/*
-    - python -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+    - mkdir -p .cache/godot artifacts assets/hf_imported
+    - python -m pip install --disable-pip-version-check --cache-dir "$PIP_CACHE_DIR" "huggingface_hub>=0.26,<1.0"
   script:
-    - python ci/download_five_buildings.py 2>&1 | tee artifacts/five_buildings_transfer.log
+    - |
+      set -euo pipefail
+      python ci/fetch_assets.py 2>&1 | tee artifacts/asset_fetch.log
+      if [ ! -x ".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64" ]; then
+        curl --fail --location --retry 3 "https://github.com/godotengine/godot/releases/download/$GODOT_VERSION-stable/Godot_v$GODOT_VERSION-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
+        unzip -o .cache/godot/godot.zip -d .cache/godot
+        chmod +x ".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64"
+      fi
+      GODOT_BIN=".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64"
+      "$GODOT_BIN" --version
+      "$GODOT_BIN" --headless --editor --path "$CI_PROJECT_DIR" --import --quit
+      xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --audio-driver Dummy --resolution 1920x1080 res://scenes/LandmarksPreview.tscn 2>&1 | tee artifacts/godot_preview.log
+      test -s artifacts/eastern_buildings_palace_preview.png
+      grep -q "LANDMARK_MODEL_OK: landmark_chinese_architecture" artifacts/godot_preview.log
+      grep -q "LANDMARK_MODEL_OK: landmark_big_chinese_house" artifacts/godot_preview.log
+      grep -q "LANDMARK_MODEL_OK: landmark_chinese_fireworks_shop" artifacts/godot_preview.log
+      grep -q "LANDMARK_MODEL_OK: 3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24" artifacts/godot_preview.log
+      grep -q "LANDMARK_DIMENSIONS_OK:" artifacts/godot_preview.log
+      grep -q "LANDMARKS_PREVIEW_CAPTURE_OK:" artifacts/godot_preview.log
+      ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|GLB import failed|LANDMARKS_PREVIEW_FAILED" artifacts/godot_preview.log
   artifacts:
     when: always
-    expire_in: 7 days
+    expire_in: 14 days
     paths:
-      - artifacts/five_buildings/
-      - artifacts/five_buildings_transfer.log
+      - assets/hf_imported/
+      - artifacts/asset_fetch.log
+      - artifacts/godot_preview.log
+      - artifacts/eastern_buildings_palace_preview.png
