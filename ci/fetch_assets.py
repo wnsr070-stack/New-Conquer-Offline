@@ -6,9 +6,18 @@ from huggingface_hub import hf_hub_download, HfApi
 REPO_ID = "ZzwahwahzZ/clash-of-legends-terrain-assets"
 OBJAVERSE_REPO_ID = "codepawl/objaverse-clean-glb"
 LANDMARKS = {
- "landmark_tea_house": "engine/teahouse-429e0904/teahouse-429e0904.glb",
- "landmark_quest_hall": "engine/chinese-temple-0ffd9067/chinese-temple-0ffd9067.glb",
- "landmark_forge_hall": "engine/stylized-chinese-blacksmith-adapted-d733793d/stylized-chinese-blacksmith-adapted-d733793d.glb",
+ "landmark_chinese_architecture": "engine/chinese-architecture-2287628c/chinese-architecture-2287628c.glb",
+ "landmark_big_chinese_house": "engine/big-house-in-china-style-51cf3958/big-house-in-china-style-51cf3958.glb",
+ "landmark_chinese_fireworks_shop": "engine/chinese-fireworks-shop-8acedb4a/chinese-fireworks-shop-8acedb4a.glb",
+}
+RESIDENTIAL = {
+ "obj_chinese_house": "engine/chinese-house-2bb6ef8d/chinese-house-2bb6ef8d.glb",
+ "obj_chinese_painter_villa": "engine/chinese-painter-s-little-house-dae-villa-8766d274/chinese-painter-s-little-house-dae-villa-8766d274.glb",
+ "obj_big_chinese_house": "engine/big-house-in-china-style-51cf3958/big-house-in-china-style-51cf3958.glb",
+}
+CHERRY_BLOSSOM = {
+ "cherry_blossom_lowmance": "engine/cherry-blossom-tree-lowmance-fcded529/cherry-blossom-tree-lowmance-fcded529.glb",
+ "cherry_blossom_detag": "engine/detag-cherry-blossom-tree-db1b6985/detag-cherry-blossom-tree-db1b6985.glb",
 }
 CACHE_ROOT = Path(".cache/hf-assets")
 NATURE = "assets/universal_nature_pack/imperial_approved_assets.json"
@@ -102,7 +111,7 @@ def main():
   metadata_by_path[row.get("file_name","")] = row
  credits = ["Objaverse Clean GLB (CodePawl), derived from Objaverse 1.0.",
   "Dataset: https://huggingface.co/datasets/codepawl/objaverse-clean-glb"]
- for asset_id, repo_path in LANDMARKS.items():
+ for asset_id, repo_path in {**RESIDENTIAL, **CHERRY_BLOSSOM, **LANDMARKS}.items():
   row = metadata_by_path.get(repo_path)
   if not row: raise RuntimeError(f"Objaverse attribution metadata missing: {repo_path}")
   if row.get("license") not in ("CC0-1.0", "CC-BY-4.0", "CC0", "CC-BY"):
@@ -111,9 +120,10 @@ def main():
    filename=repo_path, local_dir=str(objaverse_root)))
   if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF":
    raise RuntimeError(f"Invalid landmark GLB: {repo_path}")
-  catalog[asset_id] = {"path": str(path), "kind": "architecture"}
+  kind = "landmark_preview" if asset_id.startswith("landmark_") else ("nature" if asset_id.startswith("cherry_blossom_") else "residential_building")
+  catalog[asset_id] = {"path": str(path), "kind": kind}
   credits.append(f"{asset_id}: {row.get('title')} | author={row.get('authors')} | license={row.get('license')} | source={row.get('source_url')} | license_url={row.get('license_url')} | engine-tier GLB used for preview.")
-  print(f"LANDMARK_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')}")
+  print(f"OBJAVERSE_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')} | author={row.get('authors')}")
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
  out=Path(".cache/hf-assets/twin_city_runtime_assets.json")

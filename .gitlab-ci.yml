@@ -47,12 +47,17 @@ twin-city-build-and-capture:
       test -s artifacts/landmark_sources.txt
       grep -q "TWIN_CITY_BUILDINGS_PLACED: 244" artifacts/godot.log
       grep -q "TWIN_CITY_ARCHITECTURE_WHITELIST_OK: 3" artifacts/godot.log
+      grep -q "TWIN_CITY_MOAT_BOUNDS_OK: inner=164 outer=182 width=18 closed_square" artifacts/godot.log
+      grep -q "TWIN_CITY_BUILDING_CLEARANCE_MIN_M" artifacts/godot.log
+      grep -q "TWIN_CITY_CHERRY_BLOSSOMS_PLACED: 28" artifacts/godot.log
+      grep -q "TWIN_CITY_CORNER_TOWERS_PLACED: 4" artifacts/godot.log
+      grep -q "TWIN_CITY_GEOMETRY_CHECKPOINT_1_OK" artifacts/godot.log
       grep -q "TWIN_CITY_WALL_AND_GATE_PIECES_PLACED: 108" artifacts/godot.log
       grep -q "TWIN_CITY_GATES_PLACED: 4" artifacts/godot.log
       grep -q "TWIN_CITY_BRIDGES_PLACED: 4" artifacts/godot.log
-      grep -q "LANDMARK_MODEL_OK: landmark_tea_house" artifacts/godot.log
-      grep -q "LANDMARK_MODEL_OK: landmark_quest_hall" artifacts/godot.log
-      grep -q "LANDMARK_MODEL_OK: landmark_forge_hall" artifacts/godot.log
+      grep -q "LANDMARK_MODEL_OK: landmark_chinese_architecture" artifacts/godot.log
+      grep -q "LANDMARK_MODEL_OK: landmark_big_chinese_house" artifacts/godot.log
+      grep -q "LANDMARK_MODEL_OK: landmark_chinese_fireworks_shop" artifacts/godot.log
       grep -q "LANDMARKS_PREVIEW_CAPTURE_OK:" artifacts/godot.log
       grep -q "TWIN_CITY_CAPTURE_OK:" artifacts/godot.log
       ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log
