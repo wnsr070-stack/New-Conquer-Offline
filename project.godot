@@ -1,0 +1,22 @@
+; Engine configuration
+config_version=5
+[application]
+config/name="New Conquer Offline"
+run/main_scene="res://scenes/BootTest.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+[autoload]
+ClassSystem="*res://autoloads/ClassSystem.gd"
+GearDatabase="*res://autoloads/GearDatabase.gd"
+GearSystem="*res://autoloads/GearSystem.gd"
+GlobalEconomy="*res://autoloads/GlobalEconomy.gd"
+GameState="*res://autoloads/GameState.gd"
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.48, 0.68, 0.88, 1)
+textures/default_filters/use_nearest_mipmap_filter=false
