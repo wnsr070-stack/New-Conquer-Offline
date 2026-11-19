@@ -1,45 +1,92 @@
 extends Node3D
 const Assets = preload("res://scripts/AssetLoader.gd")
-const PALACE_ID := "3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24"
-const MODELS := [
- {"id":"landmark_chinese_architecture","height":20.0,"x":-48.0,"label":"CHINESE ARCHITECTURE"},
- {"id":"landmark_big_chinese_house","height":24.0,"x":-16.0,"label":"CHINESE HOUSE"},
- {"id":"landmark_chinese_fireworks_shop","height":18.0,"x":16.0,"label":"CHINESE FIREWORKS SHOP"},
- {"id":PALACE_ID,"height":30.0,"x":48.0,"label":"IMPERIAL PALACE"}
-]
+const ROOT := "res://assets/hf_imported"
+const KEYWORDS := ["building", "house", "palace", "castle", "temple", "pagoda", "gate", "hall", "forge", "blacksmith", "shop", "architecture", "tower", "shrine", "fortress", "pavilion", "dojo", "courtyard", "monastery", "bridge"]
+const COLUMNS := 5
+const CELL := 24.0
+var entries: Array[Dictionary] = []
+
 func _ready() -> void:
  _build_lighting()
- _build_stage()
- for item in MODELS:
-  var model: Node3D = Assets.load_model(item.id, "")
+ _build_grid_stage()
+ _collect_glbs(ROOT)
+ entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a.path).to_lower() < String(b.path).to_lower())
+ if entries.is_empty():
+  push_error("BUILDING_GRID_FAILED: no architectural GLB files matched")
+  get_tree().quit(1)
+  return
+ var rows := int(ceil(float(entries.size()) / float(COLUMNS)))
+ for i in range(entries.size()):
+  var item: Dictionary = entries[i]
+  var model := Assets._load_gltf(String(item.path))
   if model == null:
-   push_error("LANDMARKS_PREVIEW_FAILED: required model unavailable: " + item.id)
-   get_tree().quit(1)
-   return
-  Assets.fit_height(model, item.height)
-  model.position = Vector3(item.x, 0, 0)
+   print("BUILDING_MODEL_SKIPPED: ", item.path)
+   continue
+  var raw_bounds: AABB = Assets._measure_bounds(model, Transform3D.IDENTITY)
+  var raw_size: Vector3 = raw_bounds.size
+  Assets.fit_height(model, 8.0)
+  var col := i % COLUMNS
+  var row := int(i / COLUMNS)
+  model.position.x = (float(col) - float(COLUMNS - 1) / 2.0) * CELL
+  model.position.z = (float(row) - float(rows - 1) / 2.0) * CELL
   add_child(model)
-  var bounds: AABB = Assets._measure_bounds(model, Transform3D.IDENTITY)
-  var dimensions := Vector3(bounds.size.x, bounds.size.y, bounds.size.z)
-  print("LANDMARK_MODEL_OK: ", item.id)
-  print("LANDMARK_DIMENSIONS_OK: ", item.id, " width=", snappedf(dimensions.x, 0.01), "m height=", snappedf(dimensions.y, 0.01), "m depth=", snappedf(dimensions.z, 0.01), "m")
   var label := Label3D.new()
-  label.text = "%s\n%.2f x %.2f x %.2f m" % [item.label, dimensions.x, dimensions.y, dimensions.z]
-  label.font_size = 38
-  label.outline_size = 10
-  label.pixel_size = 0.012
+  label.text = "%s\n%.2f × %.2f × %.2f m" % [String(item.path).get_file(), raw_size.x, raw_size.y, raw_size.z]
+  label.font_size = 28
+  label.outline_size = 8
+  label.pixel_size = 0.009
   label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-  label.modulate = Color(1.0, 0.94, 0.78)
-  label.position = Vector3(item.x, item.height + 3.0, 0)
+  label.modulate = Color(1.0, 0.95, 0.82)
+  label.position = model.position + Vector3(0, 10.0, 0)
   add_child(label)
+  var line := "%03d | %s | %.3f x %.3f x %.3f m" % [i + 1, String(item.path).trim_prefix("res://"), raw_size.x, raw_size.y, raw_size.z]
+  print("BUILDING_GRID_MODEL_OK: ", line)
+  entries[i]["dimensions"] = raw_size
+ _write_manifest()
  var camera := Camera3D.new()
- camera.name = "EasternBuildingsPreviewCamera"
- camera.fov = 48.0
- camera.position = Vector3(0, 36, 118)
+ camera.name = "ArchitecturalRenderGridCamera"
+ camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+ camera.size = max(58.0, float(rows) * CELL + 18.0)
+ camera.position = Vector3(0, max(55.0, float(rows) * 15.0), max(90.0, float(rows) * 18.0))
  camera.current = true
  add_child(camera)
- camera.look_at(Vector3(0, 14, 0), Vector3.UP)
+ camera.look_at(Vector3(0, 3, 0), Vector3.UP)
  _capture.call_deferred()
+
+func _collect_glbs(path: String) -> void:
+ var dir := DirAccess.open(path)
+ if dir == null: return
+ dir.list_dir_begin()
+ var name := dir.get_next()
+ while name != "":
+  if name.begins_with("."):
+   name = dir.get_next()
+   continue
+  var full := path.path_join(name)
+  if dir.current_is_dir():
+   _collect_glbs(full)
+  elif name.to_lower().ends_with(".glb"):
+   var lower := name.to_lower()
+   var matched := false
+   for word in KEYWORDS:
+    if lower.contains(word):
+     matched = true
+     break
+   if matched:
+    entries.append({"path": full})
+  name = dir.get_next()
+ dir.list_dir_end()
+
+func _write_manifest() -> void:
+ var dir := ProjectSettings.globalize_path("res://artifacts")
+ DirAccess.make_dir_recursive_absolute(dir)
+ var file := FileAccess.open(dir.path_join("eastern_architecture_manifest.txt"), FileAccess.WRITE)
+ for item in entries:
+  if item.has("dimensions"):
+   var d: Vector3 = item.dimensions
+   file.store_line("%s | %.3f x %.3f x %.3f m" % [String(item.path).trim_prefix("res://"), d.x, d.y, d.z])
+ file.close()
+ print("BUILDING_GRID_MANIFEST_OK: ", entries.size(), " matching files")
 
 func _build_lighting() -> void:
  var world := WorldEnvironment.new()
@@ -48,63 +95,49 @@ func _build_lighting() -> void:
  var sky := Sky.new()
  var sky_material := ProceduralSkyMaterial.new()
  sky_material.sky_top_color = Color(0.12, 0.19, 0.29)
- sky_material.sky_horizon_color = Color(0.62, 0.69, 0.76)
+ sky_material.sky_horizon_color = Color(0.68, 0.73, 0.79)
  sky.sky_material = sky_material
  env.sky = sky
  env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
- env.ambient_light_energy = 0.72
+ env.ambient_light_energy = 0.9
  env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
- env.tonemap_exposure = 0.9
+ env.tonemap_exposure = 1.0
  world.environment = env
  add_child(world)
  var sun := DirectionalLight3D.new()
- sun.rotation_degrees = Vector3(-42, -32, 0)
- sun.light_energy = 0.82
+ sun.rotation_degrees = Vector3(-48, -32, 0)
+ sun.light_energy = 1.15
  sun.shadow_enabled = true
  add_child(sun)
  var fill := DirectionalLight3D.new()
  fill.rotation_degrees = Vector3(-18, 145, 0)
- fill.light_energy = 0.28
- fill.light_color = Color(0.72, 0.80, 1.0)
+ fill.light_energy = 0.42
+ fill.light_color = Color(0.78, 0.84, 1.0)
  add_child(fill)
 
-func _build_stage() -> void:
+func _build_grid_stage() -> void:
  var ground := MeshInstance3D.new()
  var plane := PlaneMesh.new()
- plane.size = Vector2(170, 90)
+ plane.size = Vector2(1800, 1800)
  ground.mesh = plane
- ground.position.y = -0.65
- var ground_mat := StandardMaterial3D.new()
- ground_mat.albedo_color = Color(0.12, 0.15, 0.18)
- ground_mat.roughness = 0.94
- ground.material_override = ground_mat
+ ground.position.y = -0.7
+ var mat := StandardMaterial3D.new()
+ mat.albedo_color = Color(0.16, 0.18, 0.20)
+ mat.roughness = 0.95
+ ground.material_override = mat
  add_child(ground)
- for x in [-48.0, -16.0, 16.0, 48.0]:
-  var plinth := MeshInstance3D.new()
-  var cylinder := CylinderMesh.new()
-  cylinder.top_radius = 12.0
-  cylinder.bottom_radius = 12.5
-  cylinder.height = 0.8
-  cylinder.radial_segments = 64
-  plinth.mesh = cylinder
-  plinth.position = Vector3(x, -0.25, 0)
-  var material := StandardMaterial3D.new()
-  material.albedo_color = Color(0.30, 0.23, 0.15)
-  material.roughness = 0.76
-  plinth.material_override = material
-  add_child(plinth)
 
 func _capture() -> void:
- for frame in range(30):
+ for frame in range(45):
   await get_tree().process_frame
  var dir := ProjectSettings.globalize_path("res://artifacts")
  DirAccess.make_dir_recursive_absolute(dir)
  var image := get_viewport().get_texture().get_image()
- var path := dir.path_join("eastern_buildings_palace_preview.png")
+ var path := dir.path_join("eastern_architecture_render_grid.png")
  var err := image.save_png(path)
  if err != OK:
-  push_error("LANDMARKS_PREVIEW_FAILED: could not save " + path)
+  push_error("BUILDING_GRID_FAILED: cannot save render grid")
   get_tree().quit(1)
   return
- print("LANDMARKS_PREVIEW_CAPTURE_OK: ", path)
+ print("BUILDING_GRID_CAPTURE_OK: ", path, " count=", entries.size())
  get_tree().quit(0)

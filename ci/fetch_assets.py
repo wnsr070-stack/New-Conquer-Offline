@@ -75,7 +75,7 @@ def main():
  for item in chosen:
   repo_path=f"assets/universal_nature_pack/{item['file']}"
   path=download(repo_path); verify(path,item,repo_path)
-  catalog[item["asset_id"]]={"path":str(path),"kind":"nature"}
+  catalog[item["asset_id"]]={"path": "res://" + path.as_posix(),"kind":"nature"}
   print(f"ASSET_OK {item['asset_id']}")
  curated=json.loads(download(CURATED).read_text(encoding="utf-8"))
  records={x.get("hf_path"):x for x in curated.get("assets",[])}
@@ -83,7 +83,7 @@ def main():
   item=records.get(repo_path)
   if not item or item.get("license")!="CC0 1.0 Universal": raise RuntimeError(f"CC0 license metadata missing: {repo_path}")
   path=download(repo_path); verify(path,item,repo_path)
-  catalog[Path(repo_path).stem]={"path":str(path),"kind":"nature"}
+  catalog[Path(repo_path).stem]={"path": "res://" + path.as_posix(),"kind":"nature"}
  city=json.loads(download(CITY).read_text(encoding="utf-8"))
  selected=city.get("assets",[])
  for item in selected:
@@ -91,7 +91,7 @@ def main():
   if not rel.endswith(".glb"): continue
   repo_path=f"assets/wuxia_imperial_pack/{rel}"
   path=download(repo_path); verify(path,item,repo_path)
-  catalog[item["asset_id"]]={"path":str(path),"kind":item.get("role",item.get("category","architecture"))}
+  catalog[item["asset_id"]]={"path": "res://" + path.as_posix(),"kind":item.get("role",item.get("category","architecture"))}
  imperial=json.loads(download(IMPERIAL).read_text(encoding="utf-8"))
  for category in imperial.get("assets",[]):
   if not category.get("twin_city_approved") and not category.get("twin_city_geometry_verified"): continue
@@ -99,14 +99,14 @@ def main():
   if not rel.endswith(".glb"): continue
   repo_path=f"assets/wuxia_imperial_pack/{rel}"
   path=download(repo_path); verify(path,category,repo_path)
-  catalog[category["asset_id"]]={"path":str(path),"kind":category.get("twin_city_role",category.get("category","architecture"))}
+  catalog[category["asset_id"]]={"path": "res://" + path.as_posix(),"kind":category.get("twin_city_role",category.get("category","architecture"))}
  api=HfApi()
  files=api.list_repo_files(repo_id=REPO_ID,repo_type="dataset")
  candidates=[x for x in files if x.startswith("assets/wuxia_imperial_pack/candidates/models/") and x.endswith(".glb") and Path(x).name.startswith(CANDIDATE_PREFIXES)]
  for repo_path in candidates:
   path=download(repo_path)
   if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF": raise RuntimeError(f"Invalid candidate GLB: {repo_path}")
-  catalog[Path(repo_path).stem]={"path":str(path),"kind":"candidate"}
+  catalog[Path(repo_path).stem]={"path": "res://" + path.as_posix(),"kind":"candidate"}
   print(f"CANDIDATE_GLB_OK {Path(repo_path).name} size_mb={path.stat().st_size / (1024*1024):.2f} validation=PASS", flush=True)
  objaverse_root = CACHE_ROOT / "objaverse-clean-glb"
  metadata_cached = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",

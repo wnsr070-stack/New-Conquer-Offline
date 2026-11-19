@@ -11,7 +11,10 @@ static func _cache_root() -> String:
 
 static func _read_catalog() -> Dictionary:
  if not _catalog.is_empty(): return _catalog
- var path := _cache_root().path_join("twin_city_runtime_assets.json")
+ var workspace_path := "res://assets/hf_imported/twin_city_runtime_assets.json"
+ var path := ProjectSettings.globalize_path(workspace_path)
+ if not FileAccess.file_exists(path):
+  path = _cache_root().path_join("twin_city_runtime_assets.json")
  if not FileAccess.file_exists(path): return {}
  var f := FileAccess.open(path,FileAccess.READ)
  if f == null: return {}
