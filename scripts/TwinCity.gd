@@ -42,11 +42,8 @@ func _mat(color:Color,roughness:=0.8,metallic:=0.0)->StandardMaterial3D:
 func _ground_and_moat() -> void:
  var ground:=MeshInstance3D.new(); var plane:=PlaneMesh.new(); plane.size=Vector2(330,330)
  ground.mesh=plane; ground.position.y=-0.25; ground.material_override=_mat(Color(0.36,0.43,0.31)); add_child(ground)
- var water:=MeshInstance3D.new(); var water_mesh:=PlaneMesh.new(); water_mesh.size=Vector2(250,250)
- water.mesh=water_mesh; water.position.y=-0.05
  var wm:=_mat(Color(0.04,0.66,0.72),0.18,0.25); wm.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA; wm.albedo_color.a=0.78
- water.material_override=wm; add_child(water)
- # Four 18m moat channels, leaving the city interior dry.
+ # Four 18m moat channels only; keep the city interior dry.
  for side in range(4):
   var channel:=MeshInstance3D.new(); var pm:=PlaneMesh.new()
   pm.size=Vector2(18,220) if side<2 else Vector2(220,18)
@@ -106,7 +103,21 @@ func _build_city() -> void:
     elif side==2: wall.position=Vector3(-100,0,t); wall.rotation.y=PI/2
     else: wall.position=Vector3(100,0,t); wall.rotation.y=-PI/2
     Assets.fit_height(wall,5.0); add_child(wall); walls+=1
- print("TWIN_CITY_WALL_SEGMENTS_PLACED: ",walls)
+ # Eight gatehouse posts frame the four cardinal entrances (two per gate).
+ var gate_proto:=Assets.load_model("polygonalmind-lunar-year-011")
+ var gate_posts:=0
+ if gate_proto!=null:
+  for side in range(4):
+   for post in range(2):
+    var gate_piece:=gate_proto.duplicate(true) as Node3D
+    var offset:float=-4.0 if post==0 else 4.0
+    if side==0: gate_piece.position=Vector3(offset,0,-100)
+    elif side==1: gate_piece.position=Vector3(offset,0,100); gate_piece.rotation.y=PI
+    elif side==2: gate_piece.position=Vector3(-100,0,offset); gate_piece.rotation.y=PI/2
+    else: gate_piece.position=Vector3(100,0,offset); gate_piece.rotation.y=-PI/2
+    Assets.fit_height(gate_piece,7.0); add_child(gate_piece); gate_posts+=1
+ print("TWIN_CITY_WALL_AND_GATE_PIECES_PLACED: ",walls+gate_posts)
+ print("TWIN_CITY_GATES_PLACED: ",4)
  # Four bridges, two stone and two wooden, span the 18m moat at the cardinal gates.
  for i in range(4):
   var bid:=STONE_BRIDGE if i%2==0 else WOOD_BRIDGE
