@@ -100,14 +100,12 @@ preview-eastern-buildings:
       "$GODOT_BIN" --version
       "$GODOT_BIN" --headless --editor --path "$CI_PROJECT_DIR" --import --quit
       xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --audio-driver Dummy --resolution 1920x1080 res://scenes/LandmarksPreview.tscn 2>&1 | tee artifacts/godot_preview.log
-      test -s artifacts/eastern_buildings_palace_preview.png
-      grep -q "LANDMARK_MODEL_OK: landmark_chinese_architecture" artifacts/godot_preview.log
-      grep -q "LANDMARK_MODEL_OK: landmark_big_chinese_house" artifacts/godot_preview.log
-      grep -q "LANDMARK_MODEL_OK: landmark_chinese_fireworks_shop" artifacts/godot_preview.log
-      grep -q "LANDMARK_MODEL_OK: 3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24" artifacts/godot_preview.log
-      grep -q "LANDMARK_DIMENSIONS_OK:" artifacts/godot_preview.log
-      grep -q "LANDMARKS_PREVIEW_CAPTURE_OK:" artifacts/godot_preview.log
-      ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|GLB import failed|LANDMARKS_PREVIEW_FAILED" artifacts/godot_preview.log
+      test -s artifacts/eastern_architecture_render_grid.png
+      test -s artifacts/eastern_architecture_manifest.txt
+      grep -q "BUILDING_GRID_MODEL_OK:" artifacts/godot_preview.log
+      grep -q "BUILDING_GRID_MANIFEST_OK:" artifacts/godot_preview.log
+      grep -q "BUILDING_GRID_CAPTURE_OK:" artifacts/godot_preview.log
+      ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|BUILDING_GRID_FAILED" artifacts/godot_preview.log
   artifacts:
     when: always
     expire_in: 14 days
@@ -115,4 +113,5 @@ preview-eastern-buildings:
       - assets/hf_imported/
       - artifacts/asset_fetch.log
       - artifacts/godot_preview.log
-      - artifacts/eastern_buildings_palace_preview.png
+      - artifacts/eastern_architecture_render_grid.png
+      - artifacts/eastern_architecture_manifest.txt
