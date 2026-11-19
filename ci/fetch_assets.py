@@ -4,6 +4,12 @@ import hashlib, json
 from pathlib import Path
 from huggingface_hub import hf_hub_download, HfApi
 REPO_ID = "ZzwahwahzZ/clash-of-legends-terrain-assets"
+OBJAVERSE_REPO_ID = "codepawl/objaverse-clean-glb"
+LANDMARKS = {
+ "landmark_tea_house": "engine/teahouse-429e0904/teahouse-429e0904.glb",
+ "landmark_quest_hall": "engine/chinese-temple-0ffd9067/chinese-temple-0ffd9067.glb",
+ "landmark_forge_hall": "engine/stylized-chinese-blacksmith-adapted-d733793d/stylized-chinese-blacksmith-adapted-d733793d.glb",
+}
 CACHE_ROOT = Path(".cache/hf-assets")
 NATURE = "assets/universal_nature_pack/imperial_approved_assets.json"
 CITY = "assets/wuxia_imperial_pack/twin_city_selected_17_assets.json"
@@ -86,6 +92,30 @@ def main():
   if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF": raise RuntimeError(f"Invalid candidate GLB: {repo_path}")
   catalog[Path(repo_path).stem]={"path":str(path),"kind":"candidate"}
   print(f"CANDIDATE_GLB_OK {Path(repo_path).name}")
+ objaverse_root = CACHE_ROOT / "objaverse-clean-glb"
+ metadata_path = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",
+  filename="metadata.jsonl", local_dir=str(objaverse_root)))
+ metadata_by_path = {}
+ for line in metadata_path.read_text(encoding="utf-8").splitlines():
+  if not line.strip(): continue
+  row = json.loads(line)
+  metadata_by_path[row.get("file_name","")] = row
+ credits = ["Objaverse Clean GLB (CodePawl), derived from Objaverse 1.0.",
+  "Dataset: https://huggingface.co/datasets/codepawl/objaverse-clean-glb"]
+ for asset_id, repo_path in LANDMARKS.items():
+  row = metadata_by_path.get(repo_path)
+  if not row: raise RuntimeError(f"Objaverse attribution metadata missing: {repo_path}")
+  if row.get("license") not in ("CC0-1.0", "CC-BY-4.0", "CC0", "CC-BY"):
+   raise RuntimeError(f"Unsupported or missing landmark license for {repo_path}: {row.get('license')}")
+  path = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",
+   filename=repo_path, local_dir=str(objaverse_root)))
+  if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF":
+   raise RuntimeError(f"Invalid landmark GLB: {repo_path}")
+  catalog[asset_id] = {"path": str(path), "kind": "architecture"}
+  credits.append(f"{asset_id}: {row.get('title')} | author={row.get('authors')} | license={row.get('license')} | source={row.get('source_url')} | license_url={row.get('license_url')} | engine-tier GLB used for preview.")
+  print(f"LANDMARK_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')}")
+ Path("artifacts").mkdir(parents=True, exist_ok=True)
+ Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
  out=Path(".cache/hf-assets/twin_city_runtime_assets.json")
  out.parent.mkdir(parents=True,exist_ok=True)
  out.write_text(json.dumps(catalog,indent=2),encoding="utf-8")

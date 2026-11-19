@@ -38,14 +38,24 @@ twin-city-build-and-capture:
       GODOT_BIN=".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64"
       "$GODOT_BIN" --version
       "$GODOT_BIN" --headless --editor --path "$CI_PROJECT_DIR" --import --quit
-      xvfb-run -a -s "-screen 0 1600x900x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --quit-after 900 2>&1 | tee artifacts/godot.log
+      xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --resolution 1920x1080 --quit-after 900 2>&1 | tee artifacts/godot.log
+      xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --resolution 1920x1080 res://scenes/LandmarksPreview.tscn 2>&1 | tee -a artifacts/godot.log
       test -s artifacts/twin_city_overview.png
       test -s artifacts/twin_city_palace_pagoda.png
       test -s artifacts/twin_city_gate_moat.png
+      test -s artifacts/landmarks_preview.png
+      test -s artifacts/landmark_sources.txt
       grep -q "TWIN_CITY_BUILDINGS_PLACED: 244" artifacts/godot.log
+      grep -q "TWIN_CITY_ARCHITECTURE_WHITELIST_OK: 3" artifacts/godot.log
+      grep -q "TWIN_CITY_WALL_AND_GATE_PIECES_PLACED: 108" artifacts/godot.log
+      grep -q "TWIN_CITY_GATES_PLACED: 4" artifacts/godot.log
       grep -q "TWIN_CITY_BRIDGES_PLACED: 4" artifacts/godot.log
+      grep -q "LANDMARK_MODEL_OK: landmark_tea_house" artifacts/godot.log
+      grep -q "LANDMARK_MODEL_OK: landmark_quest_hall" artifacts/godot.log
+      grep -q "LANDMARK_MODEL_OK: landmark_forge_hall" artifacts/godot.log
+      grep -q "LANDMARKS_PREVIEW_CAPTURE_OK:" artifacts/godot.log
       grep -q "TWIN_CITY_CAPTURE_OK:" artifacts/godot.log
-      ! grep -E "SCRIPT ERROR|Parse Error|TWIN_CITY_CAPTURE_FAILED" artifacts/godot.log
+      ! grep -E "ERROR:|SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log
   artifacts:
     when: always
     expire_in: 14 days
@@ -53,5 +63,7 @@ twin-city-build-and-capture:
       - artifacts/twin_city_overview.png
       - artifacts/twin_city_palace_pagoda.png
       - artifacts/twin_city_gate_moat.png
+      - artifacts/landmarks_preview.png
+      - artifacts/landmark_sources.txt
       - artifacts/godot.log
       - artifacts/asset_fetch.log

@@ -1,6 +1,7 @@
 extends Node3D
 const Assets = preload("res://scripts/AssetLoader.gd")
 const HOUSE_IDS := ["3dassets-feudal-japan-castle-town-tea-house-a168f962","3dassets-feudal-japan-castle-town-bath-house-f3524f03","3dassets-alpine-snow-village-cedar-sauna-house-b3b0d5b4"]
+const HOUSE_WHITELIST := ["3dassets-feudal-japan-castle-town-tea-house-a168f962","3dassets-feudal-japan-castle-town-bath-house-f3524f03","3dassets-alpine-snow-village-cedar-sauna-house-b3b0d5b4"]
 const PAGODA_ID := "innerscene-buddhist-temple-pagoda-c5ebacdc"
 const PALACE_ID := "3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24"
 const TREE_ID := "innerscene-japanese-maple-tree-565c1604"
@@ -67,12 +68,18 @@ func _build_city() -> void:
  # 244 real GLB building instances, laid out in ordered residential/commercial blocks.
  var house_prototypes:Array[Node3D]=[]
  for id in HOUSE_IDS:
-  var h:=Assets.load_model(id)
+  if not HOUSE_WHITELIST.has(id):
+   push_error("TWIN_CITY_ARCHITECTURE_WHITELIST_VIOLATION: " + id)
+   get_tree().quit(1)
+   return
+  var h:=Assets.load_model(id,"")
   if h!=null:
-   Assets.fit_height(h,10.0); house_prototypes.append(h)
- if house_prototypes.is_empty():
-  var fallback:=Assets.load_model("polygonalmind-lunar-year-014")
-  if fallback!=null: house_prototypes.append(fallback)
+   Assets.fit_height(h,10.0)
+   house_prototypes.append(h)
+ if house_prototypes.size() != HOUSE_WHITELIST.size():
+  push_error("TWIN_CITY_REQUIRED_ARCHITECTURE_MISSING: expected all three approved full-building models")
+  get_tree().quit(1)
+  return
  var placed:=0
  for z in range(16):
   for x in range(16):
@@ -85,7 +92,12 @@ func _build_city() -> void:
    house.rotation.y=float((x*3+z)%4)*PI/2
    add_child(house); placed+=1
   if placed>=244: break
+ if placed != 244:
+  push_error("TWIN_CITY_BUILDING_COUNT_FAILED: " + str(placed))
+  get_tree().quit(1)
+  return
  print("TWIN_CITY_BUILDINGS_PLACED: ",placed)
+ print("TWIN_CITY_ARCHITECTURE_WHITELIST_OK: 3 full-building GLBs; no furniture/props")
  # Closed square defensive wall: 108 GLB wall sections with four deliberate gate gaps.
  var wall_protos:Array[Node3D]=[]
  for id in WALL_IDS:

@@ -23,17 +23,17 @@ static func load_model(asset_id: String, fallback_id: String = DEFAULT_FALLBACK_
  var catalog := _read_catalog()
  var actual_id := asset_id
  if not catalog.has(actual_id):
-  push_warning("AssetLoader: missing '%s'; trying fallback '%s'." % [asset_id,fallback_id])
+  if fallback_id.is_empty():
+   push_error("AssetLoader: required asset is missing: " + asset_id)
+   return null
+  push_warning("AssetLoader: missing '%s'; trying explicit fallback '%s'." % [asset_id,fallback_id])
   actual_id = fallback_id
- if not catalog.has(actual_id):
-  for key in catalog:
-   if String(catalog[key].get("kind","")) in ["nature","architecture","candidate"]:
-    actual_id = String(key); break
  if not catalog.has(actual_id): return null
  if _prototypes.has(actual_id): return (_prototypes[actual_id] as Node3D).duplicate(true) as Node3D
  var path := String(catalog[actual_id].get("path",""))
  var instance := _load_gltf(path)
- if instance == null and actual_id != fallback_id: return load_model(fallback_id,"")
+ if instance == null and not fallback_id.is_empty() and actual_id != fallback_id:
+  return load_model(fallback_id,"")
  if instance == null: return null
  _prototypes[actual_id] = instance.duplicate(true)
  return instance
@@ -65,12 +65,12 @@ static func fit_height(model: Node3D, target_height: float) -> float:
 static func _measure_bounds(node: Node, parent_xform: Transform3D) -> AABB:
  var result := AABB()
  var has_bounds := false
- var xform := parent_xform * node.transform if node is Node3D else parent_xform
+ var xform: Transform3D = parent_xform * node.transform if node is Node3D else parent_xform
  if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
   var a := (node as MeshInstance3D).get_aabb()
   for i in range(8):
    var corner := a.position + Vector3((a.size.x if (i&1)!=0 else 0.0),(a.size.y if (i&2)!=0 else 0.0),(a.size.z if (i&4)!=0 else 0.0))
-   var point := xform * corner
+   var point: Vector3 = xform * corner
    if not has_bounds: result=AABB(point,Vector3.ZERO); has_bounds=true
    else: result=result.expand(point)
  for child in node.get_children():
