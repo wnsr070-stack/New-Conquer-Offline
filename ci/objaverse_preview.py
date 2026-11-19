@@ -40,22 +40,32 @@ CATEGORIES = {
    "avoid":["sword","anvil only","hammer","weapon","interior only","single tool"]
  }
 }
-def fetch(url, path, retries=4):
+def fetch(url, path, retries=2):
     if path.exists() and path.stat().st_size:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     for attempt in range(retries):
         try:
+            print(f"FETCH_START {path.name} attempt={attempt+1}/{retries}", flush=True)
             req=urllib.request.Request(url, headers={"User-Agent":"ObjaversePreview/1.0"})
-            with urllib.request.urlopen(req, timeout=90) as r, open(str(path)+".tmp","wb") as f:
+            received=0
+            with urllib.request.urlopen(req, timeout=30) as r, open(str(path)+".tmp","wb") as f:
                 while True:
                     b=r.read(1024*1024)
                     if not b: break
                     f.write(b)
+                    received += len(b)
             os.replace(str(path)+".tmp", path)
+            print(f"FETCH_OK {path.name} bytes={received}", flush=True)
             return
-        except Exception:
-            if attempt == retries-1: raise
+        except Exception as exc:
+            try:
+                Path(str(path)+".tmp").unlink(missing_ok=True)
+            except Exception:
+                pass
+            print(f"FETCH_RETRY {path.name} attempt={attempt+1}/{retries} error={type(exc).__name__}: {exc}", flush=True)
+            if attempt == retries-1:
+                raise RuntimeError(f"Download failed after {retries} attempts: {url}: {exc}") from exc
             time.sleep(2*(attempt+1))
 def flatten(v):
     if isinstance(v, dict):
@@ -85,10 +95,13 @@ def score(text, spec):
     return positive-negative
 def load_metadata_shard(i):
     shard=f"000-{i:03d}"
+    print(f"SHARD_START {shard}", flush=True)
     path=CACHE/"metadata"/(shard+".json.gz")
     fetch(f"{ROOT}/metadata/{shard}.json.gz",path)
     with gzip.open(path,"rt",encoding="utf-8") as f:
-        return shard,json.load(f)
+        data=json.load(f)
+    print(f"SHARD_READY {shard} records={len(data):,}", flush=True)
+    return shard,data
 def main():
     print("Downloading authoritative Objaverse 1.0 UID-to-path map...")
     paths_file=CACHE/"object-paths.json.gz"
