@@ -1,75 +1,31 @@
 stages:
-  - verify
-variables:
-  GODOT_VERSION: "4.3"
-  HF_HOME: "$CI_PROJECT_DIR/.cache/huggingface"
-  HF_ASSET_CACHE_DIR: "$CI_PROJECT_DIR/.cache/hf-assets"
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  LIBGL_ALWAYS_SOFTWARE: "1"
-  CI_CAPTURE: "1"
-  GIT_DEPTH: "1"
-cache:
-  key: "godot43-twin-city-$CI_COMMIT_REF_SLUG"
-  paths:
-    - .cache/godot/
-    - .cache/huggingface/
-    - .cache/hf-assets/
-    - .cache/pip/
-twin-city-build-and-capture:
-  stage: verify
-  image: python:3.11-slim-bookworm
+  - preview
+
+workflow:
   rules:
-    - if: '$CI_COMMIT_BRANCH == "twin-city/imperial-visual-prototype"'
+    - if: '$CI_COMMIT_BRANCH == "preview/objaverse-candidates"'
+    - when: never
+
+objaverse-visual-shortlist:
+  stage: preview
+  image: python:3.11-slim-bookworm
+  timeout: 3h
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "preview/objaverse-candidates"'
   before_script:
     - apt-get update
-    - apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0
+    - apt-get install -y --no-install-recommends xvfb libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libosmesa6 libx11-6 libxext6 libxrender1
     - rm -rf /var/lib/apt/lists/*
-    - mkdir -p .cache/godot artifacts
-    - python -m pip install --disable-pip-version-check --cache-dir "$PIP_CACHE_DIR" "huggingface_hub>=0.26,<1.0"
+    - python -m pip install --no-cache-dir "trimesh>=4.0,<5" "pyglet<2" pillow numpy
   script:
-    - |
-      set -euo pipefail
-      python ci/fetch_assets.py 2>&1 | tee artifacts/asset_fetch.log
-      if [ ! -x ".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64" ]; then
-        curl --fail --location --retry 3 "https://github.com/godotengine/godot/releases/download/$GODOT_VERSION-stable/Godot_v$GODOT_VERSION-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
-        unzip -o .cache/godot/godot.zip -d .cache/godot
-        chmod +x ".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64"
-      fi
-      GODOT_BIN=".cache/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64"
-      "$GODOT_BIN" --version
-      "$GODOT_BIN" --headless --editor --path "$CI_PROJECT_DIR" --import --quit
-      xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --audio-driver Dummy --resolution 1920x1080 --quit-after 900 2>&1 | tee artifacts/godot.log
-      xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --audio-driver Dummy --resolution 1920x1080 res://scenes/LandmarksPreview.tscn 2>&1 | tee -a artifacts/godot.log
-      test -s artifacts/twin_city_overview.png
-      test -s artifacts/twin_city_palace_pagoda.png
-      test -s artifacts/twin_city_gate_moat.png
-      test -s artifacts/landmarks_preview.png
-      test -s artifacts/landmark_sources.txt
-      grep -q "TWIN_CITY_BUILDINGS_PLACED:" artifacts/godot.log
-      grep -q "TWIN_CITY_QUADRANT_COUNTS_OK:" artifacts/godot.log
-      grep -q "TWIN_CITY_ARCHITECTURE_WHITELIST_OK: 3" artifacts/godot.log
-      grep -q "TWIN_CITY_MOAT_BOUNDS_OK: inner=164 outer=182 width=18 closed_square" artifacts/godot.log
-      grep -q "TWIN_CITY_BUILDING_CLEARANCE_MIN_M" artifacts/godot.log
-      grep -q "TWIN_CITY_CHERRY_BLOSSOMS_PLACED: 28" artifacts/godot.log
-      grep -q "TWIN_CITY_CORNER_TOWERS_PLACED: 4" artifacts/godot.log
-      grep -q "TWIN_CITY_GEOMETRY_CHECKPOINT_1_OK" artifacts/godot.log
-      grep -q "TWIN_CITY_WALL_AND_GATE_PIECES_PLACED: 108" artifacts/godot.log
-      grep -q "TWIN_CITY_GATES_PLACED: 4" artifacts/godot.log
-      grep -q "TWIN_CITY_BRIDGES_PLACED: 4" artifacts/godot.log
-      grep -q "LANDMARK_MODEL_OK: landmark_chinese_architecture" artifacts/godot.log
-      grep -q "LANDMARK_MODEL_OK: landmark_big_chinese_house" artifacts/godot.log
-      grep -q "LANDMARK_MODEL_OK: landmark_chinese_fireworks_shop" artifacts/godot.log
-      grep -q "LANDMARKS_PREVIEW_CAPTURE_OK:" artifacts/godot.log
-      grep -q "TWIN_CITY_CAPTURE_OK:" artifacts/godot.log
-      ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log
+    - mkdir -p artifacts
+    - xvfb-run -a -s "-screen 0 1280x1024x24" python ci/objaverse_preview.py 2>&1 | tee artifacts/preview.log
+    - test -s artifacts/objaverse_preview/manifest.json
+    - test "$(find artifacts/objaverse_preview -maxdepth 1 -name '*.png' | wc -l)" -eq 15
+    - grep -q "OBJAVERSE_PREVIEW_COMPLETE: 15 candidates rendered" artifacts/preview.log
   artifacts:
     when: always
-    expire_in: 14 days
+    expire_in: 30 days
     paths:
-      - artifacts/twin_city_overview.png
-      - artifacts/twin_city_palace_pagoda.png
-      - artifacts/twin_city_gate_moat.png
-      - artifacts/landmarks_preview.png
-      - artifacts/landmark_sources.txt
-      - artifacts/godot.log
-      - artifacts/asset_fetch.log
+      - artifacts/objaverse_preview/
+      - artifacts/preview.log
