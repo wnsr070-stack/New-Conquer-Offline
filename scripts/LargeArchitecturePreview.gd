@@ -33,7 +33,7 @@ func _ready() -> void:
  _write_filtered_manifest(measured)
  var batches := int(ceil(float(measured.size()) / float(BATCH_SIZE)))
  for batch_index in range(batches):
-  _clear_batch()
+  await _clear_batch()
   var start := batch_index * BATCH_SIZE
   var finish := mini(start + BATCH_SIZE, measured.size())
   for index in range(start, finish):
