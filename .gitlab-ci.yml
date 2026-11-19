@@ -1,5 +1,6 @@
 stages:
   - verify
+
 variables:
   GODOT_VERSION: "4.3"
   HF_HOME: "$CI_PROJECT_DIR/.cache/huggingface"
@@ -8,6 +9,7 @@ variables:
   LIBGL_ALWAYS_SOFTWARE: "1"
   CI_CAPTURE: "1"
   GIT_DEPTH: "1"
+
 cache:
   key: "godot43-twin-city-$CI_COMMIT_REF_SLUG"
   paths:
@@ -15,6 +17,15 @@ cache:
     - .cache/huggingface/
     - .cache/hf-assets/
     - .cache/pip/
+
+meshy-api-auth-check:
+  stage: verify
+  image: python:3.11-slim-bookworm
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "test/meshy-api-check"'
+  script:
+    - python ci/meshy_api_check.py
+
 twin-city-build-and-capture:
   stage: verify
   image: python:3.11-slim-bookworm
