@@ -18,11 +18,14 @@ objaverse-visual-shortlist:
     - rm -rf /var/lib/apt/lists/*
     - python -m pip install --no-cache-dir "trimesh>=4.0,<5" "pyglet<2" pillow numpy
   script:
-    - mkdir -p artifacts
-    - xvfb-run -a -s "-screen 0 1280x1024x24" python ci/objaverse_preview.py 2>&1 | tee artifacts/preview.log
-    - test -s artifacts/objaverse_preview/manifest.json
-    - test "$(find artifacts/objaverse_preview -maxdepth 1 -name '*.png' | wc -l)" -eq 15
-    - grep -q "OBJAVERSE_PREVIEW_COMPLETE: 15 candidates rendered" artifacts/preview.log
+    - |
+      set -euo pipefail
+      mkdir -p artifacts
+      xvfb-run -a -s "-screen 0 1280x1024x24" python ci/objaverse_preview.py 2>&1 | tee artifacts/preview.log
+      test -s artifacts/objaverse_preview/manifest.json
+      count=$(find artifacts/objaverse_preview -maxdepth 1 -name '*.png' | wc -l)
+      test "$count" -eq 15
+      grep -q "OBJAVERSE_PREVIEW_COMPLETE: 15 candidates rendered" artifacts/preview.log
   artifacts:
     when: always
     expire_in: 30 days
