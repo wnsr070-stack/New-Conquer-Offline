@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build a visual-only shortlist of 15 licensed Objaverse 1.0 GLBs."""
-import gzip, json, os, re, sys, time, urllib.request
+import gzip, json, os, re, sys, time, urllib.request, zlib
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 import trimesh
 from PIL import Image, ImageDraw, ImageFont
@@ -98,8 +98,12 @@ def load_metadata_shard(i):
     print(f"SHARD_START {shard}", flush=True)
     path=CACHE/"metadata"/(shard+".json.gz")
     fetch(f"{ROOT}/metadata/{shard}.json.gz",path)
-    with gzip.open(path,"rt",encoding="utf-8") as f:
-        data=json.load(f)
+    try:
+        with gzip.open(path,"rt",encoding="utf-8") as f:
+            data=json.load(f)
+    except (EOFError, zlib.error) as exc:
+        print(f"SHARD_CORRUPT_SKIP {shard} error={type(exc).__name__}: {exc}", flush=True)
+        return shard, None
     print(f"SHARD_READY {shard} records={len(data):,}", flush=True)
     return shard,data
 def main():
@@ -109,29 +113,32 @@ def main():
     with gzip.open(paths_file,"rt",encoding="utf-8") as f: object_paths=json.load(f)
     print(f"UID paths loaded: {len(object_paths):,}")
     best={k:[] for k in CATEGORIES}
-    print("Scanning the 160 official metadata shards (licenses and descriptions)...")
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures=[pool.submit(load_metadata_shard,i) for i in range(160)]
-        for fut in as_completed(futures):
-            shard,data=fut.result()
-            for uid,meta in data.items():
-                if uid not in object_paths or not isinstance(meta,dict): continue
-                lic,rawlic=normalize_license(meta)
-                if lic not in ALLOWED: continue
-                name=first(meta,["name","title","displayName","caption"])
-                author=first(meta,["author","creator","username","user"])
-                textblob=(name+" "+flatten(meta)).lower()
-                if not name: name=uid
-                for key,spec in CATEGORIES.items():
-                    sc=score(textblob,spec)
-                    if sc<=0: continue
-                    candidate={"uid":uid,"path":object_paths[uid],"name":name[:180],"author":author[:120],
-                               "license":lic,"license_raw":rawlic[:120],"score":sc,"shard":shard}
-                    if all(x["uid"]!=uid for x in best[key]):
-                        best[key].append(candidate)
-                        best[key].sort(key=lambda x:x["score"],reverse=True)
-                        best[key]=best[key][:12]
-            print(f"Scanned {shard}: shortlisted " + ", ".join(f"{k}={len(v)}" for k,v in best.items()), flush=True)
+    print("Scanning metadata shards sequentially; corrupt shards are skipped and scanning stops once all five categories have 3 eligible candidates...")
+    for shard_index in range(160):
+        shard,data=load_metadata_shard(shard_index)
+        if data is None:
+            continue
+        for uid,meta in data.items():
+            if uid not in object_paths or not isinstance(meta,dict): continue
+            lic,rawlic=normalize_license(meta)
+            if lic not in ALLOWED: continue
+            name=first(meta,["name","title","displayName","caption"])
+            author=first(meta,["author","creator","username","user"])
+            textblob=(name+" "+flatten(meta)).lower()
+            if not name: name=uid
+            for key,spec in CATEGORIES.items():
+                sc=score(textblob,spec)
+                if sc<=0: continue
+                candidate={"uid":uid,"path":object_paths[uid],"name":name[:180],"author":author[:120],
+                           "license":lic,"license_raw":rawlic[:120],"score":sc,"shard":shard}
+                if all(x["uid"]!=uid for x in best[key]):
+                    best[key].append(candidate)
+                    best[key].sort(key=lambda x:x["score"],reverse=True)
+                    best[key]=best[key][:12]
+        print(f"Scanned {shard}: shortlisted " + ", ".join(f"{k}={len(v)}" for k,v in best.items()), flush=True)
+        if all(len(items)>=3 for items in best.values()):
+            print("EARLY_EXIT: all five categories have 3 open-license candidates; skipping remaining metadata shards.",flush=True)
+            break
     chosen={}
     for key,items in best.items():
         if len(items)<3:
