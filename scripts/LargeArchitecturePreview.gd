@@ -113,8 +113,8 @@ func _add_model_card(item: Dictionary, slot: int) -> void:
   return
  var bounds: AABB = Assets._measure_bounds(model, Transform3D.IDENTITY)
  var dims: Vector3 = item.dimensions
- var footprint := max(dims.x, dims.z)
- var scale_factor := NORMALIZED_FOOTPRINT / max(footprint, 0.001)
+ var footprint: float = maxf(dims.x, dims.z)
+ var scale_factor: float = NORMALIZED_FOOTPRINT / maxf(footprint, 0.001)
  model.scale = Vector3.ONE * scale_factor
  var col := slot % 3
  var row := int(slot / 3)

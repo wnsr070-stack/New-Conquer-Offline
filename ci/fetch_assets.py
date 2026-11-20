@@ -80,6 +80,9 @@ def main():
  curated=json.loads(download(CURATED).read_text(encoding="utf-8"))
  records={x.get("hf_path"):x for x in curated.get("assets",[])}
  for repo_path in sorted(CC0):
+  if repo_path in {"settlement-terrain-source/curated-glb/nature/alpine_and_arctic_biomes.glb", "settlement-terrain-source/curated-glb/nature/date_palm.glb", "settlement-terrain-source/curated-glb/nature/willow_tree.glb"}:
+   print(f"PREVIEW_SKIP_GODOT43_INCOMPATIBLE_KHR_MESH_QUANTIZATION: {repo_path}", flush=True)
+   continue
   item=records.get(repo_path)
   if not item or item.get("license")!="CC0 1.0 Universal": raise RuntimeError(f"CC0 license metadata missing: {repo_path}")
   path=download(repo_path); verify(path,item,repo_path)
