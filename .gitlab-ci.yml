@@ -19,7 +19,7 @@ twin-city-build-and-capture:
   stage: verify
   image: python:3.11-slim-bookworm
   rules:
-    - if: '$CI_COMMIT_BRANCH == "twin-city/imperial-visual-prototype"'
+    - if: '$CI_COMMIT_BRANCH == "twin-city/imperial-visual-prototype" || $CI_COMMIT_BRANCH == "test/twin-city-checkpoint1-build"'
   before_script:
     - apt-get update
     - apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0
@@ -41,11 +41,20 @@ twin-city-build-and-capture:
       xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --audio-driver Dummy --resolution 1920x1080 --quit-after 900 2>&1 | tee artifacts/godot.log
       xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$CI_PROJECT_DIR" --rendering-driver opengl3 --audio-driver Dummy --resolution 1920x1080 res://scenes/LandmarksPreview.tscn 2>&1 | tee -a artifacts/godot.log
       test -s artifacts/twin_city_overview.png
-      test -s artifacts/twin_city_palace_pagoda.png
-      test -s artifacts/twin_city_gate_moat.png
-      test -s artifacts/landmarks_preview.png
+      test -s artifacts/twin_city_palace.png
+      test -s artifacts/twin_city_ne_pagoda.png
+      test -s artifacts/twin_city_nw_quest_hall.png
+      test -s artifacts/twin_city_se_tea_house.png
+      test -s artifacts/twin_city_sw_blacksmith.png
       test -s artifacts/landmark_sources.txt
-      grep -q "TWIN_CITY_BUILDINGS_PLACED:" artifacts/godot.log
+      grep -q "CHECKPOINT1_UNIFIED_DIRT_GROUND_OK:" artifacts/godot.log
+      grep -q "CHECKPOINT1_COBBLESTONE_PLAZA_OK:" artifacts/godot.log
+      grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
+      grep -q "CHECKPOINT1_ROTATED_AABB_REJECTION_OK:" artifacts/godot.log
+      grep -q "CHECKPOINT1_LANDMARK_OK: NE_PAGODA" artifacts/godot.log
+      grep -q "CHECKPOINT1_LANDMARK_OK: NW_QUEST_HALL" artifacts/godot.log
+      grep -q "CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE" artifacts/godot.log
+      grep -q "CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH" artifacts/godot.log
       grep -q "TWIN_CITY_QUADRANT_COUNTS_OK:" artifacts/godot.log
       grep -q "TWIN_CITY_ARCHITECTURE_WHITELIST_OK: 3" artifacts/godot.log
       grep -q "TWIN_CITY_MOAT_BOUNDS_OK: inner=164 outer=182 width=18 closed_square" artifacts/godot.log

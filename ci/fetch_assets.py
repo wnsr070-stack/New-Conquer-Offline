@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fetch approved nature and Twin City architecture; emit a runtime asset catalog."""
-import hashlib, json
+import hashlib, json, re, requests
 from pathlib import Path
 from huggingface_hub import hf_hub_download, HfApi
 REPO_ID = "ZzwahwahzZ/clash-of-legends-terrain-assets"
@@ -20,6 +20,73 @@ CHERRY_BLOSSOM = {
  "cherry_blossom_detag": "engine/detag-cherry-blossom-tree-db1b6985/detag-cherry-blossom-tree-db1b6985.glb",
 }
 CACHE_ROOT = Path(".cache/hf-assets")
+
+EXTERNAL = CACHE_ROOT / "external"
+DIRECT_ASSETS = {
+ "tea_house": "https://grab3d.com/dl/tea-house/tea-house.glb",
+ "quest_hall": "https://polyfork.dev/cdn/governor-s-audience-hall-a4d777.glb",
+ "blacksmith_forge": "https://tevy.dev/models/blacksmith-forge/v1/lod0.glb",
+ "cobblestone_diffuse": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_04/cobblestone_floor_04_diff_1k.jpg",
+ "cobblestone_normal": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/cobblestone_floor_04/cobblestone_floor_04_nor_gl_1k.png",
+ "cobblestone_roughness": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_04/cobblestone_floor_04_rough_1k.jpg",
+}
+POLY_PIZZA_PAGES = {
+ "paifang_gate": "https://poly.pizza/m/d7-hX-x14c",
+ "blacksmith_forge_poly": "https://poly.pizza/m/a1g7o8qQ1U",
+ "quest_hall_poly": "https://poly.pizza/m/5j1w-J0aK7",
+}
+def fetch_url(url,dest,glb=False):
+ dest.parent.mkdir(parents=True,exist_ok=True)
+ r=requests.get(url,timeout=90,headers={"User-Agent":"Mozilla/5.0 TwinCityAssetFetcher"})
+ r.raise_for_status()
+ if len(r.content)<20 or (glb and r.content[:4]!=b"glTF"): raise RuntimeError("invalid asset: "+url)
+ dest.write_bytes(r.content)
+ print("EXTERNAL_ASSET_OK:",dest.name,"bytes=",len(r.content))
+ return dest
+def poly_page_download(key,url):
+ try:
+  r=requests.get(url,timeout=60,headers={"User-Agent":"Mozilla/5.0"})
+  r.raise_for_status()
+  html=r.text.replace("\\u0026","&").replace("\\u002F","/")
+  urls=re.findall(r'https?[^" <>]+?\.glb(?:\?[^" <>]*)?',html,re.I)
+  for direct in urls:
+   try: return fetch_url(direct,EXTERNAL/(key+".glb"),True)
+   except Exception: pass
+  raise RuntimeError("no valid direct GLB URL")
+ except Exception as e:
+  print("POLY_PIZZA_OPTIONAL_MISS:",key,str(e))
+  return None
+def fetch_optional_guardian():
+ for term in ("lion","statue"):
+  try:
+   r=requests.get("https://poly.pizza/search/"+term,timeout=45,headers={"User-Agent":"Mozilla/5.0"})
+   r.raise_for_status()
+   links=re.findall(r'href=["\'](/m/[^"\']+)["\']',r.text)
+   for link in links[:12]:
+    try:
+     page=requests.get("https://poly.pizza"+link,timeout=45,headers={"User-Agent":"Mozilla/5.0"})
+     urls=re.findall(r'https?[^" <>]+?\.glb(?:\?[^" <>]*)?',page.text.replace("\\u0026","&"),re.I)
+     for direct in urls:
+      try: return fetch_url(direct,EXTERNAL/"guardian_lion_or_statue.glb",True)
+      except Exception: pass
+    except Exception: pass
+  except Exception as e: print("POLY_PIZZA_SEARCH_MISS:",term,str(e))
+ print("GUARDIAN_MODEL_NOT_FOUND: palace continues without lions; no placeholder")
+ return None
+def fetch_checkpoint_assets(catalog):
+ for key,url in DIRECT_ASSETS.items():
+  suffix=Path(url.split("?")[0]).suffix.lower()
+  path=fetch_url(url,EXTERNAL/(key+suffix),suffix==".glb")
+  catalog[key]={"path":str(path),"kind":"texture" if suffix in (".jpg",".png") else "architecture"}
+ for key,url in POLY_PIZZA_PAGES.items():
+  path=poly_page_download(key,url)
+  if path: catalog[key]={"path":str(path),"kind":"architecture"}
+ guardian=fetch_optional_guardian()
+ if guardian: catalog["guardian_lion_or_statue"]={"path":str(guardian),"kind":"guardian"}
+ stair=download("assets/wuxia_imperial_pack/models/polygonalmind-lunar-year-014.glb")
+ catalog["imperial_entrance_stairs"]={"path":str(stair),"kind":"building_entrance_stairs"}
+ print("CHECKPOINT1_EXTERNAL_ASSETS_OK")
+
 NATURE = "assets/universal_nature_pack/imperial_approved_assets.json"
 CITY = "assets/wuxia_imperial_pack/twin_city_selected_17_assets.json"
 IMPERIAL = "assets/wuxia_imperial_pack/manifest.json"
@@ -124,6 +191,7 @@ def main():
   catalog[asset_id] = {"path": str(path), "kind": kind}
   credits.append(f"{asset_id}: {row.get('title')} | author={row.get('authors')} | license={row.get('license')} | source={row.get('source_url')} | license_url={row.get('license_url')} | engine-tier GLB used for preview.")
   print(f"OBJAVERSE_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')} | author={row.get('authors')}")
+ fetch_checkpoint_assets(catalog)
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
  out=Path(".cache/hf-assets/twin_city_runtime_assets.json")
