@@ -51,8 +51,14 @@ func _lighting() -> void:
  add_child(sun)
 func _texture(key:String) -> Texture2D:
  var c:=Assets._read_catalog()
- if not c.has(key): return null
- return load(String(c[key].path)) as Texture2D
+ if not c.has(key): push_error("CHECKPOINT1_TEXTURE_CATALOG_MISSING: "+key); return null
+ var path:=String(c[key].get("path",""))
+ if path.is_empty() or not FileAccess.file_exists(path):
+  push_error("CHECKPOINT1_TEXTURE_FILE_MISSING: "+key+" "+path); return null
+ var img:=Image.load_from_file(path)
+ if img==null or img.is_empty():
+  push_error("CHECKPOINT1_TEXTURE_IMAGE_DECODE_FAILED: "+key); return null
+ return ImageTexture.create_from_image(img)
 func _cobble() -> StandardMaterial3D:
  var m:=_mat(Color.WHITE)
  var d:=_texture("cobblestone_diffuse")
@@ -61,7 +67,8 @@ func _cobble() -> StandardMaterial3D:
  if d: m.albedo_texture=d
  if n: m.normal_enabled=true; m.normal_texture=n
  if r: m.roughness_texture=r
- m.uv1_scale=Vector3(0.22,0.22,0.22)
+ m.uv1_scale=Vector3(0.16,0.16,0.16)
+ print("CHECKPOINT1_COBBLE_RUNTIME_IMAGE_TEXTURES_OK: diffuse=",d!=null," normal=",n!=null," roughness=",r!=null)
  return m
 func _place(id:String,pos:Vector3,height:=0.0,rot:=0.0,required:=true) -> Node3D:
  var n:=Assets.load_model(id,"")
@@ -93,10 +100,7 @@ func _build_city() -> void:
  square.position=Vector3(0,0.04,0)
  square.material_override=cobble
  add_child(square)
- var road:=_mat(Color(0.34,0.28,0.21))
- _box("NorthSouthMainStreet",Vector3(18,0.05,320),Vector3(0,0.02,0),road)
- _box("EastWestMainStreet",Vector3(320,0.05,18),Vector3(0,0.025,0),road)
- print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54")
+ print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54; runtime ImageTexture")
  var platform:=MeshInstance3D.new()
  platform.name="RoyalPalaceCobblestonePlatform_34x26x3_5"
  var platform_mesh:=BoxMesh.new()
@@ -104,6 +108,8 @@ func _build_city() -> void:
  platform.mesh=platform_mesh
  platform.position=Vector3(0,1.75,-75)
  platform.material_override=cobble
+ if platform.material_override is StandardMaterial3D:
+  (platform.material_override as StandardMaterial3D).uv1_scale=Vector3(0.16,0.16,0.16)
  add_child(platform)
  if _place(PALACE_ID,Vector3(0,3.5,-75),28.0,PI)==null: get_tree().quit(1); return
  var stairs:=_place("imperial_entrance_stairs",Vector3(0,0,-59),0.0,0.0)
@@ -127,11 +133,13 @@ func _build_city() -> void:
   {"id":"blacksmith_forge","pos":Vector3(-92,0,91),"rot":0.0,"height":12.0,"tag":"SW_BLACKSMITH"}
  ]
  for a in landmarks:
-  if _place(a.id,a.pos,a.height,a.rot)==null: get_tree().quit(1); return
+  var landmark:=_place(a.id,a.pos,a.height,a.rot)
+  if landmark==null: get_tree().quit(1); return
+  if a.tag=="SW_BLACKSMITH": print("CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK")
   print("CHECKPOINT1_LANDMARK_OK: ",a.tag," forecourt=5m")
- var paifang:=_place("paifang_gate",Vector3(92,0,-70),0.0,PI,false)
- if paifang!=null: print("CHECKPOINT1_PAIFANG_OK")
- else: print("CHECKPOINT1_PAIFANG_ASSET_UNAVAILABLE_NO_PLACEHOLDER")
+ var paifang:=_place("paifang_gate",Vector3(92,0,-70),10.0,PI,true)
+ if paifang==null: get_tree().quit(1); return
+ print("CHECKPOINT1_EASTERN_GATE_GLTF_APPEND_OK: modular temple architecture")
  var prototypes:Array[Node3D]=[]
  for id in HOUSE_IDS:
   var proto:=Assets.load_model(id,"")
@@ -203,9 +211,14 @@ func _capture() -> void:
   cam.position=spec.pos
   cam.fov=spec.fov
   cam.look_at(spec.target,Vector3.UP)
-  for i in range(24): await get_tree().process_frame
+  await RenderingServer.frame_post_draw
+  await RenderingServer.frame_post_draw
   var image:=get_viewport().get_texture().get_image()
   var path:=dir.path_join(spec.file)
-  if image.save_png(path)!=OK: push_error("TWIN_CITY_CAPTURE_FAILED: "+path); get_tree().quit(1); return
-  print("TWIN_CITY_CAPTURE_OK: ",path)
+  if image==null or image.is_empty() or image.save_png(path)!=OK:
+   push_error("TWIN_CITY_CAPTURE_FAILED: "+path); get_tree().quit(1); return
+  if not FileAccess.file_exists(path) or FileAccess.get_file_as_bytes(path).size()<1024:
+   push_error("TWIN_CITY_CAPTURE_FILE_INVALID: "+path); get_tree().quit(1); return
+  print("TWIN_CITY_CAPTURE_OK: ",path," bytes=",FileAccess.get_file_as_bytes(path).size())
+ print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
  get_tree().quit(0)

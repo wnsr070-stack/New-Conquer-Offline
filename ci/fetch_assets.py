@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fetch approved nature and Twin City architecture; emit a runtime asset catalog."""
-import hashlib, json, re, requests
+import hashlib, json, re, requests, subprocess
 from pathlib import Path
 from huggingface_hub import hf_hub_download, HfApi
 REPO_ID = "ZzwahwahzZ/clash-of-legends-terrain-assets"
@@ -31,7 +31,6 @@ DIRECT_ASSETS = {
  "cobblestone_roughness": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_04/cobblestone_floor_04_rough_1k.jpg",
 }
 POLY_PIZZA_PAGES = {
- "paifang_gate": "https://poly.pizza/m/d7-hX-x14c",
  "blacksmith_forge_poly": "https://poly.pizza/m/a1g7o8qQ1U",
  "quest_hall_poly": "https://poly.pizza/m/5j1w-J0aK7",
 }
@@ -77,6 +76,13 @@ def fetch_checkpoint_assets(catalog):
  for key,url in DIRECT_ASSETS.items():
   suffix=Path(url.split("?")[0]).suffix.lower()
   path=fetch_url(url,EXTERNAL/(key+suffix),suffix==".glb")
+  if key=="blacksmith_forge":
+   converted=EXTERNAL/"blacksmith_forge_godot43.glb"
+   subprocess.run(["gltfpack","-i",str(path),"-o",str(converted),"-noq"],check=True,timeout=180)
+   if not converted.is_file() or converted.stat().st_size<20 or converted.read_bytes()[:4]!=b"glTF":
+    raise RuntimeError("gltfpack produced an invalid standard GLB for blacksmith_forge")
+   path=converted
+   print("BLACKSMITH_GLTFPACK_DECOMPRESSED_OK:",path.stat().st_size)
   catalog[key]={"path":str(path),"kind":"texture" if suffix in (".jpg",".png") else "architecture"}
  for key,url in POLY_PIZZA_PAGES.items():
   path=poly_page_download(key,url)
@@ -192,6 +198,11 @@ def main():
   credits.append(f"{asset_id}: {row.get('title')} | author={row.get('authors')} | license={row.get('license')} | source={row.get('source_url')} | license_url={row.get('license_url')} | engine-tier GLB used for preview.")
   print(f"OBJAVERSE_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')} | author={row.get('authors')}")
  fetch_checkpoint_assets(catalog)
+ gate_id="opengameart-modular-temple-3d-models"
+ if gate_id not in catalog:
+  raise RuntimeError("No real modular Chinese temple architecture asset available for NE honor gate")
+ catalog["paifang_gate"]={"path":catalog[gate_id]["path"],"kind":"eastern_modular_temple_gate"}
+ print("CHECKPOINT1_EASTERN_GATE_SOURCE_OK:",catalog[gate_id]["path"])
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
  out=Path(".cache/hf-assets/twin_city_runtime_assets.json")
