@@ -62,8 +62,11 @@ twin-city-build-and-capture:
     expire_in: 14 days
     paths:
       - artifacts/twin_city_overview.png
-      - artifacts/twin_city_palace_pagoda.png
-      - artifacts/twin_city_gate_moat.png
+      - artifacts/twin_city_palace.png
+      - artifacts/twin_city_ne_pagoda.png
+      - artifacts/twin_city_nw_quest_hall.png
+      - artifacts/twin_city_se_tea_house.png
+      - artifacts/twin_city_sw_blacksmith.png
       - artifacts/landmarks_preview.png
       - artifacts/landmark_sources.txt
       - artifacts/godot.log
