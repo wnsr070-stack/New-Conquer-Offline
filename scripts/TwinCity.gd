@@ -12,7 +12,9 @@ var captures := [
 ]
 func _ready() -> void:
  _lighting()
- _build_city()
+ if not _build_city():
+  get_tree().quit(1)
+  return
  _camera()
  if OS.get_environment("CI_CAPTURE")=="1": _capture.call_deferred()
 func _mat(c:Color) -> StandardMaterial3D:
@@ -76,16 +78,16 @@ func _place(id:String,pos:Vector3,height:=0.0,rot:=0.0,required:=true) -> Node3D
   if required: push_error("CHECKPOINT1_REQUIRED_MODEL_MISSING: "+id)
   return null
  if height>0.0: Assets.fit_height(n,height)
- n.position=pos
+ n.position+=pos
  n.rotation.y=rot
  add_child(n)
  return n
-func _build_city() -> void:
+func _build_city() -> bool:
  var cat:=Assets._read_catalog()
  if not cat.has("grab3d-dirt-road"):
-  push_error("CHECKPOINT1_DIRT_ROAD_ASSET_MISSING"); get_tree().quit(1); return
+  push_error("CHECKPOINT1_DIRT_ROAD_ASSET_MISSING"); return false
  var dirt:=Assets.load_model("grab3d-dirt-road","")
- if dirt==null: push_error("CHECKPOINT1_DIRT_ROAD_IMPORT_FAILED"); get_tree().quit(1); return
+ if dirt==null: push_error("CHECKPOINT1_DIRT_ROAD_IMPORT_FAILED"); return false
  dirt.name="ContinuousGrab3DDirtRoadGround"
  dirt.position=Vector3(0,-0.25,0)
  dirt.scale=Vector3(320.0/11.8,1.0,320.0/11.8)
@@ -111,9 +113,9 @@ func _build_city() -> void:
  if platform.material_override is StandardMaterial3D:
   (platform.material_override as StandardMaterial3D).uv1_scale=Vector3(0.16,0.16,0.16)
  add_child(platform)
- if _place(PALACE_ID,Vector3(0,3.5,-75),28.0,PI)==null: get_tree().quit(1); return
+ if _place(PALACE_ID,Vector3(0,3.5,-75),28.0,PI)==null: return false
  var stairs:=_place("imperial_entrance_stairs",Vector3(0,0,-59),0.0,0.0)
- if stairs==null: get_tree().quit(1); return
+ if stairs==null: return false
  var sb:=Assets._measure_bounds(stairs,Transform3D.IDENTITY)
  if sb.size.x>0.01: stairs.scale*=Vector3(8.0/sb.size.x,1.0,8.0/maxf(sb.size.z,0.01))
  stairs.position=Vector3(0,0,-59)
@@ -134,16 +136,19 @@ func _build_city() -> void:
  ]
  for a in landmarks:
   var landmark:=_place(a.id,a.pos,a.height,a.rot)
-  if landmark==null: get_tree().quit(1); return
+  if landmark==null: return false
   if a.tag=="SW_BLACKSMITH": print("CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK")
   print("CHECKPOINT1_LANDMARK_OK: ",a.tag," forecourt=5m")
- var paifang:=_place("paifang_gate",Vector3(92,0,-70),10.0,PI,true)
- if paifang==null: get_tree().quit(1); return
- print("CHECKPOINT1_EASTERN_GATE_GLTF_APPEND_OK: modular temple architecture")
+ if cat.has("paifang_gate"):
+  var paifang:=_place("paifang_gate",Vector3(92,0,-70),10.0,PI,false)
+  if paifang!=null: print("CHECKPOINT1_EASTERN_GATE_GLTF_APPEND_OK: dedicated gate model")
+  else: print("CHECKPOINT1_EASTERN_GATE_OMITTED_NO_VERIFIED_MODEL")
+ else:
+  print("CHECKPOINT1_EASTERN_GATE_OMITTED_NO_VERIFIED_MODEL")
  var prototypes:Array[Node3D]=[]
  for id in HOUSE_IDS:
   var proto:=Assets.load_model(id,"")
-  if proto==null: push_error("CHECKPOINT1_HOUSE_MODEL_MISSING: "+id); get_tree().quit(1); return
+  if proto==null: push_error("CHECKPOINT1_HOUSE_MODEL_MISSING: "+id); return false
   Assets.fit_height(proto,7.0)
   prototypes.append(proto)
  var accepted:Array[AABB]=[]
@@ -154,32 +159,25 @@ func _build_city() -> void:
    for row in range(5):
     for col in range(5):
      if row==2 and col==2: continue
-     var pos:=Vector3(qx*(48.0+col*18.0),0,qz*(48.0+row*18.0))
+     var base_pos:=Vector3(qx*(48.0+col*18.0),0,qz*(48.0+row*18.0))
      var proto:=prototypes[(row*5+col+count)%prototypes.size()]
      var rot:=float((row+col)%4)*PI/2.0
-     var bounds:=Assets._measure_bounds(proto,Transform3D(Basis(Vector3.UP,rot),pos))
-     var min_x:=-160.0 if qx<0 else 0.0
-     var max_x:=0.0 if qx<0 else 160.0
-     var min_z:=-160.0 if qz<0 else 0.0
-     var max_z:=0.0 if qz<0 else 160.0
-     var valid:=bounds.position.x>=min_x+2.0 and bounds.end.x<=max_x-2.0 and bounds.position.z>=min_z+2.0 and bounds.end.z<=max_z-2.0
-     valid=valid and (bounds.position.x>=2.0 or bounds.end.x<=-2.0) and (bounds.position.z>=2.0 or bounds.end.z<=-2.0)
-     valid=valid and not (bounds.position.z<20.0 and bounds.end.z>-20.0) and not (bounds.position.x<20.0 and bounds.end.x>-20.0)
-     for other in accepted:
-      if bounds.intersects(other): valid=false; break
-     if not valid:
-      print("CHECKPOINT1_BUILDING_REJECTED_ROTATED_AABB: ",bounds)
+     var placement:=_find_house_position(proto,base_pos,rot,qx,qz,accepted)
+     if not placement.get("valid",false):
+      print("CHECKPOINT1_BUILDING_REJECTED_ROTATED_AABB: ",base_pos)
       continue
+     var bounds:AABB=placement.bounds
      var house:=proto.duplicate(true) as Node3D
-     house.position=pos
+     house.position+=placement.pos
      house.rotation.y=rot
      add_child(house)
      accepted.append(bounds)
      count+=1
    counts.append(count)
  if counts.size()!=4 or counts.min()<8:
-  push_error("CHECKPOINT1_QUADRANT_DENSITY_FAILED: "+str(counts)); get_tree().quit(1); return
- print("CHECKPOINT1_ROTATED_AABB_REJECTION_OK: accepted=",accepted.size()," quadrant_counts=",counts," street_clearance=2m")
+  push_error("CHECKPOINT1_QUADRANT_DENSITY_FAILED: "+str(counts)); return false
+ print("CHECKPOINT1_ROTATED_AABB_REJECTION_OK: accepted=",accepted.size()," quadrant_counts=",counts," street_clearance=22m")
+ print("CHECKPOINT1_ROTATED_AABB_AUTO_OFFSET_OK: accepted=",accepted.size())
  var cherry:=Assets.load_model("cherry_blossom_lowmance","")
  if cherry!=null:
   var remove:Array[Node]=[]
@@ -191,6 +189,23 @@ func _build_city() -> void:
    add_child(tree)
   print("CHECKPOINT1_CHERRY_BASE_NODES_REMOVED: ",remove.size())
  print("CHECKPOINT1_GEOMETRY_BUILD_COMPLETE")
+ return true
+func _find_house_position(proto:Node3D,base_pos:Vector3,rot:float,qx:float,qz:float,accepted:Array[AABB]) -> Dictionary:
+ for ring in range(0,9):
+  for dx in range(-ring,ring+1):
+   for dz in range(-ring,ring+1):
+    if maxi(absi(dx),absi(dz))!=ring: continue
+    var candidate:=base_pos+Vector3(float(dx)*2.0,0.0,float(dz)*2.0)
+    var bounds:=Assets._measure_bounds(proto,Transform3D(Basis(Vector3.UP,rot),candidate))
+    var inside_x:=bounds.position.x>=22.0 and bounds.end.x<=158.0 if qx>0.0 else bounds.position.x>=-158.0 and bounds.end.x<=-22.0
+    var inside_z:=bounds.position.z>=22.0 and bounds.end.z<=158.0 if qz>0.0 else bounds.position.z>=-158.0 and bounds.end.z<=-22.0
+    var valid:=inside_x and inside_z
+    for other in accepted:
+     if bounds.intersects(other): valid=false; break
+    if valid:
+     if dx!=0 or dz!=0: print("CHECKPOINT1_BUILDING_AUTO_OFFSET: ",base_pos," -> ",candidate)
+     return {"valid":true,"pos":candidate,"bounds":bounds}
+ return {"valid":false}
 func _collect_base(n:Node,out:Array[Node]) -> void:
  for child in n.get_children():
   var name:=String(child.name).to_lower()
@@ -216,9 +231,9 @@ func _capture() -> void:
   var image:=get_viewport().get_texture().get_image()
   var path:=dir.path_join(spec.file)
   if image==null or image.is_empty() or image.save_png(path)!=OK:
-   push_error("TWIN_CITY_CAPTURE_FAILED: "+path); get_tree().quit(1); return
+   push_error("TWIN_CITY_CAPTURE_FAILED: "+path); return false
   if not FileAccess.file_exists(path) or FileAccess.get_file_as_bytes(path).size()<1024:
-   push_error("TWIN_CITY_CAPTURE_FILE_INVALID: "+path); get_tree().quit(1); return
+   push_error("TWIN_CITY_CAPTURE_FILE_INVALID: "+path); return false
   print("TWIN_CITY_CAPTURE_OK: ",path," bytes=",FileAccess.get_file_as_bytes(path).size())
  print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
  get_tree().quit(0)

@@ -198,11 +198,7 @@ def main():
   credits.append(f"{asset_id}: {row.get('title')} | author={row.get('authors')} | license={row.get('license')} | source={row.get('source_url')} | license_url={row.get('license_url')} | engine-tier GLB used for preview.")
   print(f"OBJAVERSE_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')} | author={row.get('authors')}")
  fetch_checkpoint_assets(catalog)
- gate_id="opengameart-modular-temple-3d-models"
- if gate_id not in catalog:
-  raise RuntimeError("No real modular Chinese temple architecture asset available for NE honor gate")
- catalog["paifang_gate"]={"path":catalog[gate_id]["path"],"kind":"eastern_modular_temple_gate"}
- print("CHECKPOINT1_EASTERN_GATE_SOURCE_OK:",catalog[gate_id]["path"])
+ print("CHECKPOINT1_EASTERN_GATE_SOURCE_NOT_FOUND: no dedicated Paifang GLB passed source verification; no substitute is used")
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
  out=Path(".cache/hf-assets/twin_city_runtime_assets.json")

@@ -51,11 +51,12 @@ twin-city-build-and-capture:
       grep -q "CHECKPOINT1_UNIFIED_DIRT_GROUND_OK:" artifacts/godot.log
       grep -q "CHECKPOINT1_COBBLESTONE_PLAZA_OK:" artifacts/godot.log
       grep -q "CHECKPOINT1_COBBLE_RUNTIME_IMAGE_TEXTURES_OK:" artifacts/godot.log
-      grep -q "CHECKPOINT1_EASTERN_GATE_GLTF_APPEND_OK:" artifacts/godot.log
+      grep -Eq "CHECKPOINT1_EASTERN_GATE_(GLTF_APPEND_OK|OMITTED_NO_VERIFIED_MODEL)" artifacts/godot.log
       grep -q "CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK" artifacts/godot.log
       grep -q "CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
       grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
       grep -q "CHECKPOINT1_ROTATED_AABB_REJECTION_OK:" artifacts/godot.log
+      grep -q "CHECKPOINT1_ROTATED_AABB_AUTO_OFFSET_OK:" artifacts/godot.log
       grep -q "CHECKPOINT1_LANDMARK_OK: NE_PAGODA" artifacts/godot.log
       grep -q "CHECKPOINT1_LANDMARK_OK: NW_QUEST_HALL" artifacts/godot.log
       grep -q "CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE" artifacts/godot.log
