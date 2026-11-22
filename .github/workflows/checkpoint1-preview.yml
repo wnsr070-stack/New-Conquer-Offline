@@ -186,7 +186,7 @@ jobs:
             artifacts/wilderness_western_plateau.png
             artifacts/wilderness_south_plaza.png
             artifacts/wilderness_river_overview.png
-            artifacts/wilderness_river_north_bridge.png
+            artifacts/wilderness_river_north_waterfall.png
             artifacts/wilderness_river_east_bridge.png
             artifacts/wilderness_river_south_bridge.png
             artifacts/wilderness_river_west_bend.png
@@ -236,8 +236,13 @@ jobs:
           grep -q "CHECKPOINT3_FOUR_REAL_BRIDGES_OK: 4 HF GLB bridge instances" artifacts/godot.log
           grep -q "CHECKPOINT3_RIVER_WIDTH_OK: 20m turquoise winding course" artifacts/godot.log
           grep -q "CHECKPOINT3_RIVER_BANKS_OK: paired natural sandy shore ribbons" artifacts/godot.log
-          grep -q "CHECKPOINT3_WATER_EDGE_ROCKS_OK: 8 rock_face and boulder placements" artifacts/godot.log
-          for image in wilderness_river_overview.png wilderness_river_north_bridge.png wilderness_river_east_bridge.png wilderness_river_south_bridge.png wilderness_river_west_bend.png wilderness_river_south_bank.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
+          grep -q "CHECKPOINT3_WATERFALL_ASSETS_OK: rock_face_01 rock_face_02 boulder_01" artifacts/godot.log
+          grep -q "CHECKPOINT3_WATERFALL_CASCADE_OK: angle=69.8deg width=19m top_y=30m pool_y=0.12m" artifacts/godot.log
+          grep -q "CHECKPOINT3_PLUNGE_POOL_OK: circular diameter=34m" artifacts/godot.log
+          grep -q "CHECKPOINT3_RIVER_OPEN_SOURCE_TO_MOUTH_OK: start=(-260,-520) waterfall pool; end=(-420,950)" artifacts/godot.log
+          grep -q "CHECKPOINT3_RIVER_CLEARANCE_OK:" artifacts/godot.log
+          grep -q "CHECKPOINT3_WATER_EDGE_ROCKS_OK: 12 imported rock_face and boulder placements" artifacts/godot.log
+          for image in wilderness_river_overview.png wilderness_river_north_waterfall.png wilderness_river_east_bridge.png wilderness_river_south_bridge.png wilderness_river_west_bend.png wilderness_river_south_bank.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "GODOT_RESOURCE_CLEANUP_COMPLETE:" artifacts/godot.log
           for image in wilderness_overview.png wilderness_snowy_mountains.png wilderness_bridge_grass.png wilderness_eastern_plateau.png wilderness_western_plateau.png wilderness_south_plaza.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
