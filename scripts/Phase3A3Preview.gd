@@ -36,8 +36,17 @@ func capture_all() -> void:
             push_error("PHASE3A3_CAPTURE_FAILED: scene "+shot.scene)
             get_tree().quit(1)
             return
-        var city=packed.instantiate()
-        add_child(city)
+        var city_root: Node3D = packed.instantiate() as Node3D
+        if city_root == null:
+            push_error("PHASE3A3_CAPTURE_FAILED: city root is not Node3D for " + shot.scene)
+            get_tree().quit(1)
+            return
+        add_child(city_root)
+        await get_tree().process_frame
+        if city_root.get_child_count() <= 5:
+            push_error("PHASE3A3_CITY_BUILD_FAILED: " + shot.scene + " has only " + str(city_root.get_child_count()) + " children; expected more than 5 built objects")
+            get_tree().quit(1)
+            return
         camera.position=shot.pos
         camera.fov=shot.fov
         camera.look_at(shot.target,Vector3.UP)
@@ -53,13 +62,13 @@ func capture_all() -> void:
         var f=FileAccess.open(path,FileAccess.READ)
         var bytes=f.get_length() if f!=null else 0
         if f!=null: f.close()
-        if bytes<1024:
-            push_error("PHASE3A3_CAPTURE_FAILED: invalid file "+shot.file)
+        if bytes<=15000:
+            push_error("PHASE3A3_CAPTURE_FAILED: image is not larger than 15000 bytes: "+shot.file+" bytes="+str(bytes))
             get_tree().quit(1)
             return
         print("PHASE3A3_CAPTURE_DONE: ",shot.file," bytes=",bytes)
-        remove_child(city)
-        city.queue_free()
+        remove_child(city_root)
+        city_root.queue_free()
         await get_tree().process_frame
     print("PHASE3A3_ALL_SIX_CAPTURES_COMPLETE")
     get_tree().quit(0)

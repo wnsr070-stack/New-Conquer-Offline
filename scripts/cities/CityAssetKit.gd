@@ -61,8 +61,11 @@ static func portal(root: Node3D, destination: String, pos: Vector3) -> void:
     collision.position.y=2.0
     area.add_child(collision)
     area.body_entered.connect(func(body: Node3D) -> void:
-        var manager=get_node_or_null("/root/WorldMapManager")
-        if body.is_in_group("player") and manager!=null: manager.travel_to_city(destination)
+        var main_loop: MainLoop = Engine.get_main_loop()
+        var scene_tree: SceneTree = main_loop as SceneTree
+        var manager: Node = scene_tree.root.get_node_or_null("WorldMapManager") if scene_tree != null else null
+        if body.is_in_group("player") and manager != null:
+            manager.call("travel_to_city", destination)
     )
     root.add_child(area)
     place(root,"innerscene-buddhist-temple-pagoda-c5ebacdc",pos+Vector3(0,0,-5),5.0,0.0,Color(0.72,0.62,0.36))

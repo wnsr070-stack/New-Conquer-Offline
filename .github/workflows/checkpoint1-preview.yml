@@ -170,7 +170,11 @@ jobs:
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1
           CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3A3Preview.tscn 2>&1 | tee artifacts/phase3a3.log
-          for image in city_phoenix_castle.png city_ape_mountain.png city_desert_city.png city_bird_island.png city_desert_oasis_closeup.png city_bird_island_bridges_closeup.png; do test -s "artifacts/$image"; done
+          for image in city_phoenix_castle.png city_ape_mountain.png city_desert_city.png city_bird_island.png city_desert_oasis_closeup.png city_bird_island_bridges_closeup.png; do
+            test -s "artifacts/$image"
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small: $size bytes (expected > 15000)"; exit 1; }
+          done
           grep -q "PHASE3A3_ALL_SIX_CAPTURES_COMPLETE" artifacts/phase3a3.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3A3_CAPTURE_FAILED|PHASE3A3_REQUIRED_ASSET_MISSING" artifacts/phase3a3.log
 
