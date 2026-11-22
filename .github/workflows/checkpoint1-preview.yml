@@ -1,104 +1,162 @@
 name: Twin City Checkpoint 1 Preview
-
 on:
   push:
-    branches:
-      - 'test/**'
+    branches: ['test/**']
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: checkpoint1-preview-${{ github.ref }}
   cancel-in-progress: false
-
+env:
+  GODOT_VERSION: "4.3"
+  GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
+  HF_HOME: ${{ github.workspace }}/.cache/huggingface
+  HF_ASSET_CACHE_DIR: ${{ github.workspace }}/.cache/hf-assets
+  PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
+  LIBGL_ALWAYS_SOFTWARE: "1"
+  CI_CAPTURE: "1"
 jobs:
-  twin-city-build-and-capture:
-    name: Godot 4.3 build and six captures
+  prepare-assets-and-tools:
+    name: Prepare cached Godot, gltfpack and verified assets
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    env:
-      GODOT_VERSION: "4.3"
-      HF_HOME: ${{ github.workspace }}/.cache/huggingface
-      HF_ASSET_CACHE_DIR: ${{ github.workspace }}/.cache/hf-assets
-      PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
-      LIBGL_ALWAYS_SOFTWARE: "1"
-      CI_CAPTURE: "1"
+    timeout-minutes: 25
     steps:
-      - name: Checkout checkpoint branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-
-      - name: Install runtime dependencies
-        shell: bash
+      - name: Cache Godot 4.3
+        uses: actions/cache@v4
+        with:
+          path: .cache/godot
+          key: godot-4.3-linux-x64-v1
+      - name: Cache gltfpack
+        uses: actions/cache@v4
+        with:
+          path: .cache/tools
+          key: twin-city-tools-linux-v1
+      - name: Cache Hugging Face and external assets
+        id: assets
+        uses: actions/cache@v4
+        with:
+          path: .cache/hf-assets
+          key: twin-city-hf-assets-v3-${{ hashFiles('ci/fetch_assets.py') }}
+      - name: Install preparation dependencies
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            ca-certificates curl unzip python3-pip python3-venv \
-            xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 \
-            libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 \
-            libpulse0 libfontconfig1 libxkbcommon0 nodejs npm
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip python3-pip python3-venv
           sudo rm -rf /var/lib/apt/lists/*
-          mkdir -p .cache/godot artifacts
-
-      - name: Install Python and gltfpack
-        shell: bash
+          mkdir -p .cache/godot .cache/tools .cache/hf-assets artifacts
+      - name: Install Godot if cache is empty
         run: |
           set -euo pipefail
-          python3 -m venv .venv
-          .venv/bin/python -m pip install --disable-pip-version-check \
-            --cache-dir "$PIP_CACHE_DIR" "huggingface_hub>=0.26,<1.0" requests
-          sudo npm install --global gltfpack
-          command -v gltfpack
-
-      - name: Download Godot 4.3
-        shell: bash
-        run: |
-          set -euo pipefail
-          GODOT_BIN=".cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
           if [ ! -x "$GODOT_BIN" ]; then
-            curl --fail --location --retry 3 \
-              "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" \
-              --output .cache/godot/godot.zip
+            curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
             unzip -o .cache/godot/godot.zip -d .cache/godot
             chmod +x "$GODOT_BIN"
           fi
           "$GODOT_BIN" --version
-          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
-
-      - name: Fetch verified Hugging Face assets
+      - name: Install gltfpack if cache is empty
+        run: |
+          set -euo pipefail
+          if [ ! -x .cache/tools/bin/gltfpack ]; then npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack; fi
+          .cache/tools/bin/gltfpack --help >/dev/null
+          echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
+      - name: Install Python fetch dependencies
+        run: |
+          set -euo pipefail
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check --cache-dir "$PIP_CACHE_DIR" "huggingface_hub>=0.26,<1.0" hf_transfer requests
+      - name: Fetch approved assets only on cache miss
+        if: steps.assets.outputs.cache-hit != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        shell: bash
+          HF_HUB_ENABLE_HF_TRANSFER: "1"
         run: |
           set -euo pipefail
-          if [ -z "${HF_TOKEN:-}" ]; then
-            echo "::error::GitHub Actions secret HF_TOKEN is missing."
-            exit 1
-          fi
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
           .venv/bin/python ci/fetch_assets.py 2>&1 | tee artifacts/asset_fetch.log
-
-      - name: Import Godot project
-        shell: bash
+          test -s .cache/hf-assets/twin_city_runtime_assets.json
+          test -s artifacts/landmark_sources.txt
+          cp artifacts/landmark_sources.txt .cache/hf-assets/landmark_sources.txt
+      - name: Reuse cached asset source report
+        if: steps.assets.outputs.cache-hit == 'true'
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit
+          test -s .cache/hf-assets/twin_city_runtime_assets.json
+          test -s .cache/hf-assets/landmark_sources.txt
+          cp .cache/hf-assets/landmark_sources.txt artifacts/landmark_sources.txt
+          echo "HF_ASSET_CACHE_HIT: no asset re-download required"
+      - name: Upload preparation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twin-city-asset-preparation-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            artifacts/asset_fetch.log
+            artifacts/landmark_sources.txt
 
+  render-checkpoint1:
+    name: Import project and render six Twin City views
+    needs: prepare-assets-and-tools
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install rendering runtime dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0
+          sudo rm -rf /var/lib/apt/lists/*
+          mkdir -p .cache/godot .cache/tools .cache/hf-assets artifacts
+      - name: Restore Godot 4.3 cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/godot
+          key: godot-4.3-linux-x64-v1
+      - name: Restore gltfpack cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/tools
+          key: twin-city-tools-linux-v1
+      - name: Restore approved asset cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/hf-assets
+          key: twin-city-hf-assets-v3-${{ hashFiles('ci/fetch_assets.py') }}
+      - name: Restore Godot imported resources
+        uses: actions/cache@v4
+        with:
+          path: .godot/imported
+          key: godot43-imported-v2-${{ hashFiles('project.godot', 'scenes/**/*.tscn', 'scripts/**/*.gd') }}
+          restore-keys: |
+            godot43-imported-v2-
+      - name: Verify prepared cache
+        run: |
+          set -euo pipefail
+          test -x "$GODOT_BIN"
+          "$GODOT_BIN" --version
+          test -s .cache/hf-assets/twin_city_runtime_assets.json
+          test -s .cache/hf-assets/landmark_sources.txt
+          test -x .cache/tools/bin/gltfpack
+          cp .cache/hf-assets/landmark_sources.txt artifacts/landmark_sources.txt
+          echo PREPARED_ASSETS_AND_TOOLS_READY
+      - name: Import Godot project
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
       - name: Render Twin City and capture six views
-        shell: bash
         run: |
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1
-          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 1280x720x24" \
-            timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
-            --rendering-driver opengl3 --audio-driver Dummy \
-            --resolution 1280x720 res://scenes/TwinCity.tscn \
-            2>&1 | tee artifacts/godot.log
-
-      - name: Upload preview images and diagnostic logs
+          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 1280x720x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
+      - name: Upload six captures and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -114,23 +172,13 @@ jobs:
             artifacts/twin_city_sw_blacksmith.png
             artifacts/landmarks_preview.png
             artifacts/landmark_sources.txt
+            artifacts/import.log
             artifacts/godot.log
-            artifacts/asset_fetch.log
-
       - name: Verify all six captures and checkpoint markers
         if: always()
-        shell: bash
         run: |
           set -euo pipefail
-          for image in \
-            twin_city_overview.png \
-            twin_city_palace.png \
-            twin_city_ne_pagoda.png \
-            twin_city_nw_quest_hall.png \
-            twin_city_se_tea_house.png \
-            twin_city_sw_blacksmith.png; do
-            test -s "artifacts/$image"
-          done
+          for image in twin_city_overview.png twin_city_palace.png twin_city_ne_pagoda.png twin_city_nw_quest_hall.png twin_city_se_tea_house.png twin_city_sw_blacksmith.png; do test -s "artifacts/$image"; done
           test -s artifacts/landmark_sources.txt
           grep -q "CHECKPOINT1_UNIFIED_DIRT_GROUND_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_COBBLESTONE_PLAZA_OK:" artifacts/godot.log
@@ -145,5 +193,5 @@ jobs:
           grep -q "CHECKPOINT1_LANDMARK_OK: NW_QUEST_HALL" artifacts/godot.log
           grep -q "CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE" artifacts/godot.log
           grep -q "CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH" artifacts/godot.log
+          for image in twin_city_overview.png twin_city_palace.png twin_city_ne_pagoda.png twin_city_nw_quest_hall.png twin_city_se_tea_house.png twin_city_sw_blacksmith.png; do grep -Fq "TWIN_CITY_CAPTURE_DONE: $image" artifacts/godot.log; done
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log
-
