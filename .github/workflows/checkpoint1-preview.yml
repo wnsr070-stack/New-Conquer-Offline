@@ -220,7 +220,11 @@ jobs:
           grep -q "CHECKPOINT2_HORIZON_FOG_OK: fog disabled; ambient=0.25 sun=0.75 sky_affect=0.0" artifacts/godot.log
           grep -q "CHECKPOINT2_RIVER_VALLEY_RESERVED: winding 30m corridor" artifacts/godot.log
           grep -q "CHECKPOINT2_FOUR_BRIDGE_PATHS_OK: light dirt paths" artifacts/godot.log
-          grep -q "CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=110 albedo=0.52,0.82,0.38" artifacts/godot.log
+          grep -q "CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated anisotropic=true" artifacts/godot.log
+          grep -q "CHECKPOINT2_PLATEAU_TRANSITION_HILLS_OK: six stepped grassy hills, heights=22-28m" artifacts/godot.log
+          grep -q "CHECKPOINT2_NORTHERN_SUMMIT_SNOW_OK: subtle snow caps only on upper northern ridge" artifacts/godot.log
+          grep -q "CHECKPOINT2_APRON_SURFACE_AUDIT_OK:" artifacts/godot.log
+          grep -q "GODOT_RESOURCE_CLEANUP_COMPLETE:" artifacts/godot.log
           for image in wilderness_overview.png wilderness_snowy_mountains.png wilderness_bridge_grass.png wilderness_eastern_plateau.png wilderness_western_plateau.png wilderness_south_plaza.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_ROTATED_AABB_REJECTION_OK:" artifacts/godot.log

@@ -52,6 +52,13 @@ static func _load_gltf(path: String) -> Node3D:
   return null
  return node as Node3D
 
+static func clear_cached_prototypes() -> void:
+ for prototype in _prototypes.values():
+  if is_instance_valid(prototype):
+   (prototype as Node).free()
+ _prototypes.clear()
+ _catalog.clear()
+
 static func fit_height(model: Node3D, target_height: float) -> float:
  var bounds := _measure_bounds(model,Transform3D.IDENTITY)
  if bounds.size.y <= 0.0001:

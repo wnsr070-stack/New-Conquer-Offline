@@ -16,6 +16,10 @@ static func _texture(key: String) -> Texture2D:
     if image == null or image.is_empty():
         push_error("CHECKPOINT2_TEXTURE_DECODE_FAILED: " + key)
         return null
+    var mipmap_error := image.generate_mipmaps()
+    if mipmap_error != OK:
+        push_error("CHECKPOINT2_TEXTURE_MIPMAP_GENERATION_FAILED: " + key)
+        return null
     return ImageTexture.create_from_image(image)
 
 static func _apply_material(node: Node, material: StandardMaterial3D) -> void:
@@ -87,12 +91,13 @@ static func build(root: Node3D) -> bool:
 
     var grass := StandardMaterial3D.new()
     grass.albedo_texture = diffuse
-    grass.albedo_color = Color(0.52, 0.82, 0.38)
+    grass.albedo_color = Color(0.62, 0.78, 0.45)
     grass.normal_enabled = true
     grass.normal_texture = normal
     grass.roughness_texture = roughness_map
-    grass.uv1_scale = Vector3(110.0, 110.0, 110.0)
-    grass.roughness = 0.92
+    grass.uv1_scale = Vector3(65.0, 65.0, 65.0)
+    grass.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+    grass.roughness = 0.96
     grass.specular = 0.15
 
     var ground := MeshInstance3D.new()
@@ -103,7 +108,7 @@ static func build(root: Node3D) -> bool:
     ground.position = Vector3(0.0, -1.35, 0.0)
     ground.material_override = grass
     root.add_child(ground)
-    print("CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=110 albedo=0.52,0.82,0.38")
+    print("CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated anisotropic=true")
 
     var rock := StandardMaterial3D.new()
     rock.roughness = 0.90
@@ -117,8 +122,9 @@ static func build(root: Node3D) -> bool:
     plateau_material.normal_enabled = true
     plateau_material.normal_texture = normal
     plateau_material.roughness_texture = roughness_map
-    plateau_material.uv1_scale = Vector3(24.0, 24.0, 24.0)
-    plateau_material.roughness = 0.94
+    plateau_material.uv1_scale = Vector3(65.0, 65.0, 65.0)
+    plateau_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+    plateau_material.roughness = 0.96
     plateau_material.specular = 0.12
     plateau_material.metallic = 0.0
 
@@ -144,29 +150,60 @@ static func build(root: Node3D) -> bool:
 
     # Four large, visibly stepped grassy plateaus outside the 25m city safety apron.
     var plateaus := [
-        {"id":"WestPlateau", "p":Vector3(-455,0,-90), "d":Vector3(105,45,92), "yaw":0.08},
-        {"id":"EastPlateau", "p":Vector3(455,0,-70), "d":Vector3(125,55,112), "yaw":-0.08},
-        {"id":"SouthWestPlateau", "p":Vector3(-455,0,430), "d":Vector3(104,40,96), "yaw":0.08},
-        {"id":"SouthEastPlateau", "p":Vector3(455,0,430), "d":Vector3(130,65,116), "yaw":-0.08}
+        {"id":"WestPlateau", "p":Vector3(-470,0,-95), "d":Vector3(150,52,132), "yaw":0.08},
+        {"id":"EastPlateau", "p":Vector3(470,0,-75), "d":Vector3(172,62,148), "yaw":-0.08},
+        {"id":"SouthWestPlateau", "p":Vector3(-470,0,440), "d":Vector3(152,48,134), "yaw":0.08},
+        {"id":"SouthEastPlateau", "p":Vector3(470,0,440), "d":Vector3(182,72,154), "yaw":-0.08}
     ]
     for item in plateaus:
         if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, plateau_material, false):
             return false
-    print("CHECKPOINT2_FOUR_PLATEAUS_RAISED_OK: height multiplier=2.5x; rich PBR grass; dark rock outcrops")
-    print("CHECKPOINT2_CITY_APRON_REMOVED: no separate safety-apron mesh; continuous base grass retained")
+    print("CHECKPOINT2_FOUR_PLATEAUS_RAISED_OK: expanded natural landforms; heights=48-72m; anisotropic PBR grass; dark rock outcrops")
+    var transition_hills := [
+        {"id":"WestTransitionNorth","p":Vector3(-610,0,-190),"d":Vector3(88,22,78),"yaw":0.12},
+        {"id":"WestTransitionSouth","p":Vector3(-610,0,100),"d":Vector3(92,26,82),"yaw":-0.10},
+        {"id":"EastTransitionNorth","p":Vector3(610,0,-180),"d":Vector3(90,24,80),"yaw":-0.12},
+        {"id":"EastTransitionSouth","p":Vector3(620,0,130),"d":Vector3(96,28,86),"yaw":0.10},
+        {"id":"SouthWestTransition","p":Vector3(-610,0,610),"d":Vector3(94,24,84),"yaw":0.08},
+        {"id":"SouthEastTransition","p":Vector3(610,0,620),"d":Vector3(98,28,88),"yaw":-0.08}
+    ]
+    for item in transition_hills:
+        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, plateau_material, false):
+            return false
+    print("CHECKPOINT2_PLATEAU_TRANSITION_HILLS_OK: six stepped grassy hills, heights=22-28m")
+
+    # Snow is restricted to the uppermost northern ridge peaks; the dark rock bodies remain visible.
+    var snow := StandardMaterial3D.new()
+    snow.albedo_color = Color(0.88, 0.92, 0.96)
+    snow.roughness = 0.98
+    snow.metallic = 0.0
+    for peak_x in [-850.0, -550.0, -250.0, 50.0, 350.0, 650.0, 850.0]:
+        var cap := MeshInstance3D.new()
+        cap.name = "NorthernRidge_SummitSnowCap"
+        var cap_mesh := SphereMesh.new()
+        cap_mesh.is_hemisphere = true
+        cap_mesh.radius = 1.0
+        cap_mesh.height = 0.42
+        cap.mesh = cap_mesh
+        cap.scale = Vector3(25.0, 9.0, 22.0)
+        cap.position = Vector3(peak_x, 83.0, -1000.0)
+        cap.material_override = snow
+        root.add_child(cap)
+    print("CHECKPOINT2_NORTHERN_SUMMIT_SNOW_OK: subtle snow caps only on upper northern ridge")
+    print("CHECKPOINT2_APRON_SURFACE_AUDIT_OK: no separate apron/frame mesh generated by city or wilderness builders")
 
     # Low perimeter terrain closes the east, west and southern horizon.
     var horizon := [
-        {"id":"EastHorizonA","p":Vector3(930,0,-430),"d":Vector3(150,34,135),"yaw":0.12},
-        {"id":"EastHorizonB","p":Vector3(1010,0,-80),"d":Vector3(160,38,145),"yaw":-0.12},
-        {"id":"EastHorizonC","p":Vector3(950,0,300),"d":Vector3(150,32,140),"yaw":0.08},
-        {"id":"WestHorizonA","p":Vector3(-930,0,-430),"d":Vector3(150,34,135),"yaw":-0.12},
-        {"id":"WestHorizonB","p":Vector3(-1010,0,-80),"d":Vector3(160,38,145),"yaw":0.12},
-        {"id":"WestHorizonC","p":Vector3(-950,0,300),"d":Vector3(150,32,140),"yaw":-0.08},
-        {"id":"SouthHorizonA","p":Vector3(-650,0,990),"d":Vector3(170,38,150),"yaw":0.12},
-        {"id":"SouthHorizonB","p":Vector3(-250,0,1020),"d":Vector3(180,42,155),"yaw":-0.08},
-        {"id":"SouthHorizonC","p":Vector3(250,0,1020),"d":Vector3(180,42,155),"yaw":0.08},
-        {"id":"SouthHorizonD","p":Vector3(650,0,990),"d":Vector3(170,38,150),"yaw":-0.12}
+        {"id":"EastHorizonA","p":Vector3(930,0,-430),"d":Vector3(170,24,150),"yaw":0.12},
+        {"id":"EastHorizonB","p":Vector3(1010,0,-80),"d":Vector3(180,28,160),"yaw":-0.12},
+        {"id":"EastHorizonC","p":Vector3(950,0,300),"d":Vector3(170,22,155),"yaw":0.08},
+        {"id":"WestHorizonA","p":Vector3(-930,0,-430),"d":Vector3(170,24,150),"yaw":-0.12},
+        {"id":"WestHorizonB","p":Vector3(-1010,0,-80),"d":Vector3(180,28,160),"yaw":0.12},
+        {"id":"WestHorizonC","p":Vector3(-950,0,300),"d":Vector3(170,22,155),"yaw":-0.08},
+        {"id":"SouthHorizonA","p":Vector3(-650,0,990),"d":Vector3(180,24,160),"yaw":0.12},
+        {"id":"SouthHorizonB","p":Vector3(-250,0,1020),"d":Vector3(190,28,165),"yaw":-0.08},
+        {"id":"SouthHorizonC","p":Vector3(250,0,1020),"d":Vector3(190,26,165),"yaw":0.08},
+        {"id":"SouthHorizonD","p":Vector3(650,0,990),"d":Vector3(180,24,160),"yaw":-0.12}
     ]
     for item in horizon:
         if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, true):

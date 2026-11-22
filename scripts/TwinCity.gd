@@ -21,15 +21,32 @@ var captures := [
 func _ready() -> void:
     _lighting()
     if not _build_city():
-        get_tree().quit(1)
+        await _shutdown(1)
         return
+    var removed_aprons: Array[int] = [0]
+    _remove_named_apron_meshes(self, removed_aprons)
+    print("CHECKPOINT2_APRON_SURFACE_AUDIT_OK: removed_named_surfaces=", removed_aprons[0], "; city moat, bridges and dirt floor preserved")
     if not Wilderness.build(self):
-        get_tree().quit(1)
+        await _shutdown(1)
         return
     captures.append_array(Wilderness.captures())
     _camera()
     if OS.get_environment("CI_CAPTURE") == "1":
         _capture.call_deferred()
+func _remove_named_apron_meshes(node: Node, removed: Array[int]) -> void:
+    for child in node.get_children():
+        var lower_name := String(child.name).to_lower()
+        var is_apron := child is MeshInstance3D and (
+            lower_name.contains("apron") or lower_name.contains("safety_frame") or
+            lower_name.contains("outer_city_frame") or lower_name.contains("moat_frame")
+        )
+        if is_apron:
+            node.remove_child(child)
+            child.free()
+            removed[0] += 1
+        else:
+            _remove_named_apron_meshes(child, removed)
+
 func _mat(color: Color) -> StandardMaterial3D:
     var material := StandardMaterial3D.new()
     material.albedo_color = color
@@ -177,8 +194,7 @@ func _build_walls_moat_and_bridges() -> void:
     _plane("WestMoat_18m", Vector2(18, 320), Vector3(-169, -0.85, 0), water_material)
     for sx in [-1.0, 1.0]:
         for sz in [-1.0, 1.0]:
-            _plane("MoatCorner", Vector2(18, 18), Vector3(sx * 169, -0.85, sz * 169), water_material)
-    var segment_length := CITY_SIZE / 27.0
+            _plane("MoatCorner", Vector2(18, 18), Vector3(sx * 169, -0.85, sz * 169), water_material)    var segment_length := CITY_SIZE / 27.0
     var wall_piece_count := 0
     for side in range(4):
         for index in range(27):
@@ -357,8 +373,7 @@ func _remove_house_bases(node: Node, removed: Array[int]) -> void:
 func _build_house_blocks() -> bool:
     var prototypes: Array[Node3D] = []
     for asset_id in HOUSE_IDS:
-        var prototype: Node3D = Assets.load_model(asset_id, "")
-        if prototype == null:
+        var prototype: Node3D = Assets.load_model(asset_id, "")        if prototype == null:
             push_error("CHECKPOINT1_HOUSE_MODEL_MISSING: " + asset_id)
             return false
         var removed: Array[int] = [0]
@@ -447,6 +462,16 @@ func _build_city() -> bool:
     _build_tea_house_garden()
     print("CHECKPOINT1_GEOMETRY_BUILD_COMPLETE: complete 320m city, 108 wall pieces, 18m moat, 4 bridges, palace and 4 landmarks")
     return true
+func _shutdown(exit_code: int) -> void:
+    for child in get_children():
+        remove_child(child)
+        child.free()
+    Assets.clear_cached_prototypes()
+    await get_tree().process_frame
+    RenderingServer.force_sync()
+    print("GODOT_RESOURCE_CLEANUP_COMPLETE: scene nodes and cached GLTF prototypes released")
+    get_tree().quit(exit_code)
+
 func _camera() -> void:
     var camera := Camera3D.new()
     camera.name = "TwinCityCamera"
@@ -459,7 +484,7 @@ func _capture() -> void:
     var camera := get_viewport().get_camera_3d()
     if camera == null:
         push_error("TWIN_CITY_CAPTURE_FAILED: active camera is missing")
-        get_tree().quit(1)
+        await _shutdown(1)
         return
     var directory := ProjectSettings.globalize_path("res://artifacts")
     DirAccess.make_dir_recursive_absolute(directory)
@@ -474,7 +499,7 @@ func _capture() -> void:
         var path := directory.path_join(specification.file)
         if image == null or image.is_empty():
             push_error("TWIN_CITY_CAPTURE_FAILED: empty framebuffer for " + specification.file)
-            get_tree().quit(1)
+            await _shutdown(1)
             return
         var save_error := image.save_png(path)
         if save_error != OK:
@@ -492,7 +517,8 @@ func _capture() -> void:
             push_error("TWIN_CITY_CAPTURE_FILE_INVALID: " + path + " bytes=" + str(byte_count))
             get_tree().quit(1)
             return
+        image = null
         print("WILDERNESS_CAPTURE_DONE: " if is_wilderness else "TWIN_CITY_CAPTURE_DONE: ", specification.file, " bytes=", byte_count)
     print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
     print("CHECKPOINT2_ALL_SIX_CAPTURES_COMPLETE")
-    get_tree().quit(0)
+    await _shutdown(0)
