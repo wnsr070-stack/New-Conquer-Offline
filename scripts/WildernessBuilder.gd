@@ -146,8 +146,8 @@ static func build(root: Node3D) -> bool:
     var plateaus := [
         {"id":"WestPlateau", "p":Vector3(-455,0,-90), "d":Vector3(105,18,92), "yaw":0.08},
         {"id":"EastPlateau", "p":Vector3(455,0,-70), "d":Vector3(125,22,112), "yaw":-0.08},
-        {"id":"SouthWestPlateau", "p":Vector3(-455,0,430), "d":Vector3(92,14,86), "yaw":0.08},
-        {"id":"SouthEastPlateau", "p":Vector3(455,0,430), "d":Vector3(118,20,104), "yaw":-0.08}
+        {"id":"SouthWestPlateau", "p":Vector3(-455,0,430), "d":Vector3(104,16,96), "yaw":0.08},
+        {"id":"SouthEastPlateau", "p":Vector3(455,0,430), "d":Vector3(130,26,116), "yaw":-0.08}
     ]
     for item in plateaus:
         if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, false):
