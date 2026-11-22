@@ -1,4 +1,5 @@
 extends RefCounted
+# Checkpoint 3: Meandering turquoise rivers, rock banks, and bridges
 const Assets = preload("res://scripts/AssetLoader.gd")
 
 static func _material(color: Color, roughness: float = 0.32) -> StandardMaterial3D:
@@ -62,7 +63,7 @@ static func _place_bridge(root: Node3D, asset_id: String, label: String, center:
         push_error("CHECKPOINT3_BRIDGE_AABB_INVALID: " + asset_id)
         return false
     var long_x: bool = bounds.size.x >= bounds.size.z
-        var sx: float = (22.0 if long_x else 8.5) / bounds.size.x
+    var sx: float = (22.0 if long_x else 8.5) / bounds.size.x
     var sz: float = (8.5 if long_x else 22.0) / bounds.size.z
     var sy: float = 1.0
     node.scale = Vector3(sx, sy, sz)
