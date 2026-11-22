@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/hf-assets
-          key: twin-city-hf-assets-v4-${{ hashFiles('ci/fetch_assets.py') }}
+          key: wilderness-hf-assets-v5-${{ hashFiles('ci/fetch_assets.py', 'ci/prepare_wilderness.py') }}
       - name: Install preparation dependencies
         run: |
           set -euo pipefail
@@ -81,6 +81,14 @@ jobs:
           test -s .cache/hf-assets/twin_city_runtime_assets.json
           test -s artifacts/landmark_sources.txt
           cp artifacts/landmark_sources.txt .cache/hf-assets/landmark_sources.txt
+      - name: Prepare Checkpoint 2 terrain assets and upload CC0 textures
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          .venv/bin/python ci/prepare_wilderness.py 2>&1 | tee artifacts/wilderness_prepare.log
+          test -s .cache/hf-assets/wilderness_checkpoint2_manifest.json
+          test -s artifacts/wilderness_asset_report.json
       - name: Reuse cached asset source report
         if: steps.assets.outputs.cache-hit == 'true'
         run: |
@@ -130,7 +138,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/hf-assets
-          key: twin-city-hf-assets-v4-${{ hashFiles('ci/fetch_assets.py') }}
+          key: wilderness-hf-assets-v5-${{ hashFiles('ci/fetch_assets.py', 'ci/prepare_wilderness.py') }}
       - name: Restore Godot imported resources
         uses: actions/cache@v4
         with:
@@ -171,8 +179,16 @@ jobs:
             artifacts/twin_city_nw_quest_hall.png
             artifacts/twin_city_se_tea_house.png
             artifacts/twin_city_sw_blacksmith.png
+            artifacts/wilderness_overview.png
+            artifacts/wilderness_snowy_mountains.png
+            artifacts/wilderness_eastern_plateau.png
+            artifacts/wilderness_western_plateau.png
+            artifacts/wilderness_bridge_exits.png
+            artifacts/wilderness_rock_formations.png
             artifacts/landmarks_preview.png
             artifacts/landmark_sources.txt
+            artifacts/wilderness_prepare.log
+            artifacts/wilderness_asset_report.json
             artifacts/import.log
             artifacts/godot.log
       - name: Verify all six captures and checkpoint markers
@@ -197,6 +213,8 @@ jobs:
           grep -q "CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK: open-front forge width=14m rotation=0deg" artifacts/godot.log
           grep -q "pink-roof candidate excluded" artifacts/godot.log
           grep -q "CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
+          grep -q "CHECKPOINT2_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
+          for image in wilderness_overview.png wilderness_snowy_mountains.png wilderness_eastern_plateau.png wilderness_western_plateau.png wilderness_bridge_exits.png wilderness_rock_formations.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_ROTATED_AABB_REJECTION_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_ROTATED_AABB_AUTO_OFFSET_OK:" artifacts/godot.log
@@ -205,4 +223,4 @@ jobs:
           grep -q "CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE" artifacts/godot.log
           grep -q "CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH" artifacts/godot.log
           for image in twin_city_overview.png twin_city_palace.png twin_city_ne_pagoda.png twin_city_nw_quest_hall.png twin_city_se_tea_house.png twin_city_sw_blacksmith.png; do grep -Fq "TWIN_CITY_CAPTURE_DONE: $image" artifacts/godot.log; done
-          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|WILDERNESS_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log

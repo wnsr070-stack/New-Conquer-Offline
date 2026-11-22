@@ -1,5 +1,6 @@
 extends Node3D
 const Assets = preload("res://scripts/AssetLoader.gd")
+const Wilderness = preload("res://scripts/WildernessBuilder.gd")
 const PALACE_ID := "imperial_palace"
 const PAGODA_ID := "innerscene-buddhist-temple-pagoda-c5ebacdc"
 const TEA_HOUSE_ID := "3dassets-feudal-japan-castle-town-tea-house-a168f962"
@@ -22,6 +23,10 @@ func _ready() -> void:
     if not _build_city():
         get_tree().quit(1)
         return
+    if not Wilderness.build(self):
+        get_tree().quit(1)
+        return
+    captures.append_array(Wilderness.captures())
     _camera()
     if OS.get_environment("CI_CAPTURE") == "1":
         _capture.call_deferred()
@@ -449,7 +454,8 @@ func _capture() -> void:
     var directory := ProjectSettings.globalize_path("res://artifacts")
     DirAccess.make_dir_recursive_absolute(directory)
     for specification in captures:
-        print("TWIN_CITY_CAPTURE_START: ", specification.file)
+        var is_wilderness := String(specification.file).begins_with("wilderness_")
+        print("WILDERNESS_CAPTURE_START: " if is_wilderness else "TWIN_CITY_CAPTURE_START: ", specification.file)
         camera.position = specification.pos
         camera.fov = specification.fov
         camera.look_at(specification.target, Vector3.UP)
@@ -476,6 +482,7 @@ func _capture() -> void:
             push_error("TWIN_CITY_CAPTURE_FILE_INVALID: " + path + " bytes=" + str(byte_count))
             get_tree().quit(1)
             return
-        print("TWIN_CITY_CAPTURE_DONE: ", specification.file, " bytes=", byte_count)
+        print("WILDERNESS_CAPTURE_DONE: " if is_wilderness else "TWIN_CITY_CAPTURE_DONE: ", specification.file, " bytes=", byte_count)
     print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
+    print("CHECKPOINT2_ALL_SIX_CAPTURES_COMPLETE")
     get_tree().quit(0)
