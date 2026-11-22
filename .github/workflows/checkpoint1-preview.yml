@@ -185,6 +185,12 @@ jobs:
             artifacts/wilderness_eastern_plateau.png
             artifacts/wilderness_western_plateau.png
             artifacts/wilderness_south_plaza.png
+            artifacts/wilderness_river_overview.png
+            artifacts/wilderness_river_north_bridge.png
+            artifacts/wilderness_river_east_bridge.png
+            artifacts/wilderness_river_south_bridge.png
+            artifacts/wilderness_river_west_bend.png
+            artifacts/wilderness_river_south_bank.png
             artifacts/wilderness_bridge_exits.png
             artifacts/landmarks_preview.png
             artifacts/landmark_sources.txt
@@ -227,6 +233,11 @@ jobs:
           grep -q "CHECKPOINT2_BRIDGE_GRASS_TEXTURE_OK: continuous Leafy Grass ground exposed at all bridge exits" artifacts/godot.log
           grep -q "CHECKPOINT2_NORTHERN_SUMMIT_SNOW_OK: subtle snow caps only on upper northern ridge" artifacts/godot.log
           grep -q "CHECKPOINT2_APRON_SURFACE_AUDIT_OK:" artifacts/godot.log
+          grep -q "CHECKPOINT3_FOUR_REAL_BRIDGES_OK: 4 HF GLB bridge instances" artifacts/godot.log
+          grep -q "CHECKPOINT3_RIVER_WIDTH_OK: 20m turquoise winding course" artifacts/godot.log
+          grep -q "CHECKPOINT3_RIVER_BANKS_OK: paired natural sandy shore ribbons" artifacts/godot.log
+          grep -q "CHECKPOINT3_WATER_EDGE_ROCKS_OK: 8 rock_face and boulder placements" artifacts/godot.log
+          for image in wilderness_river_overview.png wilderness_river_north_bridge.png wilderness_river_east_bridge.png wilderness_river_south_bridge.png wilderness_river_west_bend.png wilderness_river_south_bank.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "GODOT_RESOURCE_CLEANUP_COMPLETE:" artifacts/godot.log
           for image in wilderness_overview.png wilderness_snowy_mountains.png wilderness_bridge_grass.png wilderness_eastern_plateau.png wilderness_western_plateau.png wilderness_south_plaza.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log

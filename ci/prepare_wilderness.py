@@ -48,6 +48,8 @@ models = {
  "rock_face_01":"assets/universal_nature_pack/models/rock_face_01.glb",
  "rock_face_02":"assets/universal_nature_pack/models/rock_face_02.glb",
  "boulder_01":"assets/universal_nature_pack/models/boulder_01.glb",
+ "bridge_stone":"assets/wuxia_imperial_pack/candidates/models/opengameart-stone-bridge-0.glb",
+ "bridge_wood":"assets/wuxia_imperial_pack/candidates/models/opengameart-wooden-bridge-0.glb",
 }
 catalog_path=ROOT/"twin_city_runtime_assets.json"
 if not catalog_path.is_file():
