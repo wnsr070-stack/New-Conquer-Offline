@@ -222,7 +222,9 @@ jobs:
           grep -q "CHECKPOINT2_FOUR_BRIDGE_PATHS_OK: light dirt paths" artifacts/godot.log
           grep -q "CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated preview_linear=true" artifacts/godot.log
           grep -q "CHECKPOINT2_PREVIEW_SHADOWS_DISABLED: true" artifacts/godot.log
-          grep -q "CHECKPOINT2_PLATEAU_TRANSITION_HILLS_OK: six stepped grassy hills, heights=22-28m" artifacts/godot.log
+          grep -q "CHECKPOINT2_FOUR_3D_PLATEAU_CLUSTERS_OK: 12 mountainside masses" artifacts/godot.log
+          grep -q "CHECKPOINT2_PERIMETER_RIDGES_CONNECTED_OK: 81 interlocking mountainside masses" artifacts/godot.log
+          grep -q "CHECKPOINT2_BRIDGE_GRASS_TEXTURE_OK: valley and bridge approach strips" artifacts/godot.log
           grep -q "CHECKPOINT2_NORTHERN_SUMMIT_SNOW_OK: subtle snow caps only on upper northern ridge" artifacts/godot.log
           grep -q "CHECKPOINT2_APRON_SURFACE_AUDIT_OK:" artifacts/godot.log
           grep -q "GODOT_RESOURCE_CLEANUP_COMPLETE:" artifacts/godot.log
