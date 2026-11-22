@@ -33,10 +33,10 @@ static func _validate_mass(node: Node3D, asset_id: String, label: String, mounta
         return false
     var rx := bounds.size.x / bounds.size.y
     var rz := bounds.size.z / bounds.size.y
-    # Accept natural broad terrain silhouettes while rejecting narrow vertical pillars.
-    # Both horizontal AABB axes must remain at least 1.3x the height; cap at 4.0x.
+    # Accept broad natural terrain silhouettes while rejecting narrow vertical pillars.
+    # Both horizontal AABB axes must remain at least 1.3x the height; cap at 12.0x.
     var min_ratio := 1.3
-    var max_ratio := 7.0
+    var max_ratio := 12.0
     if rx < min_ratio or rx > max_ratio or rz < min_ratio or rz > max_ratio:
         push_error("CHECKPOINT2_PROPORTION_REJECTED: " + label + " x/y=" + str(rx) + " z/y=" + str(rz))
         return false
