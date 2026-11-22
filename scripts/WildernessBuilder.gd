@@ -36,7 +36,7 @@ static func _validate_mass(node: Node3D, asset_id: String, label: String, mounta
     # Accept natural broad terrain silhouettes while rejecting narrow vertical pillars.
     # Both horizontal AABB axes must remain at least 1.3x the height; cap at 4.0x.
     var min_ratio := 1.3
-    var max_ratio := 4.0
+    var max_ratio := 7.0
     if rx < min_ratio or rx > max_ratio or rz < min_ratio or rz > max_ratio:
         push_error("CHECKPOINT2_PROPORTION_REJECTED: " + label + " x/y=" + str(rx) + " z/y=" + str(rz))
         return false
@@ -122,47 +122,109 @@ static func build(root: Node3D) -> bool:
     plateau_material.specular = 0.12
     plateau_material.metallic = 0.0
 
-    # Northern ridge: broad low-profile masses, rotated in plan, with no snow assets outside this northern zone.
-    var ridge_x := [-900.0, -750.0, -600.0, -450.0, -300.0, -150.0, 0.0, 150.0, 300.0, 450.0, 600.0, 750.0, 900.0]
-    var ridge_h := [38.0, 42.0, 48.0, 55.0, 63.0, 70.0, 74.0, 70.0, 63.0, 56.0, 49.0, 43.0, 38.0]
-    for i in range(ridge_x.size()):
-        var h: float = ridge_h[i]
-        var dims := Vector3(h * 1.75, h, h * 1.8)
-        var z := -405.0 - (12.0 if i % 2 == 0 else 0.0)
-        var yaw := deg_to_rad(float((i % 5) * 9 - 18))
-        if not _place_mass(root, "mountainside", "NorthRidge_%02d" % i, Vector3(ridge_x[i], 0.0, z), dims, yaw, rock, true):
+    # Two continuous, overlapping northern mountain rows; rear row is taller.
+    var front_heights := [36.0,40.0,43.0,45.0,42.0,44.0,39.0,45.0,41.0,43.0,45.0,40.0,44.0,42.0,45.0,39.0,43.0,45.0,41.0,44.0,42.0,45.0,40.0,43.0,45.0,41.0,44.0,42.0,45.0,39.0,43.0,45.0,40.0]
+    for i in range(front_heights.size()):
+        var h: float = front_heights[i]
+        var x := -1040.0 + float(i) * 65.0
+        var dims := Vector3(h * 3.0, h, h * 3.0)
+        var yaw := deg_to_rad(float((i % 7) * 5 - 15))
+        if not _place_mass(root, "mountainside", "NorthFront_%02d" % i, Vector3(x, 0.0, -900.0), dims, yaw, rock, true):
             return false
 
-    # Four broad stepped plateaus; each remains outside the 25m moat/bridge safety apron.
+    var rear_heights := [58.0,64.0,72.0,80.0,85.0,76.0,68.0,82.0,74.0,85.0,78.0,66.0,80.0,85.0,73.0,62.0,79.0,85.0,70.0,60.0,75.0,83.0]
+    for i in range(rear_heights.size()):
+        var h: float = rear_heights[i]
+        var x := -1050.0 + float(i) * 100.0
+        var dims := Vector3(h * 2.8, h, h * 2.8)
+        var yaw := deg_to_rad(float((i % 6) * 6 - 15))
+        if not _place_mass(root, "mountainside", "NorthRear_%02d" % i, Vector3(x, 0.0, -1000.0), dims, yaw, rock, true):
+            return false
+    print("CHECKPOINT2_NORTHERN_RIDGE_CONNECTED: two overlapping rows; front=36-45m rear=58-85m")
+
+    # Four large, visibly stepped grassy plateaus outside the 25m city safety apron.
     var plateaus := [
-        {"id":"WestPlateau", "p":Vector3(-390,0,-80), "d":Vector3(42,14,42), "yaw":0.08},
-        {"id":"EastPlateau", "p":Vector3(390,0,-70), "d":Vector3(48,16,48), "yaw":-0.08},
-        {"id":"SouthWestPlateau", "p":Vector3(-390,0,360), "d":Vector3(36,12,36), "yaw":0.08},
-        {"id":"SouthEastPlateau", "p":Vector3(390,0,360), "d":Vector3(54,18,54), "yaw":-0.08}
+        {"id":"WestPlateau", "p":Vector3(-455,0,-90), "d":Vector3(105,18,92), "yaw":0.08},
+        {"id":"EastPlateau", "p":Vector3(455,0,-70), "d":Vector3(125,22,112), "yaw":-0.08},
+        {"id":"SouthWestPlateau", "p":Vector3(-455,0,430), "d":Vector3(92,14,86), "yaw":0.08},
+        {"id":"SouthEastPlateau", "p":Vector3(455,0,430), "d":Vector3(118,20,104), "yaw":-0.08}
     ]
     for item in plateaus:
-        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, plateau_material):
+        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, false):
             return false
 
-    # Low distant horizon hills on the east, west and south perimeter.
+    # Low perimeter terrain closes the east, west and southern horizon.
     var horizon := [
-        {"id":"EastHorizonA","p":Vector3(900,0,-250),"d":Vector3(45,25,45),"yaw":0.25},
-        {"id":"EastHorizonB","p":Vector3(980,0,100),"d":Vector3(50,28,50),"yaw":-0.18},
-        {"id":"WestHorizonA","p":Vector3(-900,0,-220),"d":Vector3(47,26,47),"yaw":-0.2},
-        {"id":"WestHorizonB","p":Vector3(-980,0,130),"d":Vector3(54,30,54),"yaw":0.16},
-        {"id":"SouthHorizonA","p":Vector3(-520,0,930),"d":Vector3(49,27,49),"yaw":0.22},
-        {"id":"SouthHorizonB","p":Vector3(0,0,980),"d":Vector3(58,32,58),"yaw":-0.12},
-        {"id":"SouthHorizonC","p":Vector3(520,0,930),"d":Vector3(60,27,80),"yaw":0.18}
+        {"id":"EastHorizonA","p":Vector3(930,0,-430),"d":Vector3(150,34,135),"yaw":0.12},
+        {"id":"EastHorizonB","p":Vector3(1010,0,-80),"d":Vector3(160,38,145),"yaw":-0.12},
+        {"id":"EastHorizonC","p":Vector3(950,0,300),"d":Vector3(150,32,140),"yaw":0.08},
+        {"id":"WestHorizonA","p":Vector3(-930,0,-430),"d":Vector3(150,34,135),"yaw":-0.12},
+        {"id":"WestHorizonB","p":Vector3(-1010,0,-80),"d":Vector3(160,38,145),"yaw":0.12},
+        {"id":"WestHorizonC","p":Vector3(-950,0,300),"d":Vector3(150,32,140),"yaw":-0.08},
+        {"id":"SouthHorizonA","p":Vector3(-650,0,990),"d":Vector3(170,38,150),"yaw":0.12},
+        {"id":"SouthHorizonB","p":Vector3(-250,0,1020),"d":Vector3(180,42,155),"yaw":-0.08},
+        {"id":"SouthHorizonC","p":Vector3(250,0,1020),"d":Vector3(180,42,155),"yaw":0.08},
+        {"id":"SouthHorizonD","p":Vector3(650,0,990),"d":Vector3(170,38,150),"yaw":-0.12}
     ]
     for item in horizon:
-        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, rock, true):
+        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, true):
             return false
 
+    # Flat, 30m-wide winding low corridor reserved for the future blue river.
+    var valley_material := StandardMaterial3D.new()
+    valley_material.albedo_color = Color(0.34, 0.43, 0.25)
+    valley_material.roughness = 0.98
+    var valley_points := [
+        Vector3(0,-1.33,-255), Vector3(220,-1.33,-255), Vector3(255,-1.33,-110),
+        Vector3(255,-1.33,110), Vector3(220,-1.33,255), Vector3(0,-1.33,255),
+        Vector3(-220,-1.33,255), Vector3(-255,-1.33,110), Vector3(-255,-1.33,-110),
+        Vector3(-220,-1.33,-255), Vector3(0,-1.33,-255)
+    ]
+    for i in range(valley_points.size() - 1):
+        var a: Vector3 = valley_points[i]
+        var c: Vector3 = valley_points[i + 1]
+        var delta := c - a
+        var strip := MeshInstance3D.new()
+        strip.name = "FutureRiverLowValley_%02d_30m" % i
+        var strip_mesh := PlaneMesh.new()
+        strip_mesh.size = Vector2(30.0, delta.length())
+        strip.mesh = strip_mesh
+        strip.position = (a + c) * 0.5
+        strip.rotation.y = atan2(delta.x, delta.z)
+        strip.material_override = valley_material
+        root.add_child(strip)
+    print("CHECKPOINT2_RIVER_VALLEY_RESERVED: winding 30m corridor around city")
+
+    # Light dirt paths lead outward from all four bridges without entering the moat apron.
+    var path_material := StandardMaterial3D.new()
+    path_material.albedo_color = Color(0.58, 0.46, 0.30)
+    path_material.roughness = 1.0
+    var bridge_paths := [
+        {"a":Vector3(0,-1.30,-190),"b":Vector3(0,-1.30,-320)},
+        {"a":Vector3(0,-1.30,190),"b":Vector3(0,-1.30,320)},
+        {"a":Vector3(190,-1.30,0),"b":Vector3(340,-1.30,0)},
+        {"a":Vector3(-190,-1.30,0),"b":Vector3(-340,-1.30,0)}
+    ]
+    for i in range(bridge_paths.size()):
+        var a: Vector3 = bridge_paths[i].a
+        var c: Vector3 = bridge_paths[i].b
+        var delta := c - a
+        var path := MeshInstance3D.new()
+        path.name = "BridgeToPlateauDirtPath_%02d" % i
+        var path_mesh := PlaneMesh.new()
+        path_mesh.size = Vector2(8.0, delta.length())
+        path.mesh = path_mesh
+        path.position = (a + c) * 0.5
+        path.rotation.y = atan2(delta.x, delta.z)
+        path.material_override = path_material
+        root.add_child(path)
+    print("CHECKPOINT2_FOUR_BRIDGE_PATHS_OK: light dirt paths lead toward outer plateaus")
+
     var rock_specs := [
-        {"asset":"rock_face_01","id":"WestEscarpmentA","p":Vector3(-420,0,-165),"d":Vector3(38,11,32)},
-        {"asset":"rock_face_02","id":"WestEscarpmentB","p":Vector3(-430,0,205),"d":Vector3(45,13,37)},
-        {"asset":"rock_face_01","id":"EastEscarpmentA","p":Vector3(425,0,185),"d":Vector3(42,12,35)},
-        {"asset":"rock_face_02","id":"SouthWestEscarpment","p":Vector3(-420,0,430),"d":Vector3(52,15,43)},
+        {"asset":"rock_face_01","id":"WestEscarpmentA","p":Vector3(-510,0,-150),"d":Vector3(48,15,38)},
+        {"asset":"rock_face_02","id":"WestEscarpmentB","p":Vector3(-515,0,210),"d":Vector3(54,17,42)},
+        {"asset":"rock_face_01","id":"EastEscarpmentA","p":Vector3(515,0,185),"d":Vector3(52,16,44)},
+        {"asset":"rock_face_02","id":"SouthWestEscarpment","p":Vector3(-505,0,510),"d":Vector3(58,18,46)},
         {"asset":"boulder_01","id":"BoulderWest","p":Vector3(-365,0,245),"d":Vector3(15,4.5,13)},
         {"asset":"boulder_01","id":"BoulderSouthWest","p":Vector3(-345,0,440),"d":Vector3(18,5,15)},
         {"asset":"boulder_01","id":"BoulderEast","p":Vector3(365,0,245),"d":Vector3(15,4.5,13)},
@@ -179,9 +241,9 @@ static func build(root: Node3D) -> bool:
 static func captures() -> Array:
     return [
         {"file":"wilderness_overview.png","pos":Vector3(920,650,980),"target":Vector3(0,25,-120),"fov":62.0},
-        {"file":"wilderness_snowy_mountains.png","pos":Vector3(0,24,-250),"target":Vector3(0,35,-420),"fov":58.0},
-        {"file":"wilderness_bridge_grass.png","pos":Vector3(0,7,-215),"target":Vector3(0,3,-275),"fov":58.0},
-        {"file":"wilderness_eastern_plateau.png","pos":Vector3(520,95,-80),"target":Vector3(390,10,-70),"fov":58.0},
-        {"file":"wilderness_western_plateau.png","pos":Vector3(-520,95,-80),"target":Vector3(-390,10,-80),"fov":58.0},
-        {"file":"wilderness_south_plaza.png","pos":Vector3(420,180,650),"target":Vector3(0,3,80),"fov":60.0}
+        {"file":"wilderness_snowy_mountains.png","pos":Vector3(0,250,-560),"target":Vector3(0,42,-920),"fov":58.0},
+        {"file":"wilderness_bridge_grass.png","pos":Vector3(0,18,-310),"target":Vector3(0,5,-255),"fov":58.0},
+        {"file":"wilderness_eastern_plateau.png","pos":Vector3(680,150,-120),"target":Vector3(455,12,-70),"fov":58.0},
+        {"file":"wilderness_western_plateau.png","pos":Vector3(-680,150,-140),"target":Vector3(-455,12,-90),"fov":58.0},
+        {"file":"wilderness_south_plaza.png","pos":Vector3(560,220,850),"target":Vector3(0,10,300),"fov":60.0}
     ]

@@ -68,6 +68,14 @@ func _lighting() -> void:
     environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
     environment.ambient_light_energy = 0.95
     environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+    environment.fog_enabled = true
+    environment.fog_light_color = Color(0.58, 0.78, 0.88)
+    environment.fog_density = 0.0015
+    environment.fog_depth_begin = 650.0
+    environment.fog_depth_end = 1800.0
+    environment.fog_depth_curve = 1.15
+    environment.fog_sky_affect = 0.35
+    print("CHECKPOINT2_HORIZON_FOG_OK: soft sky-blue fog begins at 650m ends at 1800m")
     world.environment = environment
     add_child(world)
     var sun := DirectionalLight3D.new()
