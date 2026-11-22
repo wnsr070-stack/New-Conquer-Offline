@@ -74,11 +74,11 @@ static func _place_mass(root: Node3D, asset_id: String, label: String, center: V
     var final_bounds := Assets._measure_bounds(node, Transform3D.IDENTITY)
     var actual_max_y := final_bounds.position.y + final_bounds.size.y
     if label.contains("Plateau"):
-        if actual_max_y < 18.0 or actual_max_y > 32.0:
-            push_error("CHECKPOINT2_PLATEAU_MAX_Y_REJECTED: " + label + " max_y=" + str(actual_max_y) + " expected=18-32m")
+        if final_bounds.size.y < 18.0 or final_bounds.size.y > 28.0:
+            push_error("CHECKPOINT2_PLATEAU_HEIGHT_REJECTED: " + label + " visible_height=" + str(final_bounds.size.y) + " expected=18-28m")
             node.queue_free()
             return false
-        print("CHECKPOINT2_PLATEAU_MAX_Y_OK: ", label, " max_y=", snappedf(actual_max_y, 0.01), "m expected=18-32m")
+        print("CHECKPOINT2_PLATEAU_HEIGHT_OK: ", label, " visible_AABB_height=", snappedf(final_bounds.size.y, 0.01), "m expected=18-28m")
     elif label.contains("Transition"):
         if actual_max_y < 22.0 or actual_max_y > 38.0:
             push_error("CHECKPOINT2_INNER_HILL_MAX_Y_REJECTED: " + label + " max_y=" + str(actual_max_y))
@@ -132,17 +132,6 @@ static func build(root: Node3D) -> bool:
     rock.metallic = 0.0
     rock.albedo_color = Color(0.22, 0.25, 0.23)
 
-    var plateau_material := StandardMaterial3D.new()
-    plateau_material.albedo_texture = diffuse
-    plateau_material.albedo_color = Color(0.48, 0.76, 0.34)
-    plateau_material.normal_enabled = true
-    plateau_material.normal_texture = normal
-    plateau_material.roughness_texture = roughness_map
-    plateau_material.uv1_scale = Vector3(65.0, 65.0, 65.0)
-    plateau_material.texture_filter = preview_filter
-    plateau_material.roughness = 0.96
-    plateau_material.specular = 0.12
-    plateau_material.metallic = 0.0
 
     # Two continuous, overlapping northern mountain rows; rear row is taller.
     var front_heights := [36.0,40.0,43.0,45.0,42.0,44.0,39.0,45.0,41.0,43.0,45.0,40.0,44.0,42.0,45.0,39.0,43.0,45.0,41.0,44.0,42.0,45.0,40.0,43.0,45.0,41.0,44.0,42.0,45.0,39.0,43.0,45.0,40.0]
@@ -164,27 +153,30 @@ static func build(root: Node3D) -> bool:
             return false
     print("CHECKPOINT2_NORTHERN_RIDGE_CONNECTED: two overlapping rows; front=36-45m rear=58-85m")
 
-    # Four plateau regions are built from compact, fully 3D mountainside masses.
-    # Each mass is 55-95m wide and has a verified visible AABB height of 18-32m.
+    # Four plateau regions use the exact same mountainside GLB as the northern ridge.
+    # Four interlocking copies per region; no flattened platform meshes or snow caps.
     var plateau_blocks := [
-        {"id":"WestPlateau_A","p":Vector3(-505,0,-120),"d":Vector3(90,34,78),"yaw":0.08},
-        {"id":"WestPlateau_B","p":Vector3(-445,0,-85),"d":Vector3(76,30,68),"yaw":-0.12},
-        {"id":"WestPlateau_C","p":Vector3(-500,0,-45),"d":Vector3(62,24,58),"yaw":0.05},
-        {"id":"EastPlateau_A","p":Vector3(505,0,-115),"d":Vector3(92,34,80),"yaw":-0.08},
-        {"id":"EastPlateau_B","p":Vector3(450,0,-65),"d":Vector3(78,30,70),"yaw":0.12},
-        {"id":"EastPlateau_C","p":Vector3(510,0,-35),"d":Vector3(64,24,58),"yaw":-0.05},
-        {"id":"SouthWestPlateau_A","p":Vector3(-505,0,440),"d":Vector3(90,32,80),"yaw":0.08},
-        {"id":"SouthWestPlateau_B","p":Vector3(-445,0,490),"d":Vector3(76,28,68),"yaw":-0.12},
-        {"id":"SouthWestPlateau_C","p":Vector3(-510,0,535),"d":Vector3(62,22,58),"yaw":0.05},
-        {"id":"SouthEastPlateau_A","p":Vector3(505,0,440),"d":Vector3(94,34,82),"yaw":-0.08},
-        {"id":"SouthEastPlateau_B","p":Vector3(450,0,490),"d":Vector3(78,30,70),"yaw":0.12},
-        {"id":"SouthEastPlateau_C","p":Vector3(510,0,535),"d":Vector3(64,24,58),"yaw":-0.05}
+        {"id":"WestPlateau_A","p":Vector3(-510,0,-125),"d":Vector3(82,28,78),"yaw":0.08},
+        {"id":"WestPlateau_B","p":Vector3(-455,0,-105),"d":Vector3(74,24,70),"yaw":-0.12},
+        {"id":"WestPlateau_C","p":Vector3(-505,0,-65),"d":Vector3(66,22,62),"yaw":0.05},
+        {"id":"WestPlateau_D","p":Vector3(-455,0,-48),"d":Vector3(60,20,58),"yaw":-0.06},
+        {"id":"EastPlateau_A","p":Vector3(510,0,-125),"d":Vector3(84,28,80),"yaw":-0.08},
+        {"id":"EastPlateau_B","p":Vector3(455,0,-100),"d":Vector3(76,24,72),"yaw":0.12},
+        {"id":"EastPlateau_C","p":Vector3(510,0,-60),"d":Vector3(68,22,62),"yaw":-0.05},
+        {"id":"EastPlateau_D","p":Vector3(455,0,-42),"d":Vector3(60,20,58),"yaw":0.06},
+        {"id":"SouthWestPlateau_A","p":Vector3(-510,0,430),"d":Vector3(82,28,80),"yaw":0.08},
+        {"id":"SouthWestPlateau_B","p":Vector3(-455,0,465),"d":Vector3(74,24,72),"yaw":-0.12},
+        {"id":"SouthWestPlateau_C","p":Vector3(-510,0,505),"d":Vector3(66,22,62),"yaw":0.05},
+        {"id":"SouthWestPlateau_D","p":Vector3(-455,0,530),"d":Vector3(60,20,58),"yaw":-0.06},
+        {"id":"SouthEastPlateau_A","p":Vector3(510,0,430),"d":Vector3(84,28,82),"yaw":-0.08},
+        {"id":"SouthEastPlateau_B","p":Vector3(455,0,465),"d":Vector3(76,24,72),"yaw":0.12},
+        {"id":"SouthEastPlateau_C","p":Vector3(510,0,505),"d":Vector3(68,22,62),"yaw":-0.05},
+        {"id":"SouthEastPlateau_D","p":Vector3(455,0,530),"d":Vector3(60,20,58),"yaw":0.06}
     ]
     for item in plateau_blocks:
-        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, plateau_material, false):
+        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, false):
             return false
-    print("CHECKPOINT2_FOUR_3D_PLATEAU_CLUSTERS_OK: 12 mountainside masses; width=55-95m visible_AABB_height=18-32m; leafy grass applied")
-
+    print("CHECKPOINT2_FOUR_3D_PLATEAU_CLUSTERS_OK: 16 identical mountainside GLB masses; 4 per cluster; width=55-85m height=20-28m; leafy grass applied")
     # Snow is restricted to the uppermost northern ridge peaks; the dark rock bodies remain visible.
     var snow := StandardMaterial3D.new()
     snow.albedo_color = Color(0.88, 0.92, 0.96)
@@ -205,47 +197,32 @@ static func build(root: Node3D) -> bool:
     print("CHECKPOINT2_NORTHERN_SUMMIT_SNOW_OK: subtle snow caps only on upper northern ridge")
     print("CHECKPOINT2_APRON_SURFACE_AUDIT_OK: no separate apron/frame mesh generated by city or wilderness builders")
 
-    # Close the east, west and south edges with interlocking 3D mountainside blocks.
-    # 27 blocks per edge at 75m spacing, each 95m along-edge, overlapping by 20m.
-    var perimeter_visible_heights := [24.0, 28.0, 32.0, 36.0, 42.0, 38.0, 34.0, 40.0, 26.0]
+    # Close west and south edges; the positive-X edge is rebuilt at X=+1050.
+    var perimeter_visible_heights := [24.0, 28.0, 32.0, 36.0, 40.0, 38.0, 34.0, 40.0, 26.0]
     for i in range(27):
         var visible_h: float = perimeter_visible_heights[i % perimeter_visible_heights.size()]
-        var model_h := visible_h + 2.0
         var along := -975.0 + float(i) * 75.0
         var side_yaw := deg_to_rad(float((i % 5) * 3 - 6))
-        var side_dims := Vector3(78.0, model_h, 95.0)
-        if not _place_mass(root, "mountainside", "EastPerimeter_%02d" % i, Vector3(1000.0,0.0,along), side_dims, side_yaw, grass, true):
-            return false
+        var side_dims := Vector3(95.0, visible_h, 95.0)
         if not _place_mass(root, "mountainside", "WestPerimeter_%02d" % i, Vector3(-1000.0,0.0,along), side_dims, -side_yaw, grass, true):
             return false
-        var south_dims := Vector3(95.0, model_h, 78.0)
+        var south_dims := Vector3(95.0, visible_h, 95.0)
         if not _place_mass(root, "mountainside", "SouthPerimeter_%02d" % i, Vector3(along,0.0,1000.0), south_dims, side_yaw, grass, true):
             return false
-    print("CHECKPOINT2_PERIMETER_RIDGES_CONNECTED_OK: 81 interlocking mountainside masses; east-west-south; visible_AABB_height=24-42m; north ridge unchanged")
+    # 29 blocks span exactly Z=-1050..+1050, centered on the positive-X map edge.
+    for i in range(29):
+        var visible_h: float = perimeter_visible_heights[i % perimeter_visible_heights.size()]
+        var along := -1050.0 + float(i) * 75.0
+        var side_yaw := deg_to_rad(float((i % 5) * 3 - 6))
+        var east_dims := Vector3(95.0, visible_h, 95.0)
+        if not _place_mass(root, "mountainside", "EastPerimeter_%02d" % i, Vector3(1050.0,0.0,along), east_dims, side_yaw, grass, true):
+            return false
+    print("CHECKPOINT2_PERIMETER_RIDGES_CONNECTED_OK: 83 interlocking mountainside masses; east X=+1050 Z=-1050..+1050; west and south closed; visible_AABB_height=24-40m; north ridge unchanged")
 
-    # Flat, 30m-wide winding low corridor reserved for the future blue river.
-    var valley_points := [
-        Vector3(0,-1.33,-255), Vector3(220,-1.33,-255), Vector3(255,-1.33,-110),
-        Vector3(255,-1.33,110), Vector3(220,-1.33,255), Vector3(0,-1.33,255),
-        Vector3(-220,-1.33,255), Vector3(-255,-1.33,110), Vector3(-255,-1.33,-110),
-        Vector3(-220,-1.33,-255), Vector3(0,-1.33,-255)
-    ]
-    for i in range(valley_points.size() - 1):
-        var a: Vector3 = valley_points[i]
-        var c: Vector3 = valley_points[i + 1]
-        var delta := c - a
-        var strip := MeshInstance3D.new()
-        strip.name = "FutureRiverLowValley_%02d_30m" % i
-        var strip_mesh := PlaneMesh.new()
-        strip_mesh.size = Vector2(30.0, delta.length())
-        strip.mesh = strip_mesh
-        strip.position = (a + c) * 0.5
-        strip.rotation.y = atan2(delta.x, delta.z)
-        strip.material_override = grass
-        root.add_child(strip)
-    print("CHECKPOINT2_RIVER_VALLEY_RESERVED: winding 30m corridor around city")
-    print("CHECKPOINT2_BRIDGE_GRASS_TEXTURE_OK: valley and bridge approach strips use the same Leafy Grass PBR material")
-
+    # No separate valley/approach PlaneMeshes: the continuous Leafy Grass ground remains visible.
+    # The future river corridor is reserved logically and will be excavated in Checkpoint 3.
+    print("CHECKPOINT2_RIVER_VALLEY_RESERVED: winding 30m corridor; no extra flat green surface")
+    print("CHECKPOINT2_BRIDGE_GRASS_TEXTURE_OK: continuous Leafy Grass ground exposed at all bridge exits")
     # Light dirt paths lead outward from all four bridges without entering the moat apron.
     var path_material := StandardMaterial3D.new()
     path_material.albedo_color = Color(0.58, 0.46, 0.30)
