@@ -184,8 +184,8 @@ jobs:
             artifacts/wilderness_bridge_grass.png
             artifacts/wilderness_eastern_plateau.png
             artifacts/wilderness_western_plateau.png
-            artifacts/wilderness_bridge_exits.png
             artifacts/wilderness_south_plaza.png
+            artifacts/wilderness_bridge_exits.png
             artifacts/landmarks_preview.png
             artifacts/landmark_sources.txt
             artifacts/wilderness_prepare.log
@@ -216,7 +216,7 @@ jobs:
           grep -q "CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
           grep -q "CHECKPOINT2_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
           grep -q "CHECKPOINT2_ALL_MASS_AABB_VALIDATED" artifacts/godot.log
-          grep -q "CHECKPOINT2_GRASS_GROUND_OK: 900x900m uv1_scale=150 roughness=0.92 specular=0.15" artifacts/godot.log
+          grep -q "CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=110 albedo=0.52,0.82,0.38" artifacts/godot.log
           for image in wilderness_overview.png wilderness_snowy_mountains.png wilderness_bridge_grass.png wilderness_eastern_plateau.png wilderness_western_plateau.png wilderness_south_plaza.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_ROTATED_AABB_REJECTION_OK:" artifacts/godot.log

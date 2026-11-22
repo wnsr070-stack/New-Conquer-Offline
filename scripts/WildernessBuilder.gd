@@ -1,6 +1,7 @@
 extends RefCounted
 const Assets = preload("res://scripts/AssetLoader.gd")
 const BURIAL_Y := -2.0
+const FIELD_SIZE := 2200.0
 
 static func _texture(key: String) -> Texture2D:
     var catalog := Assets._read_catalog()
@@ -25,14 +26,16 @@ static func _apply_material(node: Node, material: StandardMaterial3D) -> void:
     for child in node.get_children():
         _apply_material(child, material)
 
-static func _validate_mass(node: Node3D, asset_id: String, label: String) -> bool:
+static func _validate_mass(node: Node3D, asset_id: String, label: String, mountain: bool) -> bool:
     var bounds := Assets._measure_bounds(node, Transform3D.IDENTITY)
     if bounds.size.x <= 0.001 or bounds.size.y <= 0.001 or bounds.size.z <= 0.001:
         push_error("CHECKPOINT2_AABB_INVALID: " + label + " asset=" + asset_id)
         return false
     var rx := bounds.size.x / bounds.size.y
     var rz := bounds.size.z / bounds.size.y
-    if rx < 2.5 or rx > 4.0 or rz < 2.5 or rz > 4.0:
+    var min_ratio := 1.5 if mountain else 2.5
+    var max_ratio := 2.0 if mountain else 4.0
+    if rx < min_ratio or rx > max_ratio or rz < min_ratio or rz > max_ratio:
         push_error("CHECKPOINT2_PROPORTION_REJECTED: " + label + " x/y=" + str(rx) + " z/y=" + str(rz))
         return false
     if bounds.position.y > 0.1:
@@ -44,7 +47,7 @@ static func _validate_mass(node: Node3D, asset_id: String, label: String) -> boo
     print("CHECKPOINT2_AABB_VALID: ", label, " asset=", asset_id, " size=", bounds.size, " min_y=", bounds.position.y, " ratios=", rx, ",", rz)
     return true
 
-static func _place_mass(root: Node3D, asset_id: String, label: String, center: Vector3, dimensions: Vector3, yaw: float, material: StandardMaterial3D) -> bool:
+static func _place_mass(root: Node3D, asset_id: String, label: String, center: Vector3, dimensions: Vector3, yaw: float, material: StandardMaterial3D, mountain: bool = false) -> bool:
     var node: Node3D = Assets.load_model(asset_id, "")
     if node == null:
         push_error("CHECKPOINT2_REQUIRED_GLB_MISSING: " + asset_id)
@@ -59,7 +62,7 @@ static func _place_mass(root: Node3D, asset_id: String, label: String, center: V
     node.position = Vector3(center.x, BURIAL_Y - source.position.y * node.scale.y, center.z)
     _apply_material(node, material)
     root.add_child(node)
-    if not _validate_mass(node, asset_id, label):
+    if not _validate_mass(node, asset_id, label, mountain):
         node.queue_free()
         return false
     return true
@@ -79,74 +82,104 @@ static func build(root: Node3D) -> bool:
     var roughness_map := _texture("leafy_grass_roughness")
     if diffuse == null or normal == null or roughness_map == null:
         return false
+
     var grass := StandardMaterial3D.new()
     grass.albedo_texture = diffuse
+    grass.albedo_color = Color(0.52, 0.82, 0.38)
     grass.normal_enabled = true
     grass.normal_texture = normal
     grass.roughness_texture = roughness_map
-    grass.uv1_scale = Vector3(150.0, 150.0, 150.0)
+    grass.uv1_scale = Vector3(110.0, 110.0, 110.0)
     grass.roughness = 0.92
     grass.specular = 0.15
 
     var ground := MeshInstance3D.new()
-    ground.name = "Wilderness_900m_LeafyGrass_PBR"
+    ground.name = "Wilderness_2200m_LeafyGrass_PBR"
     var plane := PlaneMesh.new()
-    plane.size = Vector2(900.0, 900.0)
+    plane.size = Vector2(FIELD_SIZE, FIELD_SIZE)
     ground.mesh = plane
     ground.position = Vector3(0.0, -1.35, 0.0)
     ground.material_override = grass
     root.add_child(ground)
-    print("CHECKPOINT2_GRASS_GROUND_OK: 900x900m uv1_scale=150 roughness=0.92 specular=0.15")
+    print("CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=110 albedo=0.52,0.82,0.38")
 
     var rock := StandardMaterial3D.new()
     rock.roughness = 0.90
     rock.specular = 0.15
     rock.metallic = 0.0
-    rock.albedo_color = Color(0.58, 0.55, 0.49)
+    rock.albedo_color = Color(0.34, 0.37, 0.31)
 
-    var ridge_x := [-360.0, -270.0, -180.0, -90.0, 0.0, 90.0, 180.0, 270.0, 360.0]
-    var ridge_h := [38.0, 44.0, 52.0, 62.0, 75.0, 68.0, 58.0, 48.0, 40.0]
+    var plateau_material := StandardMaterial3D.new()
+    plateau_material.albedo_texture = diffuse
+    plateau_material.albedo_color = Color(0.36, 0.48, 0.29)
+    plateau_material.normal_enabled = true
+    plateau_material.normal_texture = normal
+    plateau_material.roughness_texture = roughness_map
+    plateau_material.uv1_scale = Vector3(24.0, 24.0, 24.0)
+    plateau_material.roughness = 0.94
+    plateau_material.specular = 0.12
+    plateau_material.metallic = 0.0
+
+    # Northern ridge: broad low-profile masses, rotated in plan, with no snow assets outside this northern zone.
+    var ridge_x := [-900.0, -750.0, -600.0, -450.0, -300.0, -150.0, 0.0, 150.0, 300.0, 450.0, 600.0, 750.0, 900.0]
+    var ridge_h := [38.0, 42.0, 48.0, 55.0, 63.0, 70.0, 74.0, 70.0, 63.0, 56.0, 49.0, 43.0, 38.0]
     for i in range(ridge_x.size()):
         var h: float = ridge_h[i]
-        var dims := Vector3(h * 3.2, h, h * 2.8)
-        var z := -300.0 - (8.0 if i % 2 == 0 else 0.0)
-        if not _place_mass(root, "mountainside", "NorthRidge_%02d" % i, Vector3(ridge_x[i], 0.0, z), dims, 0.0, rock):
+        var dims := Vector3(h * 1.75, h, h * 1.8)
+        var z := -405.0 - (12.0 if i % 2 == 0 else 0.0)
+        var yaw := deg_to_rad(float((i % 5) * 9 - 18))
+        if not _place_mass(root, "mountainside", "NorthRidge_%02d" % i, Vector3(ridge_x[i], 0.0, z), dims, yaw, rock, true):
             return false
 
+    # Four broad stepped plateaus; each remains outside the 25m moat/bridge safety apron.
     var plateaus := [
-        {"id":"WestPlateau", "p":Vector3(-300,0,-255), "d":Vector3(42,12,36)},
-        {"id":"EastPlateau", "p":Vector3(300,0,-255), "d":Vector3(49,14,42)},
-        {"id":"SouthWestPlateau", "p":Vector3(-300,0,285), "d":Vector3(35,10,30)},
-        {"id":"SouthEastPlateau", "p":Vector3(300,0,285), "d":Vector3(56,16,48)}
+        {"id":"WestPlateau", "p":Vector3(-390,0,-80), "d":Vector3(42,14,42), "yaw":0.08},
+        {"id":"EastPlateau", "p":Vector3(390,0,-70), "d":Vector3(48,16,48), "yaw":-0.08},
+        {"id":"SouthWestPlateau", "p":Vector3(-390,0,360), "d":Vector3(36,12,36), "yaw":0.08},
+        {"id":"SouthEastPlateau", "p":Vector3(390,0,360), "d":Vector3(54,18,54), "yaw":-0.08}
     ]
     for item in plateaus:
-        if not _place_mass(root, "mountainside", item.id, item.p, item.d, 0.0, grass):
+        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, plateau_material):
+            return false
+
+    # Low distant horizon hills on the east, west and south perimeter.
+    var horizon := [
+        {"id":"EastHorizonA","p":Vector3(900,0,-250),"d":Vector3(45,25,45),"yaw":0.25},
+        {"id":"EastHorizonB","p":Vector3(980,0,100),"d":Vector3(50,28,50),"yaw":-0.18},
+        {"id":"WestHorizonA","p":Vector3(-900,0,-220),"d":Vector3(47,26,47),"yaw":-0.2},
+        {"id":"WestHorizonB","p":Vector3(-980,0,130),"d":Vector3(54,30,54),"yaw":0.16},
+        {"id":"SouthHorizonA","p":Vector3(-520,0,930),"d":Vector3(49,27,49),"yaw":0.22},
+        {"id":"SouthHorizonB","p":Vector3(0,0,980),"d":Vector3(58,32,58),"yaw":-0.12},
+        {"id":"SouthHorizonC","p":Vector3(520,0,930),"d":Vector3(60,27,80),"yaw":0.18}
+    ]
+    for item in horizon:
+        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, rock, true):
             return false
 
     var rock_specs := [
-        {"asset":"rock_face_01","id":"WestEscarpmentA","p":Vector3(-360,0,-205),"d":Vector3(35,10,28)},
-        {"asset":"rock_face_02","id":"WestEscarpmentB","p":Vector3(-365,0,155),"d":Vector3(42,12,34)},
-        {"asset":"rock_face_01","id":"EastEscarpmentA","p":Vector3(365,0,150),"d":Vector3(38,11,31)},
-        {"asset":"rock_face_02","id":"SouthWestEscarpment","p":Vector3(-355,0,350),"d":Vector3(49,14,40)},
-        {"asset":"boulder_01","id":"BoulderWest","p":Vector3(-350,0,205),"d":Vector3(14,4,12)},
-        {"asset":"boulder_01","id":"BoulderSouthWest","p":Vector3(-315,0,365),"d":Vector3(16,4.5,13)},
-        {"asset":"boulder_01","id":"BoulderEast","p":Vector3(350,0,205),"d":Vector3(14,4,12)},
-        {"asset":"boulder_01","id":"BoulderSouthEast","p":Vector3(315,0,365),"d":Vector3(16,4.5,13)}
+        {"asset":"rock_face_01","id":"WestEscarpmentA","p":Vector3(-420,0,-165),"d":Vector3(38,11,32)},
+        {"asset":"rock_face_02","id":"WestEscarpmentB","p":Vector3(-430,0,205),"d":Vector3(45,13,37)},
+        {"asset":"rock_face_01","id":"EastEscarpmentA","p":Vector3(425,0,185),"d":Vector3(42,12,35)},
+        {"asset":"rock_face_02","id":"SouthWestEscarpment","p":Vector3(-420,0,430),"d":Vector3(52,15,43)},
+        {"asset":"boulder_01","id":"BoulderWest","p":Vector3(-365,0,245),"d":Vector3(15,4.5,13)},
+        {"asset":"boulder_01","id":"BoulderSouthWest","p":Vector3(-345,0,440),"d":Vector3(18,5,15)},
+        {"asset":"boulder_01","id":"BoulderEast","p":Vector3(365,0,245),"d":Vector3(15,4.5,13)},
+        {"asset":"boulder_01","id":"BoulderSouthEast","p":Vector3(345,0,440),"d":Vector3(18,5,15)}
     ]
     for item in rock_specs:
         if not _place_mass(root, item.asset, item.id, item.p, item.d, 0.0, rock):
             return false
 
-    print("CHECKPOINT2_WILDERNESS_BUILD_COMPLETE: 900m PBR field, broad northern ridge, four plateaus, grounded rocks")
+    print("CHECKPOINT2_WILDERNESS_BUILD_COMPLETE: 2200m PBR field, varied northern ridge, four raised plateaus, east-west-south horizon hills, grounded rocks")
     print("CHECKPOINT2_ALL_MASS_AABB_VALIDATED")
     return true
 
 static func captures() -> Array:
     return [
-        {"file":"wilderness_overview.png","pos":Vector3(510,410,520),"target":Vector3(0,20,-120),"fov":62.0},
-        {"file":"wilderness_snowy_mountains.png","pos":Vector3(0,18,-225),"target":Vector3(0,42,-315),"fov":58.0},
-        {"file":"wilderness_bridge_grass.png","pos":Vector3(0,5,-205),"target":Vector3(0,3,-255),"fov":58.0},
-        {"file":"wilderness_eastern_plateau.png","pos":Vector3(420,70,-240),"target":Vector3(300,8,-255),"fov":58.0},
-        {"file":"wilderness_western_plateau.png","pos":Vector3(-420,70,-240),"target":Vector3(-300,8,-255),"fov":58.0},
-        {"file":"wilderness_south_plaza.png","pos":Vector3(260,125,430),"target":Vector3(0,2,80),"fov":60.0}
+        {"file":"wilderness_overview.png","pos":Vector3(920,650,980),"target":Vector3(0,25,-120),"fov":62.0},
+        {"file":"wilderness_snowy_mountains.png","pos":Vector3(0,24,-250),"target":Vector3(0,35,-420),"fov":58.0},
+        {"file":"wilderness_bridge_grass.png","pos":Vector3(0,7,-215),"target":Vector3(0,3,-275),"fov":58.0},
+        {"file":"wilderness_eastern_plateau.png","pos":Vector3(520,95,-80),"target":Vector3(390,10,-70),"fov":58.0},
+        {"file":"wilderness_western_plateau.png","pos":Vector3(-520,95,-80),"target":Vector3(-390,10,-80),"fov":58.0},
+        {"file":"wilderness_south_plaza.png","pos":Vector3(420,180,650),"target":Vector3(0,3,80),"fov":60.0}
     ]
