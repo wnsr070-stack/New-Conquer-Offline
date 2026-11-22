@@ -18,23 +18,23 @@ static func _river_control() -> PackedVector3Array:
     ])
 
 static func _distance_to_river(point: Vector3) -> float:
-    var points := _river_control()
-    var best := INF
+    var points: PackedVector3Array = _river_control()
+    var best: float = INF
     for i in range(points.size() - 1):
         var a: Vector3 = points[i]
         var b: Vector3 = points[i + 1]
-        var d := Vector2(b.x - a.x, b.z - a.z)
-        var denom := d.length_squared()
+        var d: Vector2 = Vector2(b.x - a.x, b.z - a.z)
+        var denom: float = d.length_squared()
         if denom < 0.0001:
             continue
-        var t := clampf(Vector2(point.x - a.x, point.z - a.z).dot(d) / denom, 0.0, 1.0)
-        var nearest := Vector2(a.x, a.z) + d * t
+        var t: float = clampf(Vector2(point.x - a.x, point.z - a.z).dot(d) / denom, 0.0, 1.0)
+        var nearest: Vector2 = Vector2(a.x, a.z) + d * t
         best = minf(best, Vector2(point.x, point.z).distance_to(nearest))
     return best
 
 static func _moat_clearance(point: Vector3) -> float:
-    var dx := maxf(absf(point.x) - 178.0, 0.0)
-    var dz := maxf(absf(point.z) - 178.0, 0.0)
+    var dx: float = maxf(absf(point.x) - 178.0, 0.0)
+    var dz: float = maxf(absf(point.z) - 178.0, 0.0)
     return sqrt(dx * dx + dz * dz)
 
 static func _safe(point: Vector3, min_bridge_distance: float = 20.0) -> bool:
@@ -46,14 +46,14 @@ static func _safe(point: Vector3, min_bridge_distance: float = 20.0) -> bool:
         return false
     if Vector2(point.x + 260.0, point.z + 780.0).length() < 80.0:
         return false
-    var plateaus := [
+    var plateaus: Array[Vector3] = [
         Vector3(-480,0,-85), Vector3(480,0,-85),
         Vector3(-480,0,480), Vector3(480,0,480)
     ]
     for plateau in plateaus:
         if Vector2(point.x - plateau.x, point.z - plateau.z).length() < 58.0:
             return false
-    var bridges := [
+    var bridges: Array[Vector3] = [
         Vector3(-615,0,-350), Vector3(-675,0,-100),
         Vector3(-665,0,210), Vector3(-565,0,560)
     ]
@@ -63,18 +63,18 @@ static func _safe(point: Vector3, min_bridge_distance: float = 20.0) -> bool:
     return true
 
 static func _collect_meshes(node: Node, parent_transform: Transform3D, output: Array[Dictionary]) -> void:
-    var transform := parent_transform
+    var transform: Transform3D = parent_transform
     if node is Node3D:
         transform = parent_transform * (node as Node3D).transform
     if node is MeshInstance3D:
-        var mesh_node := node as MeshInstance3D
+        var mesh_node: MeshInstance3D = node as MeshInstance3D
         if mesh_node.mesh != null:
             output.append({"mesh": mesh_node.mesh, "transform": transform})
     for child in node.get_children():
         _collect_meshes(child, transform, output)
 
 static func _tinted_material(tint: Color) -> StandardMaterial3D:
-    var material := StandardMaterial3D.new()
+    var material: StandardMaterial3D = StandardMaterial3D.new()
     material.albedo_color = tint
     material.roughness = 0.88
     material.metallic = 0.0
@@ -87,7 +87,7 @@ static func _build_instanced_group(root: Node3D, asset_id: String, tint: Color, 
     if prototype == null:
         push_error("CHECKPOINT4_REQUIRED_GLB_MISSING: " + asset_id)
         return false
-    var source_bounds := Assets._measure_bounds(prototype, Transform3D.IDENTITY)
+    var source_bounds: AABB = Assets._measure_bounds(prototype, Transform3D.IDENTITY)
     if source_bounds.size.y <= 0.001:
         prototype.free()
         push_error("CHECKPOINT4_GLB_AABB_INVALID: " + asset_id)
@@ -100,20 +100,20 @@ static func _build_instanced_group(root: Node3D, asset_id: String, tint: Color, 
         return false
     for part_index in range(mesh_data.size()):
         var part: Dictionary = mesh_data[part_index]
-        var multimesh := MultiMesh.new()
+        var multimesh: MultiMesh = MultiMesh.new()
         multimesh.transform_format = MultiMesh.TRANSFORM_3D
         multimesh.mesh = part.mesh
         multimesh.instance_count = entries.size()
         for i in range(entries.size()):
             var item: Dictionary = entries[i]
             var height: float = float(item.height)
-            var factor := height / source_bounds.size.y
-            var basis := Basis(Vector3.UP, float(item.yaw)) * Basis.from_scale(Vector3.ONE * factor)
-            var origin := Vector3(item.position.x, -source_bounds.position.y * factor, item.position.z)
-            var placement := Transform3D(basis, origin)
+            var factor: float = height / source_bounds.size.y
+            var basis: Basis = Basis(Vector3.UP, float(item.yaw)) * Basis.from_scale(Vector3.ONE * factor)
+            var origin: Vector3 = Vector3(item.position.x, -source_bounds.position.y * factor, item.position.z)
+            var placement: Transform3D = Transform3D(basis, origin)
             var part_transform: Transform3D = part.transform
             multimesh.set_instance_transform(i, placement * part_transform)
-        var instance := MultiMeshInstance3D.new()
+        var instance: MultiMeshInstance3D = MultiMeshInstance3D.new()
         instance.name = "%s_%s_Part_%02d" % [label, asset_id, part_index]
         instance.multimesh = multimesh
         instance.material_override = _tinted_material(tint)
@@ -121,6 +121,13 @@ static func _build_instanced_group(root: Node3D, asset_id: String, tint: Color, 
     prototype.free()
     print("CHECKPOINT4_GLTF_MULTIMESH_OK: ", label, " asset=", asset_id, " instances=", entries.size(), " mesh_parts=", mesh_data.size(), " GLB_source=true")
     return true
+
+static func _typed_entries(raw_entries: Array) -> Array[Dictionary]:
+    var result: Array[Dictionary] = []
+    for raw_entry in raw_entries:
+        if raw_entry is Dictionary:
+            result.append(raw_entry)
+    return result
 
 static func _append_group(groups: Array[Dictionary], asset_id: String, tint: Color, item: Dictionary) -> void:
     for group in groups:
@@ -134,9 +141,9 @@ static func _add_tree(groups: Array[Dictionary], asset_id: String, tint: Color, 
 
 static func _generate_tree_groups() -> Array[Dictionary]:
     var groups: Array[Dictionary] = []
-    var rng := RandomNumberGenerator.new()
+    var rng: RandomNumberGenerator = RandomNumberGenerator.new()
     rng.seed = 4120403
-    var giant_specs := [
+    var giant_specs: Array[Dictionary] = [
         {"p":Vector3(-150,0,-780),"asset":"flora_baobab_giant"},
         {"p":Vector3(-398,0,-85),"asset":"flora_jungle_giant"},
         {"p":Vector3(562,0,-85),"asset":"flora_baobab_giant"},
@@ -146,7 +153,7 @@ static func _generate_tree_groups() -> Array[Dictionary]:
         {"p":Vector3(180,0,-720),"asset":"flora_baobab_giant"},
         {"p":Vector3(850,0,250),"asset":"flora_jungle_giant"}
     ]
-    var giant_count := 0
+    var giant_count: int = 0
     for spec in giant_specs:
         if giant_count >= 22:
             break
@@ -154,7 +161,7 @@ static func _generate_tree_groups() -> Array[Dictionary]:
         for i in range(3):
             if giant_count >= 22:
                 break
-            var candidate := center + Vector3(rng.randf_range(-18,18),0,rng.randf_range(-18,18))
+            var candidate: Vector3 = center + Vector3(rng.randf_range(-18,18),0,rng.randf_range(-18,18))
             if not _safe(candidate, 28.0):
                 candidate = center + Vector3(float(i - 1) * 14.0,0,float(i % 2) * 16.0)
             if _safe(candidate, 28.0):
@@ -163,25 +170,25 @@ static func _generate_tree_groups() -> Array[Dictionary]:
     if giant_count < 20:
         push_error("CHECKPOINT4_GIANT_TREE_COUNT_FAILED: " + str(giant_count))
         return []
-    var forest_centers := [
+    var forest_centers: Array[Vector3] = [
         Vector3(-540,0,-520), Vector3(-535,0,-240), Vector3(-535,0,250),
         Vector3(-450,0,760), Vector3(-80,0,-900), Vector3(180,0,-720),
         Vector3(720,0,-820), Vector3(850,0,-480), Vector3(830,0,40),
         Vector3(820,0,610), Vector3(700,0,900)
     ]
-    var tree_assets := ["innerscene-japanese-maple-tree-565c1604","flora_birch_grove","flora_mangrove"]
-    var tree_tints := [Color(0.92,0.48,0.66),Color(0.90,0.58,0.18),Color(0.85,0.35,0.16),Color(0.24,0.56,0.26),Color(0.56,0.36,0.78)]
-    var tree_count := 0
+    var tree_assets: Array[String] = ["innerscene-japanese-maple-tree-565c1604","flora_birch_grove","flora_mangrove"]
+    var tree_tints: Array[Color] = [Color(0.92,0.48,0.66),Color(0.90,0.58,0.18),Color(0.85,0.35,0.16),Color(0.24,0.56,0.26),Color(0.56,0.36,0.78)]
+    var tree_count: int = 0
     for cluster_index in range(forest_centers.size()):
         var center: Vector3 = forest_centers[cluster_index]
         for i in range(16):
-            var angle := rng.randf_range(0.0,TAU)
-            var radius := rng.randf_range(18.0,72.0)
-            var candidate := center + Vector3(cos(angle)*radius,0,sin(angle)*radius)
+            var angle: float = rng.randf_range(0.0,TAU)
+            var radius: float = rng.randf_range(18.0,72.0)
+            var candidate: Vector3 = center + Vector3(cos(angle)*radius,0,sin(angle)*radius)
             if not _safe(candidate, 22.0):
                 continue
             var tint: Color = tree_tints[(tree_count + cluster_index) % tree_tints.size()]
-            var asset := tree_assets[(tree_count + i) % tree_assets.size()]
+            var asset: String = tree_assets[(tree_count + i) % tree_assets.size()]
             _add_tree(groups,asset,tint,candidate,rng.randf_range(TREE_MIN,TREE_MAX),rng.randf_range(0,TAU))
             tree_count += 1
             if tree_count >= 168:
@@ -196,27 +203,27 @@ static func _generate_tree_groups() -> Array[Dictionary]:
 
 static func _generate_groundcover_groups() -> Array[Dictionary]:
     var groups: Array[Dictionary] = []
-    var rng := RandomNumberGenerator.new()
+    var rng: RandomNumberGenerator = RandomNumberGenerator.new()
     rng.seed = 4120404
-    var centers := [
+    var centers: Array[Vector3] = [
         Vector3(-555,0,-420),Vector3(-535,0,-180),Vector3(-520,0,300),
         Vector3(-430,0,820),Vector3(-80,0,-900),Vector3(150,0,-720),
         Vector3(700,0,-820),Vector3(850,0,-450),Vector3(830,0,120),
         Vector3(820,0,650),Vector3(700,0,900),Vector3(-585,0,-300),
         Vector3(-585,0,300),Vector3(760,0,400)
     ]
-    var assets := ["flora_grass_tuft","flora_fern","flora_ornamental_plant"]
-    var colors := [Color(0.30,0.72,0.24),Color(0.90,0.68,0.20),Color(0.92,0.48,0.66),Color(0.56,0.36,0.78)]
-    var count := 0
+    var assets: Array[String] = ["flora_grass_tuft","flora_fern","flora_ornamental_plant"]
+    var colors: Array[Color] = [Color(0.30,0.72,0.24),Color(0.90,0.68,0.20),Color(0.92,0.48,0.66),Color(0.56,0.36,0.78)]
+    var count: int = 0
     for cluster_index in range(centers.size()):
         for i in range(32):
             var center: Vector3 = centers[cluster_index]
-            var angle := rng.randf_range(0.0,TAU)
-            var radius := rng.randf_range(3.0,38.0)
-            var point := center + Vector3(cos(angle)*radius,0,sin(angle)*radius)
+            var angle: float = rng.randf_range(0.0,TAU)
+            var radius: float = rng.randf_range(3.0,38.0)
+            var point: Vector3 = center + Vector3(cos(angle)*radius,0,sin(angle)*radius)
             if not _safe(point, 18.0):
                 continue
-            var asset := assets[(count + i + cluster_index) % assets.size()]
+            var asset: String = assets[(count + i + cluster_index) % assets.size()]
             var tint: Color = colors[(count + cluster_index) % colors.size()]
             _append_group(groups,asset,tint,{"position":point,"height":rng.randf_range(PLANT_MIN,PLANT_MAX),"yaw":rng.randf_range(0,TAU)})
             count += 1
@@ -231,47 +238,47 @@ static func _generate_groundcover_groups() -> Array[Dictionary]:
     return groups
 
 static func _build_cottages(root: Node3D) -> bool:
-    var clusters := [
+    var clusters: Array[Dictionary] = [
         {"center":Vector3(-565,0,-285),"houses":["obj_chinese_house","obj_chinese_painter_villa"]},
         {"center":Vector3(-570,0,285),"houses":["obj_big_chinese_house","obj_chinese_house"]},
         {"center":Vector3(835,0,390),"houses":["obj_chinese_painter_villa","obj_big_chinese_house"]}
     ]
-    var total := 0
+    var total: int = 0
     for cluster_index in range(clusters.size()):
         var cluster: Dictionary = clusters[cluster_index]
         var center: Vector3 = cluster.center
         for house_index in range(cluster.houses.size()):
-            var offset := Vector3(float(house_index)*22.0,0,float(cluster_index%2)*13.0)
-            var position := center + offset
+            var offset: Vector3 = Vector3(float(house_index)*22.0,0,float(cluster_index%2)*13.0)
+            var position: Vector3 = center + offset
             if not _safe(position, 24.0):
                 push_error("CHECKPOINT4_COTTAGE_CLEARANCE_REJECTED: " + str(position))
                 return false
-            var asset_id := String(cluster.houses[house_index])
+            var asset_id: String = String(cluster.houses[house_index])
             var house: Node3D = Assets.load_model(asset_id, "")
             if house == null:
                 push_error("CHECKPOINT4_COTTAGE_GLB_MISSING: " + asset_id)
                 return false
-            var bounds := Assets._measure_bounds(house,Transform3D.IDENTITY)
+            var bounds: AABB = Assets._measure_bounds(house,Transform3D.IDENTITY)
             if bounds.size.y <= 0.001 or bounds.size.x <= 0.001 or bounds.size.z <= 0.001:
                 house.free()
                 push_error("CHECKPOINT4_COTTAGE_AABB_INVALID: " + asset_id)
                 return false
-            var target_height := 6.0 + float((cluster_index + house_index) % 4)
+            var target_height: float = 6.0 + float((cluster_index + house_index) % 4)
             house.scale = Vector3.ONE * (target_height / bounds.size.y)
-            var scaled := Assets._measure_bounds(house,Transform3D.IDENTITY)
+            var scaled: AABB = Assets._measure_bounds(house,Transform3D.IDENTITY)
             house.position = Vector3(position.x,-scaled.position.y,position.z)
             house.rotation.y = float((cluster_index + house_index) % 4) * PI * 0.5
             house.name = "Checkpoint4_RuralCottage_%02d" % total
             root.add_child(house)
-            var body := StaticBody3D.new()
+            var body: StaticBody3D = StaticBody3D.new()
             body.name = house.name + "_StaticBody3D"
             body.position = house.position
             body.rotation.y = house.rotation.y
             body.collision_layer = 1
             body.collision_mask = 1
-            var shape := BoxShape3D.new()
+            var shape: BoxShape3D = BoxShape3D.new()
             shape.size = Vector3(scaled.size.x * 0.92,scaled.size.y * 0.96,scaled.size.z * 0.92)
-            var collision := CollisionShape3D.new()
+            var collision: CollisionShape3D = CollisionShape3D.new()
             collision.name = "Cottage_AABB_Collision"
             collision.shape = shape
             collision.position = scaled.get_center()
@@ -284,19 +291,20 @@ static func _build_cottages(root: Node3D) -> bool:
     print("CHECKPOINT4_RURAL_COTTAGES_OK: clusters=",clusters.size()," houses=",total," heights=6-9m StaticBody3D_collision=true")
     return true
 
-static func build(root: Node3D) -> bool:
-    var catalog := Assets._read_catalog()
+static func build(parent: Node3D) -> bool:
+    var root: Node3D = parent
+    var catalog: Dictionary = Assets._read_catalog()
     for key in ["flora_baobab_giant","flora_jungle_giant","flora_birch_grove","flora_mangrove","flora_grass_tuft","flora_fern","flora_ornamental_plant","innerscene-japanese-maple-tree-565c1604","obj_chinese_house","obj_chinese_painter_villa","obj_big_chinese_house"]:
         if not catalog.has(key):
             push_error("CHECKPOINT4_CATALOG_ASSET_MISSING: " + key)
             return false
-    var tree_groups := _generate_tree_groups()
+    var tree_groups: Array[Dictionary] = _generate_tree_groups()
     if tree_groups.is_empty():
         return false
-    var giant_total := 0
-    var colorful_total := 0
+    var giant_total: int = 0
+    var colorful_total: int = 0
     for group in tree_groups:
-        if not _build_instanced_group(root,String(group.asset),group.tint,group.entries,"Checkpoint4_Trees"):
+        if not _build_instanced_group(root,String(group.asset),group.tint,_typed_entries(group.entries),"Checkpoint4_Trees"):
             return false
         for entry in group.entries:
             if float(entry.height) >= GIANT_MIN:
@@ -306,12 +314,12 @@ static func build(root: Node3D) -> bool:
     if giant_total < 20 or giant_total > 24 or colorful_total < 150 or colorful_total > 180:
         push_error("CHECKPOINT4_TREE_FINAL_COUNT_REJECTED: giant="+str(giant_total)+" colorful="+str(colorful_total))
         return false
-    var groundcover := _generate_groundcover_groups()
+    var groundcover: Array[Dictionary] = _generate_groundcover_groups()
     if groundcover.is_empty():
         return false
-    var groundcover_total := 0
+    var groundcover_total: int = 0
     for group in groundcover:
-        if not _build_instanced_group(root,String(group.asset),group.tint,group.entries,"Checkpoint4_Groundcover"):
+        if not _build_instanced_group(root,String(group.asset),group.tint,_typed_entries(group.entries),"Checkpoint4_Groundcover"):
             return false
         groundcover_total += group.entries.size()
     if groundcover_total < 380 or groundcover_total > 450:
@@ -322,12 +330,12 @@ static func build(root: Node3D) -> bool:
     print("CHECKPOINT4_FLORA_BUILD_COMPLETE: giant_trees=",giant_total," colorful_trees=",colorful_total," groundcover=",groundcover_total," cottages=6; zero_procedural_visual_geometry=true; gltfpack_noq=true")
     return true
 
-static func captures() -> Array:
+static func captures() -> Array[Dictionary]:
     return [
         {"file":"wilderness_flora_overview.png","pos":Vector3(1040,650,1080),"target":Vector3(680,0,320),"fov":60.0},
         {"file":"wilderness_flora_giant_trees.png","pos":Vector3(-70,95,-690),"target":Vector3(-170,18,-770),"fov":48.0},
         {"file":"wilderness_flora_sakura_forest.png","pos":Vector3(900,55,-520),"target":Vector3(825,8,-650),"fov":52.0},
         {"file":"wilderness_flora_autumn_forest.png","pos":Vector3(930,55,550),"target":Vector3(820,8,430),"fov":52.0},
         {"file":"wilderness_flora_rural_cottages.png","pos":Vector3(-480,48,-215),"target":Vector3(-560,4,-285),"fov":50.0},
-        {"file":"wilderness_flora_bridge_forest_cottages.png","pos":Vector3(-520,52,-220),"target":Vector3(-615,2,-350),"fov":54.0}
+        {"file":"wilderness_flora_bridge_forest_cottages.png","pos":Vector3(-560,38,-430),"target":Vector3(-615,5,-350),"fov":42.0}
     ]
