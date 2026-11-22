@@ -152,15 +152,15 @@ static func build(root: Node3D) -> bool:
 
     # Four large, visibly stepped grassy plateaus outside the 25m city safety apron.
     var plateaus := [
-        {"id":"WestPlateau", "p":Vector3(-470,0,-95), "d":Vector3(150,52,132), "yaw":0.08},
-        {"id":"EastPlateau", "p":Vector3(470,0,-75), "d":Vector3(172,62,148), "yaw":-0.08},
-        {"id":"SouthWestPlateau", "p":Vector3(-470,0,440), "d":Vector3(152,48,134), "yaw":0.08},
-        {"id":"SouthEastPlateau", "p":Vector3(470,0,440), "d":Vector3(182,72,154), "yaw":-0.08}
+        {"id":"WestPlateau", "p":Vector3(-470,0,-95), "d":Vector3(132,32,116), "yaw":0.08},
+        {"id":"EastPlateau", "p":Vector3(470,0,-75), "d":Vector3(142,35,122), "yaw":-0.08},
+        {"id":"SouthWestPlateau", "p":Vector3(-470,0,440), "d":Vector3(128,30,112), "yaw":0.08},
+        {"id":"SouthEastPlateau", "p":Vector3(470,0,440), "d":Vector3(148,35,126), "yaw":-0.08}
     ]
     for item in plateaus:
         if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, plateau_material, false):
             return false
-    print("CHECKPOINT2_FOUR_PLATEAUS_RAISED_OK: expanded natural landforms; heights=48-72m; anisotropic PBR grass; dark rock outcrops")
+    print("CHECKPOINT2_FOUR_PLATEAUS_RAISED_OK: four sculpted grassy plateaus; visible target heights=30-35m; grass material unchanged")
     var transition_hills := [
         {"id":"WestTransitionNorth","p":Vector3(-610,0,-190),"d":Vector3(88,22,78),"yaw":0.12},
         {"id":"WestTransitionSouth","p":Vector3(-610,0,100),"d":Vector3(92,26,82),"yaw":-0.10},
@@ -196,16 +196,16 @@ static func build(root: Node3D) -> bool:
 
     # Low perimeter terrain closes the east, west and southern horizon.
     var horizon := [
-        {"id":"EastHorizonA","p":Vector3(930,0,-430),"d":Vector3(170,24,150),"yaw":0.12},
-        {"id":"EastHorizonB","p":Vector3(1010,0,-80),"d":Vector3(180,28,160),"yaw":-0.12},
-        {"id":"EastHorizonC","p":Vector3(950,0,300),"d":Vector3(170,22,155),"yaw":0.08},
-        {"id":"WestHorizonA","p":Vector3(-930,0,-430),"d":Vector3(170,24,150),"yaw":-0.12},
-        {"id":"WestHorizonB","p":Vector3(-1010,0,-80),"d":Vector3(180,28,160),"yaw":0.12},
-        {"id":"WestHorizonC","p":Vector3(-950,0,300),"d":Vector3(170,22,155),"yaw":-0.08},
-        {"id":"SouthHorizonA","p":Vector3(-650,0,990),"d":Vector3(180,24,160),"yaw":0.12},
-        {"id":"SouthHorizonB","p":Vector3(-250,0,1020),"d":Vector3(190,28,165),"yaw":-0.08},
-        {"id":"SouthHorizonC","p":Vector3(250,0,1020),"d":Vector3(190,26,165),"yaw":0.08},
-        {"id":"SouthHorizonD","p":Vector3(650,0,990),"d":Vector3(180,24,160),"yaw":-0.12}
+        {"id":"EastHorizonA","p":Vector3(930,0,-430),"d":Vector3(170,32,150),"yaw":0.12},
+        {"id":"EastHorizonB","p":Vector3(1010,0,-80),"d":Vector3(180,35,160),"yaw":-0.12},
+        {"id":"EastHorizonC","p":Vector3(950,0,300),"d":Vector3(170,30,155),"yaw":0.08},
+        {"id":"WestHorizonA","p":Vector3(-930,0,-430),"d":Vector3(170,32,150),"yaw":-0.12},
+        {"id":"WestHorizonB","p":Vector3(-1010,0,-80),"d":Vector3(180,35,160),"yaw":0.12},
+        {"id":"WestHorizonC","p":Vector3(-950,0,300),"d":Vector3(170,30,155),"yaw":-0.08},
+        {"id":"SouthHorizonA","p":Vector3(-650,0,990),"d":Vector3(180,32,160),"yaw":0.12},
+        {"id":"SouthHorizonB","p":Vector3(-250,0,1020),"d":Vector3(190,35,165),"yaw":-0.08},
+        {"id":"SouthHorizonC","p":Vector3(250,0,1020),"d":Vector3(190,33,165),"yaw":0.08},
+        {"id":"SouthHorizonD","p":Vector3(650,0,990),"d":Vector3(180,32,160),"yaw":-0.12}
     ]
     for item in horizon:
         if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, true):
@@ -266,6 +266,8 @@ static func build(root: Node3D) -> bool:
         {"asset":"rock_face_02","id":"WestEscarpmentB","p":Vector3(-515,0,210),"d":Vector3(54,17,42)},
         {"asset":"rock_face_01","id":"EastEscarpmentA","p":Vector3(515,0,185),"d":Vector3(52,16,44)},
         {"asset":"rock_face_02","id":"SouthWestEscarpment","p":Vector3(-505,0,510),"d":Vector3(58,18,46)},
+        {"asset":"rock_face_01","id":"EastEscarpmentNorth","p":Vector3(510,0,-150),"d":Vector3(54,17,42)},
+        {"asset":"rock_face_02","id":"SouthEastEscarpment","p":Vector3(505,0,510),"d":Vector3(58,18,46)},
         {"asset":"boulder_01","id":"BoulderWest","p":Vector3(-365,0,245),"d":Vector3(15,4.5,13)},
         {"asset":"boulder_01","id":"BoulderSouthWest","p":Vector3(-345,0,440),"d":Vector3(18,5,15)},
         {"asset":"boulder_01","id":"BoulderEast","p":Vector3(365,0,245),"d":Vector3(15,4.5,13)},
@@ -275,7 +277,7 @@ static func build(root: Node3D) -> bool:
         if not _place_mass(root, item.asset, item.id, item.p, item.d, 0.0, rock):
             return false
 
-    print("CHECKPOINT2_WILDERNESS_BUILD_COMPLETE: 2200m PBR field, varied northern ridge, four raised plateaus, east-west-south horizon hills, grounded rocks")
+    print("CHECKPOINT2_WILDERNESS_BUILD_COMPLETE: 2200m PBR field, varied northern ridge, four sculpted 30-35m plateaus, reinforced east-west-south horizon hills, grounded rocks")
     print("CHECKPOINT2_ALL_MASS_AABB_VALIDATED")
     return true
 
