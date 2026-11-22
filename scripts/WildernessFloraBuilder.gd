@@ -1,6 +1,6 @@
 extends RefCounted
 # Checkpoint 4: all visible flora is sourced from normalized GLB meshes.
-# No BoxMesh, SphereMesh, CylinderMesh, generated terrain, or procedural visual geometry.
+# Zero Procedural Geometry: no BoxMesh, SphereMesh, CylinderMesh, colored spheres, generated terrain, or procedural visual geometry. All visible plants use approved imported GLBs.
 const Assets = preload("res://scripts/AssetLoader.gd")
 const GIANT_MIN := 28.0
 const GIANT_MAX := 42.0
@@ -69,7 +69,7 @@ static func _collect_meshes(node: Node, parent_transform: Transform3D, output: A
     if node is MeshInstance3D:
         var mesh_node: MeshInstance3D = node as MeshInstance3D
         if mesh_node.mesh != null:
-            output.append({"mesh": mesh_node.mesh, "transform": transform})
+            output.append({"mesh": mesh_node.mesh, "transform": transform, "node_name": mesh_node.name})
     for child in node.get_children():
         _collect_meshes(child, transform, output)
 
@@ -78,7 +78,49 @@ static func _tinted_material(tint: Color) -> StandardMaterial3D:
     material.albedo_color = tint
     material.roughness = 0.88
     material.metallic = 0.0
+    material.vertex_color_use_as_albedo = false
     return material
+
+static func _surface_role(node_name: String, mesh: Mesh, surface_index: int) -> String:
+    var tokens: String = node_name.to_lower() + " " + String(mesh.resource_name).to_lower()
+    tokens += " " + String(mesh.surface_get_name(surface_index)).to_lower()
+    var source: Material = mesh.surface_get_material(surface_index)
+    if source != null:
+        tokens += " " + String(source.resource_name).to_lower()
+    if tokens.contains("trunk") or tokens.contains("bark") or tokens.contains("wood"):
+        return "trunk"
+    if tokens.contains("base") or tokens.contains("ground") or tokens.contains("disk") or tokens.contains("root_plate"):
+        return "base"
+    if tokens.contains("canopy") or tokens.contains("leaf") or tokens.contains("leaves") or tokens.contains("foliage"):
+        return "canopy"
+    return "unknown"
+
+static func _mesh_with_flora_materials(source_mesh: Mesh, node_name: String, tint: Color, tree_asset: bool) -> Mesh:
+    var result: Mesh = source_mesh.duplicate() as Mesh
+    if result is ArrayMesh:
+        var array_mesh: ArrayMesh = result as ArrayMesh
+        for surface_index in range(array_mesh.get_surface_count()):
+            var role: String = _surface_role(node_name, array_mesh, surface_index)
+            var material: StandardMaterial3D = StandardMaterial3D.new()
+            material.roughness = 0.88
+            material.metallic = 0.0
+            material.vertex_color_use_as_albedo = false
+            if tree_asset and role == "trunk":
+                material.albedo_color = Color(0.32, 0.20, 0.12)
+            elif tree_asset and role == "base":
+                material.albedo_color = Color(0.35, 0.48, 0.25)
+            elif tree_asset and (role == "canopy" or role == "unknown"):
+                material.albedo_color = tint
+            elif not tree_asset:
+                material.albedo_color = tint
+            else:
+                var original: Material = array_mesh.surface_get_material(surface_index)
+                if original is StandardMaterial3D:
+                    material = (original as StandardMaterial3D).duplicate() as StandardMaterial3D
+                    material.vertex_color_use_as_albedo = false
+                    material.roughness = maxf(material.roughness, 0.88)
+            array_mesh.surface_set_material(surface_index, material)
+    return result
 
 static func _build_instanced_group(root: Node3D, asset_id: String, tint: Color, entries: Array[Dictionary], label: String) -> bool:
     if entries.is_empty():
@@ -102,7 +144,8 @@ static func _build_instanced_group(root: Node3D, asset_id: String, tint: Color, 
         var part: Dictionary = mesh_data[part_index]
         var multimesh: MultiMesh = MultiMesh.new()
         multimesh.transform_format = MultiMesh.TRANSFORM_3D
-        multimesh.mesh = part.mesh
+        var is_tree_asset: bool = asset_id == "flora_baobab_giant" or asset_id == "flora_jungle_giant" or asset_id == "innerscene-japanese-maple-tree-565c1604" or asset_id == "flora_birch_grove" or asset_id == "flora_mangrove"
+        multimesh.mesh = _mesh_with_flora_materials(part.mesh, String(part.node_name), tint, is_tree_asset)
         multimesh.instance_count = entries.size()
         for i in range(entries.size()):
             var item: Dictionary = entries[i]
@@ -116,7 +159,6 @@ static func _build_instanced_group(root: Node3D, asset_id: String, tint: Color, 
         var instance: MultiMeshInstance3D = MultiMeshInstance3D.new()
         instance.name = "%s_%s_Part_%02d" % [label, asset_id, part_index]
         instance.multimesh = multimesh
-        instance.material_override = _tinted_material(tint)
         root.add_child(instance)
     prototype.free()
     print("CHECKPOINT4_GLTF_MULTIMESH_OK: ", label, " asset=", asset_id, " instances=", entries.size(), " mesh_parts=", mesh_data.size(), " GLB_source=true")
@@ -165,7 +207,7 @@ static func _generate_tree_groups() -> Array[Dictionary]:
             if not _safe(candidate, 28.0):
                 candidate = center + Vector3(float(i - 1) * 14.0,0,float(i % 2) * 16.0)
             if _safe(candidate, 28.0):
-                _add_tree(groups, String(spec.asset), Color(0.72,0.83,0.58), candidate, rng.randf_range(GIANT_MIN,GIANT_MAX), rng.randf_range(0,TAU))
+                _add_tree(groups, String(spec.asset), Color(0.22, 0.48, 0.22), candidate, rng.randf_range(GIANT_MIN,GIANT_MAX), rng.randf_range(0,TAU))
                 giant_count += 1
     if giant_count < 20:
         push_error("CHECKPOINT4_GIANT_TREE_COUNT_FAILED: " + str(giant_count))

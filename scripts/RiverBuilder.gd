@@ -423,8 +423,24 @@ static func build(root: Node3D) -> bool:
     ]
     for item in bridges:
         var bridge: Dictionary = item
-        if not _place_bridge(root, String(bridge["id"]), String(bridge["name"]), bridge["p"], points):
+        var requested_position: Vector3 = bridge["p"]
+        var river_point_index: int = 0
+        var nearest_point_distance: float = INF
+        for idx in range(points.size()):
+            var distance_to_river_point: float = Vector2(
+                requested_position.x - points[idx].x,
+                requested_position.z - points[idx].z
+            ).length()
+            if distance_to_river_point < nearest_point_distance:
+                nearest_point_distance = distance_to_river_point
+                river_point_index = idx
+        var river_center: Vector3 = points[river_point_index]
+        if not _place_bridge(root, String(bridge["id"]), String(bridge["name"]), river_center, points):
             return false
+        print("CHECKPOINT3_BRIDGE_SNAPPED_TO_RIVER_POINT_OK: ", bridge["name"],
+            " river_points_index=", river_point_index,
+            " river_point=", river_center,
+            " requested_anchor_distance=", snappedf(nearest_point_distance, 0.001), "m")
     print("CHECKPOINT3_FOUR_REAL_BRIDGES_OK: 4 HF GLB bridge instances; 2 stone + 2 wood; 34m spans; perpendicular 90deg to local flow")
     print("CHECKPOINT3_RIVER_WIDTH_OK: 20m turquoise winding course; minimum moat safety offset=45m")
     print("CHECKPOINT3_RIVER_OPEN_SOURCE_TO_MOUTH_OK: start=(-260,-718) 24m south lake outlet; end=(-420,950) south map edge; Catmull-Rom open spline; width=20m")
