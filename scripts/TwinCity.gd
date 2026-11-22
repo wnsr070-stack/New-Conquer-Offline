@@ -194,7 +194,8 @@ func _build_walls_moat_and_bridges() -> void:
     _plane("WestMoat_18m", Vector2(18, 320), Vector3(-169, -0.85, 0), water_material)
     for sx in [-1.0, 1.0]:
         for sz in [-1.0, 1.0]:
-            _plane("MoatCorner", Vector2(18, 18), Vector3(sx * 169, -0.85, sz * 169), water_material)    var segment_length := CITY_SIZE / 27.0
+            _plane("MoatCorner", Vector2(18, 18), Vector3(sx * 169, -0.85, sz * 169), water_material)
+    var segment_length := CITY_SIZE / 27.0
     var wall_piece_count := 0
     for side in range(4):
         for index in range(27):
@@ -373,7 +374,8 @@ func _remove_house_bases(node: Node, removed: Array[int]) -> void:
 func _build_house_blocks() -> bool:
     var prototypes: Array[Node3D] = []
     for asset_id in HOUSE_IDS:
-        var prototype: Node3D = Assets.load_model(asset_id, "")        if prototype == null:
+        var prototype: Node3D = Assets.load_model(asset_id, "")
+        if prototype == null:
             push_error("CHECKPOINT1_HOUSE_MODEL_MISSING: " + asset_id)
             return false
         var removed: Array[int] = [0]
