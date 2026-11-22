@@ -159,4 +159,3 @@ static func captures() -> Array:
         {"file":"wilderness_river_west_bend.png","pos":Vector3(-650,85,100),"target":Vector3(-475,0,90),"fov":52.0},
         {"file":"wilderness_river_south_bank.png","pos":Vector3(380,75,650),"target":Vector3(180,0,480),"fov":54.0}
     ]
-}
