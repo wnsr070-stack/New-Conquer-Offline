@@ -1,0 +1,22 @@
+; Engine configuration
+config_version=5
+[application]
+config/name="New Conquer Offline"
+run/main_scene="res://scenes/TwinCity.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+[autoload]
+ClassSystem="*res://autoloads/ClassSystem.gd"
+GearDatabase="*res://autoloads/GearDatabase.gd"
+GearSystem="*res://autoloads/GearSystem.gd"
+GlobalEconomy="*res://autoloads/GlobalEconomy.gd"
+GameState="*res://autoloads/GameState.gd"
+[display]
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/size/window_width_override=1600
+window/size/window_height_override=900
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.48, 0.68, 0.88, 1)
+textures/default_filters/use_nearest_mipmap_filter=false

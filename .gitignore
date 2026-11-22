@@ -1,0 +1,4 @@
+.godot/
+.cache/
+artifacts/
+*.import
