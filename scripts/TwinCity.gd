@@ -72,7 +72,7 @@ func _lighting() -> void:
     add_child(world)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
-    sun.light_energy = 1.25
+    sun.light_energy = 1.0
     sun.shadow_enabled = true
     add_child(sun)
 func _texture(key: String) -> Texture2D:
@@ -238,7 +238,7 @@ func _build_plaza_and_palace() -> bool:
     var cobble := _cobble()
     if cobble == null:
         return false
-    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.045, 0), cobble)
+    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.105, 0), cobble)
     print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only")
     var platform := MeshInstance3D.new()
     platform.name = "RoyalPalaceCobblestonePlatform_34x26x3_5"

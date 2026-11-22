@@ -44,7 +44,6 @@ for name,url in maps.items():
     print("LEAFY_GRASS_MAP_UPLOADED:", name, path.stat().st_size)
 
 models = {
- "alpine_and_arctic_biomes":"settlement-terrain-source/curated-glb/nature/alpine_and_arctic_biomes.glb",
  "mountainside":"assets/universal_nature_pack/models/mountainside.glb",
  "rock_face_01":"assets/universal_nature_pack/models/rock_face_01.glb",
  "rock_face_02":"assets/universal_nature_pack/models/rock_face_02.glb",
@@ -79,7 +78,7 @@ for asset_id,repo_path in models.items():
 for name in maps:
     catalog[name.rsplit(".",1)[0]]={"path":str(EXT/name),"kind":"texture"}
 catalog_path.write_text(json.dumps(catalog,indent=2))
-manifest={"source":"Poly Haven Leafy Grass CC0","textures":textures,"models":report,"cache_schema":"wilderness-checkpoint2-v1"}
+manifest={"source":"Poly Haven Leafy Grass CC0","textures":textures,"models":report,"cache_schema":"wilderness-checkpoint2-v2-no-cartoon-biome"}
 (ROOT/"wilderness_checkpoint2_manifest.json").write_text(json.dumps(manifest,indent=2))
 Path("artifacts").mkdir(exist_ok=True)
 Path("artifacts/wilderness_asset_report.json").write_text(json.dumps(manifest,indent=2))
