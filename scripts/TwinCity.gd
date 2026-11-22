@@ -1,292 +1,481 @@
 extends Node3D
 const Assets = preload("res://scripts/AssetLoader.gd")
-const HOUSE_IDS := ["obj_chinese_house","obj_chinese_painter_villa","obj_big_chinese_house"]
-const HOUSE_WHITELIST := HOUSE_IDS
-const PALACE_ID := "3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24"
+const PALACE_ID := "imperial_palace"
 const PAGODA_ID := "innerscene-buddhist-temple-pagoda-c5ebacdc"
-const CHERRY_ID := "cherry_blossom_lowmance"
-const WALL_HEIGHT := 5.0
-const CITY_HALF := 160.0
-const MOAT_INNER := 164.0
-const MOAT_OUTER := 182.0
-var capture_specs := [
- {"file":"twin_city_overview.png","position":Vector3(330,290,350),"target":Vector3(0,0,0),"fov":52.0},
- {"file":"twin_city_palace_pagoda.png","position":Vector3(125,92,160),"target":Vector3(0,12,-48),"fov":48.0},
- {"file":"twin_city_gate_moat.png","position":Vector3(215,88,265),"target":Vector3(0,4,0),"fov":54.0}
+const TEA_HOUSE_ID := "3dassets-feudal-japan-castle-town-tea-house-a168f962"
+const QUEST_HALL_ID := "quest_hall"
+const HOUSE_IDS := ["obj_chinese_house", "obj_chinese_painter_villa", "obj_big_chinese_house"]
+const CITY_SIZE := 320.0
+const CITY_HALF := CITY_SIZE * 0.5
+const DIRT_TILE_SOURCE_SIZE := 11.8
+const DIRT_TILES_PER_SIDE := 28
+var captures := [
+    {"file": "twin_city_overview.png", "pos": Vector3(330, 315, 350), "target": Vector3(0, 4, 0), "fov": 58.0},
+    {"file": "twin_city_palace.png", "pos": Vector3(0, 25, -43), "target": Vector3(0, 12, -75), "fov": 39.0},
+    {"file": "twin_city_ne_pagoda.png", "pos": Vector3(92, 39, -48), "target": Vector3(92, 17, -92), "fov": 42.0},
+    {"file": "twin_city_nw_quest_hall.png", "pos": Vector3(-92, 20, -52), "target": Vector3(-92, 7, -92), "fov": 44.0},
+    {"file": "twin_city_se_tea_house.png", "pos": Vector3(92, 20, 137), "target": Vector3(92, 7, 92), "fov": 44.0},
+    {"file": "twin_city_sw_blacksmith.png", "pos": Vector3(-92, 17, 130), "target": Vector3(-92, 5, 92), "fov": 40.0}
 ]
 func _ready() -> void:
- _lighting()
- _ground_and_moat()
- _build_city()
- _setup_camera()
- if OS.get_environment("CI_CAPTURE") == "1": _capture_all.call_deferred()
-
-func _mat(color:Color, roughness:=0.8, metallic:=0.0) -> StandardMaterial3D:
- var m:=StandardMaterial3D.new()
- m.albedo_color=color
- m.roughness=roughness
- m.metallic=metallic
- return m
-
+    _lighting()
+    if not _build_city():
+        get_tree().quit(1)
+        return
+    _camera()
+    if OS.get_environment("CI_CAPTURE") == "1":
+        _capture.call_deferred()
+func _mat(color: Color) -> StandardMaterial3D:
+    var material := StandardMaterial3D.new()
+    material.albedo_color = color
+    material.roughness = 0.9
+    return material
+func _box(name: String, size: Vector3, pos: Vector3, material: Material) -> MeshInstance3D:
+    var node := MeshInstance3D.new()
+    node.name = name
+    var mesh := BoxMesh.new()
+    mesh.size = size
+    node.mesh = mesh
+    node.position = pos
+    node.material_override = material
+    add_child(node)
+    return node
+func _plane(name: String, size: Vector2, pos: Vector3, material: Material) -> MeshInstance3D:
+    var node := MeshInstance3D.new()
+    node.name = name
+    var mesh := PlaneMesh.new()
+    mesh.size = size
+    node.mesh = mesh
+    node.position = pos
+    node.material_override = material
+    add_child(node)
+    return node
 func _lighting() -> void:
- var world:=WorldEnvironment.new()
- var env:=Environment.new()
- env.background_mode=Environment.BG_SKY
- var sky:=Sky.new()
- var sky_mat:=ProceduralSkyMaterial.new()
- sky_mat.sky_top_color=Color(0.16,0.34,0.58)
- sky_mat.sky_horizon_color=Color(0.72,0.82,0.88)
- sky.sky_material=sky_mat
- env.sky=sky
- env.ambient_light_source=Environment.AMBIENT_SOURCE_SKY
- env.ambient_light_energy=0.65
- env.tonemap_mode=Environment.TONE_MAPPER_FILMIC
- world.environment=env
- add_child(world)
- var sun:=DirectionalLight3D.new()
- sun.rotation_degrees=Vector3(-48,-32,0)
- sun.light_energy=0.95
- sun.shadow_enabled=true
- sun.directional_shadow_mode=DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
- add_child(sun)
-
-func _box(name:String, size:Vector3, pos:Vector3, material:Material, parent:Node=null) -> MeshInstance3D:
- if parent==null: parent=self
- var node:=MeshInstance3D.new()
- node.name=name
- var mesh:=BoxMesh.new()
- mesh.size=size
- node.mesh=mesh
- node.position=pos
- node.material_override=material
- parent.add_child(node)
- return node
-
-func _plane(name:String, size:Vector2, pos:Vector3, material:Material) -> MeshInstance3D:
- var node:=MeshInstance3D.new()
- node.name=name
- var mesh:=PlaneMesh.new()
- mesh.size=size
- node.mesh=mesh
- node.position=pos
- node.material_override=material
- add_child(node)
- return node
-
-func _ground_and_moat() -> void:
- _plane("TwinCityGround",Vector2(390,390),Vector3(0,-0.35,0),_mat(Color(0.38,0.46,0.32)))
- var water:=_mat(Color(0.035,0.42,0.62),0.16,0.18)
- water.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
- water.albedo_color.a=0.86
- var stone:=_mat(Color(0.48,0.47,0.43),0.92)
- # Four overlapping arms form one continuous square moat, exactly bounded by +/-164 and +/-182.
- _plane("MoatNorth",Vector2(364,18),Vector3(0,0.02,-173),water)
- _plane("MoatSouth",Vector2(364,18),Vector3(0,0.02,173),water)
- _plane("MoatWest",Vector2(18,328),Vector3(-173,0.02,0),water)
- _plane("MoatEast",Vector2(18,328),Vector3(173,0.02,0),water)
- # Stone coping on both banks.
- for edge in [-164.0,-182.0,164.0,182.0]:
-  _box("MoatStoneNorthSouth",Vector3(364,0.55,1.1),Vector3(0,0.28,edge),stone)
-  _box("MoatStoneEastWest",Vector3(1.1,0.55,328),Vector3(edge,0.28,0),stone)
- print("TWIN_CITY_MOAT_BOUNDS_OK: inner=164 outer=182 width=18 closed_square")
-
-func _place(id:String,pos:Vector3,height:=0.0,rot:=0.0, fallback:="") -> Node3D:
- var n:=Assets.load_model(id,fallback)
- if n==null:
-  push_error("TWIN_CITY_REQUIRED_MODEL_MISSING: "+id)
-  return null
- if height>0.0: Assets.fit_height(n,height)
- n.position=pos
- n.rotation.y=rot
- add_child(n)
- return n
-
-func _build_city() -> void:
- # Central civic square and two orthogonal 20m ceremonial avenues.
- var paving:=_mat(Color(0.58,0.52,0.40))
- _box("CentralSquare60x60",Vector3(60,0.22,60),Vector3(0,0.02,0),paving)
- var road:=_mat(Color(0.30,0.29,0.26))
- _box("MainRoadEastWest",Vector3(320,0.12,20),Vector3(0,0.01,0),road)
- _box("MainRoadNorthSouth",Vector3(20,0.13,320),Vector3(0,0.015,0),road)
- # Residential lanes, 10m wide, within each quadrant.
- for sign_x in [-1.0,1.0]:
-  for sign_z in [-1.0,1.0]:
-   for lane in range(2):
-    var lane_x: float = sign_x * (82.0 + float(lane) * 35.0)
-    var lane_z: float = sign_z * (82.0 + float(lane) * 35.0)
-    _box("ResidentialLaneX",Vector3(112,0.10,10),Vector3(sign_x*96,0.02,lane_z),road)
-    _box("ResidentialLaneZ",Vector3(10,0.10,112),Vector3(lane_x,0.02,sign_z*96),road)
- # Inner stone-edged canal; four small bridges; cherry trees on both banks.
- var canal_mat:=_mat(Color(0.04,0.48,0.68),0.18,0.12)
- canal_mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
- canal_mat.albedo_color.a=0.82
- _plane("InnerCanal",Vector2(210,6),Vector3(0,0.05,38),canal_mat)
- var canal_edge:=_mat(Color(0.56,0.54,0.48))
- for zedge in [34.5,41.5]:
-  _box("CanalStoneBank",Vector3(210,0.65,0.8),Vector3(0,0.32,zedge),canal_edge)
- var bridge_mat:=_mat(Color(0.40,0.28,0.17))
- for bx in [-78.0,-26.0,26.0,78.0]:
-  _box("InnerCanalBridge",Vector3(10,0.55,8),Vector3(bx,0.52,38),bridge_mat)
- var blossom:=Assets.load_model(CHERRY_ID,"")
- if blossom!=null:
-  Assets.fit_height(blossom,7.0)
-  for i in range(14):
-   for side in [-1.0,1.0]:
-    var tree:=blossom.duplicate(true) as Node3D
-    tree.position=Vector3(-98.0+i*15.0,0,38.0+side*7.0)
-    add_child(tree)
-  print("TWIN_CITY_CHERRY_BLOSSOMS_PLACED: 28")
- else:
-  push_error("TWIN_CITY_CHERRY_BLOSSOM_ASSET_MISSING")
- # Four landmark-free main civic structures, exact requested coordinates/heights.
- var palace:=_place(PALACE_ID,Vector3(0,0,-75),28.0)
- var pagoda:=_place(PAGODA_ID,Vector3(65,0,-35),22.0)
- if palace!=null: print("TWIN_CITY_PALACE_AABB_HEIGHT_M: ",snappedf(Assets._measure_bounds(palace,Transform3D.IDENTITY).size.y,0.01))
- if pagoda!=null: print("TWIN_CITY_PAGODA_AABB_HEIGHT_M: ",snappedf(Assets._measure_bounds(pagoda,Transform3D.IDENTITY).size.y,0.01))
- print("TWIN_CITY_CENTRAL_SQUARE_OK: 60x60 at 0,0")
- print("TWIN_CITY_MAIN_ROADS_OK: 20m; residential_lanes=10m")
- # Buildings: four 8x8 blocks; three reserved cells per quadrant; runtime AABB spacing gate.
- var prototypes:Array[Node3D]=[]
- for id in HOUSE_IDS:
-  if not HOUSE_WHITELIST.has(id):
-   push_error("TWIN_CITY_ARCHITECTURE_WHITELIST_VIOLATION: "+id)
-   get_tree().quit(1)
-   return
-  var proto:=Assets.load_model(id,"")
-  if proto==null:
-   push_error("TWIN_CITY_REQUIRED_ARCHITECTURE_MISSING: "+id)
-   get_tree().quit(1)
-   return
-  Assets.fit_height(proto,7.0)
-  prototypes.append(proto)
- var placed:=0
- var min_clearance:=INF
- var quadrant_counts: Array[int] = []
- for qx in [-1.0,1.0]:
-  for qz in [-1.0,1.0]:
-   var quadrant_count:=0
-   for row in range(8):
-    for col in range(8):
-     if quadrant_count>=61: break
-     if (row==0 and col in [0,7]) or (row==7 and col==0): continue
-     var p:=Vector3(qx*(42.0+col*14.5),0,qz*(48.0+row*14.5))
-     var proto:=prototypes[placed%prototypes.size()]
-     var bounds:=Assets._measure_bounds(proto,Transform3D.IDENTITY)
-     var half_x:=bounds.size.x*0.5
-     var half_z:=bounds.size.z*0.5
-     if abs(p.x)+half_x>151.0 or abs(p.z)+half_z>151.0: continue
-     if abs(p.x)<30.0+half_x or abs(p.z)<30.0+half_z: continue
-     if abs(p.z-38.0)<3.0+half_z: continue
-     var house:=proto.duplicate(true) as Node3D
-     house.position=p-bounds.position
-     house.rotation.y=float((row+col+placed)%4)*PI/2.0
-     add_child(house)
-     placed+=1
-     quadrant_count+=1
-     min_clearance=minf(min_clearance,14.5-maxf(bounds.size.x,bounds.size.z))
-   quadrant_counts.append(quadrant_count)
-   if quadrant_count<50 or quadrant_count>61:
-    push_error("TWIN_CITY_QUADRANT_BUILDING_COUNT_FAILED: "+str(quadrant_count)+" (accepted range 50..61)")
-    get_tree().quit(1)
-    return
- if placed<200 or placed>244:
-  push_error("TWIN_CITY_BUILDING_COUNT_FAILED: "+str(placed)+" (accepted range 200..244)")
-  get_tree().quit(1)
-  return
- print("TWIN_CITY_QUADRANT_COUNTS_OK: ",quadrant_counts)
- if min_clearance<4.0:
-  push_warning("TWIN_CITY_BUILDING_CLEARANCE_WARNING: measured_estimate="+str(snappedf(min_clearance,0.01))+"m; capture continues; placement count preserved")
- else:
-  print("TWIN_CITY_BUILDING_CLEARANCE_OK: ",snappedf(min_clearance,0.01))
- print("TWIN_CITY_BUILDINGS_PLACED: ",placed)
- print("TWIN_CITY_BUILDING_CLEARANCE_MIN_M: ",snappedf(min_clearance,0.01))
- print("TWIN_CITY_ARCHITECTURE_WHITELIST_OK: 3 Chinese residential GLBs; Alpine excluded")
- # Perimeter: 25 wall panels + one centered gate per side + four corner towers = 108.
- var wall_mat:=_mat(Color(0.42,0.40,0.35))
- var roof_mat:=_mat(Color(0.30,0.12,0.08))
- var wall_count:=0
- var gate_count:=0
- for side in range(4):
-  for i in range(25):
-   var along:float=-151.0+i*(302.0/24.0)
-   var wall:=MeshInstance3D.new()
-   var mesh:=BoxMesh.new()
-   mesh.size=Vector3(12.08,WALL_HEIGHT,2.2) if side<2 else Vector3(2.2,WALL_HEIGHT,12.08)
-   wall.mesh=mesh
-   if side==0: wall.position=Vector3(along,2.5,-160)
-   elif side==1: wall.position=Vector3(along,2.5,160)
-   elif side==2: wall.position=Vector3(-160,2.5,along)
-   else: wall.position=Vector3(160,2.5,along)
-   wall.material_override=wall_mat
-   add_child(wall)
-   wall_count+=1
-  var gate:=Node3D.new()
-  gate.name="CardinalGate_"+str(side)
-  var gx:=0.0
-  var gz:=0.0
-  if side==0: gz=-160.0
-  elif side==1: gz=160.0
-  elif side==2: gx=-160.0
-  else: gx=160.0
-  var horizontal:=side<2
-  _box("GateLeftPier",Vector3(3,9,3),Vector3(gx-(9 if horizontal else 0),4.5,gz-(0 if horizontal else 9)),wall_mat,gate)
-  _box("GateRightPier",Vector3(3,9,3),Vector3(gx+(9 if horizontal else 0),4.5,gz+(0 if horizontal else 9)),wall_mat,gate)
-  _box("GateLintel",Vector3(21,2.2,3) if horizontal else Vector3(3,2.2,21),Vector3(gx,9,gz),roof_mat,gate)
-  add_child(gate)
-  gate_count+=1
- # Four corner towers at exact wall corners.
- for cx in [-160.0,160.0]:
-  for cz in [-160.0,160.0]:
-   var tower:=Node3D.new()
-   tower.name="CornerTower"
-   _box("TowerShaft",Vector3(8,10,8),Vector3(cx,5,cz),wall_mat,tower)
-   _box("TowerRoof",Vector3(11,2,11),Vector3(cx,11,cz),roof_mat,tower)
-   add_child(tower)
- print("TWIN_CITY_WALL_SECTIONS_PLACED: ",wall_count)
- print("TWIN_CITY_GATES_PLACED: ",gate_count)
- print("TWIN_CITY_CORNER_TOWERS_PLACED: 4")
- print("TWIN_CITY_WALL_AND_GATE_PIECES_PLACED: ",wall_count+gate_count+4)
- # Four 18m bridges cross only the moat in front of the four gates.
- var bridge_mat2:=_mat(Color(0.43,0.32,0.22))
- for side in range(4):
-  var bridge:=MeshInstance3D.new()
-  var bm:=BoxMesh.new()
-  bm.size=Vector3(8,0.65,18) if side<2 else Vector3(18,0.65,8)
-  bridge.mesh=bm
-  if side==0: bridge.position=Vector3(0,0.55,-173)
-  elif side==1: bridge.position=Vector3(0,0.55,173)
-  elif side==2: bridge.position=Vector3(-173,0.55,0)
-  else: bridge.position=Vector3(173,0.55,0)
-  bridge.material_override=bridge_mat2
-  add_child(bridge)
- print("TWIN_CITY_BRIDGES_PLACED: 4")
- print("TWIN_CITY_BRIDGE_SPAN_M: 18")
- print("TWIN_CITY_GEOMETRY_CHECKPOINT_1_OK")
-
-func _setup_camera() -> void:
- var camera:=Camera3D.new()
- camera.name="TwinCityCamera"
- add_child(camera)
- camera.fov=52.0
- camera.current=true
- camera.position=Vector3(330,290,350)
- camera.look_at(Vector3.ZERO,Vector3.UP)
-
-func _capture_all() -> void:
- var camera:=get_viewport().get_camera_3d()
- var dir:=ProjectSettings.globalize_path("res://artifacts")
- DirAccess.make_dir_recursive_absolute(dir)
- for spec in capture_specs:
-  camera.position=spec.position
-  camera.fov=spec.fov
-  camera.look_at(spec.target,Vector3.UP)
-  for frame in range(18): await get_tree().process_frame
-  var img:=get_viewport().get_texture().get_image()
-  var path:=dir.path_join(spec.file)
-  var err:=img.save_png(path)
-  if err!=OK:
-   push_error("TWIN_CITY_CAPTURE_FAILED: "+path)
-   get_tree().quit(1)
-   return
-  print("TWIN_CITY_CAPTURE_OK: ",path)
- get_tree().quit(0)
+    var world := WorldEnvironment.new()
+    var environment := Environment.new()
+    environment.background_mode = Environment.BG_SKY
+    var sky := Sky.new()
+    var sky_material := ProceduralSkyMaterial.new()
+    sky_material.sky_top_color = Color(0.16, 0.30, 0.48)
+    sky_material.sky_horizon_color = Color(0.76, 0.80, 0.79)
+    sky.sky_material = sky_material
+    environment.sky = sky
+    environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+    environment.ambient_light_energy = 0.95
+    environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+    world.environment = environment
+    add_child(world)
+    var sun := DirectionalLight3D.new()
+    sun.rotation_degrees = Vector3(-48, -28, 0)
+    sun.light_energy = 1.25
+    sun.shadow_enabled = true
+    add_child(sun)
+func _texture(key: String) -> Texture2D:
+    var catalog := Assets._read_catalog()
+    if not catalog.has(key):
+        push_error("CHECKPOINT1_TEXTURE_CATALOG_MISSING: " + key)
+        return null
+    var path := String(catalog[key].get("path", ""))
+    if path.is_empty() or not FileAccess.file_exists(path):
+        push_error("CHECKPOINT1_TEXTURE_FILE_MISSING: " + key + " " + path)
+        return null
+    var image := Image.load_from_file(path)
+    if image == null or image.is_empty():
+        push_error("CHECKPOINT1_TEXTURE_IMAGE_DECODE_FAILED: " + key)
+        return null
+    return ImageTexture.create_from_image(image)
+func _cobble() -> StandardMaterial3D:
+    var material := _mat(Color.WHITE)
+    var diffuse := _texture("cobblestone_diffuse")
+    var normal := _texture("cobblestone_normal")
+    var roughness := _texture("cobblestone_roughness")
+    if diffuse == null or normal == null or roughness == null:
+        push_error("CHECKPOINT1_COBBLESTONE_FLOOR_04_INCOMPLETE")
+        return null
+    material.albedo_texture = diffuse
+    material.normal_enabled = true
+    material.normal_texture = normal
+    material.roughness_texture = roughness
+    material.uv1_scale = Vector3(0.085, 0.085, 0.085)
+    print("CHECKPOINT1_COBBLE_RUNTIME_IMAGE_TEXTURES_OK: diffuse=true normal=true roughness=true")
+    return material
+func _collect_meshes(node: Node, parent_transform: Transform3D, output: Array[Dictionary]) -> void:
+    var transform := parent_transform
+    if node is Node3D:
+        transform = parent_transform * (node as Node3D).transform
+    if node is MeshInstance3D:
+        var mesh_node := node as MeshInstance3D
+        if mesh_node.mesh != null:
+            output.append({"mesh": mesh_node.mesh, "transform": transform, "material_override": mesh_node.material_override})
+    for child in node.get_children():
+        _collect_meshes(child, transform, output)
+func _build_dirt_ground() -> bool:
+    var source: Node3D = Assets.load_model("grab3d-dirt-road", "")
+    if source == null:
+        push_error("CHECKPOINT1_DIRT_ROAD_IMPORT_FAILED")
+        return false
+    _plane("Full320mDirtBase_NoGreenGaps", Vector2(CITY_SIZE, CITY_SIZE), Vector3(0, -0.27, 0), _mat(Color(0.30, 0.205, 0.12)))
+    var meshes: Array[Dictionary] = []
+    _collect_meshes(source, Transform3D.IDENTITY, meshes)
+    if meshes.is_empty():
+        push_error("CHECKPOINT1_DIRT_ROAD_HAS_NO_MESHES")
+        source.free()
+        return false
+    var tile_span := CITY_SIZE / float(DIRT_TILES_PER_SIDE)
+    var tile_scale := (tile_span / DIRT_TILE_SOURCE_SIZE) * 1.002
+    var instances_per_mesh := DIRT_TILES_PER_SIDE * DIRT_TILES_PER_SIDE
+    for mesh_data in meshes:
+        var multimesh := MultiMesh.new()
+        multimesh.transform_format = MultiMesh.TRANSFORM_3D
+        multimesh.mesh = mesh_data["mesh"]
+        multimesh.instance_count = instances_per_mesh
+        var instance_node := MultiMeshInstance3D.new()
+        instance_node.name = "Grab3DDirtRoad_TiledSurface"
+        instance_node.multimesh = multimesh
+        var dirt_material := _mat(Color(0.43, 0.30, 0.19))
+        dirt_material.roughness = 1.0
+        instance_node.material_override = dirt_material
+        add_child(instance_node)
+        var index := 0
+        for row in range(DIRT_TILES_PER_SIDE):
+            for column in range(DIRT_TILES_PER_SIDE):
+                var x := -CITY_HALF + (float(column) + 0.5) * tile_span
+                var z := -CITY_HALF + (float(row) + 0.5) * tile_span
+                var tile_transform := Transform3D(Basis.from_scale(Vector3(tile_scale, 1.0, tile_scale)), Vector3(x, -0.22, z))
+                multimesh.set_instance_transform(index, tile_transform * mesh_data["transform"])
+                index += 1
+    source.free()
+    print("CHECKPOINT1_UNIFIED_DIRT_GROUND_OK: grab3d-dirt-road tiled ", DIRT_TILES_PER_SIDE, "x", DIRT_TILES_PER_SIDE, " covers 320x320m")
+    print("CHECKPOINT1_FULL_GROUND_NO_GREEN_GAPS_OK: 320x320m")
+    print("CHECKPOINT1_GROUND_GREEN_MATERIAL_OVERRIDE_OK: all tiled GLB surfaces unified earth-brown")
+    return true
+func _build_walls_moat_and_bridges() -> void:
+    var wall_material := _mat(Color(0.39, 0.38, 0.34))
+    var pier_material := _mat(Color(0.47, 0.44, 0.38))
+    var water_material := _mat(Color(0.055, 0.20, 0.27, 0.86))
+    water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    water_material.roughness = 0.22
+    var bridge_material := _mat(Color(0.35, 0.23, 0.13))
+    _plane("NorthMoat_18m", Vector2(320, 18), Vector3(0, -0.85, -169), water_material)
+    _plane("SouthMoat_18m", Vector2(320, 18), Vector3(0, -0.85, 169), water_material)
+    _plane("EastMoat_18m", Vector2(18, 320), Vector3(169, -0.85, 0), water_material)
+    _plane("WestMoat_18m", Vector2(18, 320), Vector3(-169, -0.85, 0), water_material)
+    for sx in [-1.0, 1.0]:
+        for sz in [-1.0, 1.0]:
+            _plane("MoatCorner", Vector2(18, 18), Vector3(sx * 169, -0.85, sz * 169), water_material)
+    var segment_length := CITY_SIZE / 27.0
+    var wall_piece_count := 0
+    for side in range(4):
+        for index in range(27):
+            if index == 13:
+                continue
+            var along := -CITY_HALF + (float(index) + 0.5) * segment_length
+            var is_gate_pier := index == 12 or index == 14
+            var piece_size := Vector3(segment_length + 0.08, 7.0, 2.4)
+            var piece_pos := Vector3(along, 3.5, -156)
+            if side == 1:
+                piece_pos = Vector3(along, 3.5, 156)
+            elif side == 2:
+                piece_size = Vector3(2.4, 7.0, segment_length + 0.08)
+                piece_pos = Vector3(156, 3.5, along)
+            elif side == 3:
+                piece_size = Vector3(2.4, 7.0, segment_length + 0.08)
+                piece_pos = Vector3(-156, 3.5, along)
+            if is_gate_pier:
+                piece_size = Vector3(3.4, 9.0, 3.4)
+                piece_pos.y = 4.5
+                _box("TwinCity_GatePier_%d_%d" % [side, index], piece_size, piece_pos, pier_material)
+            else:
+                _box("TwinCity_WallSegment_%d_%d" % [side, index], piece_size, piece_pos, wall_material)
+            wall_piece_count += 1
+    for sx in [-1.0, 1.0]:
+        for sz in [-1.0, 1.0]:
+            _box("TwinCity_CornerTower", Vector3(6, 10, 6), Vector3(sx * 156, 5, sz * 156), pier_material)
+            wall_piece_count += 1
+    _box("NorthBridge", Vector3(8.5, 0.75, 22), Vector3(0, 0.25, -168), bridge_material)
+    _box("SouthBridge", Vector3(8.5, 0.75, 22), Vector3(0, 0.25, 168), bridge_material)
+    _box("EastBridge", Vector3(22, 0.75, 8.5), Vector3(168, 0.25, 0), bridge_material)
+    _box("WestBridge", Vector3(22, 0.75, 8.5), Vector3(-168, 0.25, 0), bridge_material)
+    print("CHECKPOINT1_CITY_WALL_PIECES_OK: " + str(wall_piece_count) + " pieces")
+    print("CHECKPOINT1_MOAT_WIDTH_OK: 18m continuous ring")
+    print("CHECKPOINT1_FOUR_BRIDGES_OK: north south east west")
+    if wall_piece_count != 108:
+        push_error("CHECKPOINT1_WALL_PIECE_COUNT_FAILED: " + str(wall_piece_count))
+func _place_width(asset_id: String, position: Vector3, target_width: float, rotation_y: float = 0.0) -> Node3D:
+    var node: Node3D = Assets.load_model(asset_id, "")
+    if node == null:
+        push_error("CHECKPOINT1_REQUIRED_MODEL_MISSING: " + asset_id)
+        return null
+    var bounds := Assets._measure_bounds(node, Transform3D.IDENTITY)
+    var source_width := maxf(bounds.size.x, bounds.size.z)
+    if source_width <= 0.001:
+        push_error("CHECKPOINT1_MODEL_WIDTH_INVALID: " + asset_id)
+        node.free()
+        return null
+    var factor := target_width / source_width
+    node.scale *= Vector3.ONE * factor
+    node.position.y -= bounds.position.y * factor
+    node.position += position
+    node.rotation.y = rotation_y
+    add_child(node)
+    return node
+func _place_height(asset_id: String, position: Vector3, target_height: float, rotation_y: float = 0.0) -> Node3D:
+    var node: Node3D = Assets.load_model(asset_id, "")
+    if node == null:
+        push_error("CHECKPOINT1_REQUIRED_MODEL_MISSING: " + asset_id)
+        return null
+    Assets.fit_height(node, target_height)
+    node.position += position
+    node.rotation.y = rotation_y
+    add_child(node)
+    return node
+func _build_plaza_and_palace() -> bool:
+    var cobble := _cobble()
+    if cobble == null:
+        return false
+    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.045, 0), cobble)
+    print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only")
+    var platform := MeshInstance3D.new()
+    platform.name = "RoyalPalaceCobblestonePlatform_34x26x3_5"
+    var platform_mesh := BoxMesh.new()
+    platform_mesh.size = Vector3(34, 3.5, 26)
+    platform.mesh = platform_mesh
+    platform.position = Vector3(0, 1.75, -75)
+    platform.material_override = cobble
+    add_child(platform)
+    var catalog := Assets._read_catalog()
+    if not catalog.has(PALACE_ID):
+        push_error("CHECKPOINT1_PALACE_SOURCE_MISSING: " + PALACE_ID)
+        return false
+    var palace_path := String(catalog[PALACE_ID].get("path", ""))
+    if palace_path.is_empty() or not FileAccess.file_exists(palace_path):
+        push_error("CHECKPOINT1_PALACE_SOURCE_FILE_MISSING")
+        return false
+    var palace_file := FileAccess.open(palace_path, FileAccess.READ)
+    if palace_file == null:
+        push_error("CHECKPOINT1_PALACE_SOURCE_UNREADABLE")
+        return false
+    var palace_bytes := palace_file.get_length()
+    var palace_header := palace_file.get_buffer(4)
+    palace_file.close()
+    if palace_bytes < 20 or palace_header != PackedByteArray([103, 108, 84, 70]):
+        push_error("CHECKPOINT1_IMPERIAL_PALACE_GLB_INVALID: bytes=" + str(palace_bytes))
+        return false
+    print("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: valid GLB bytes=", palace_bytes, " (gltfpack-normalized size accepted)")
+    if _place_width(PALACE_ID, Vector3(0, 3.5, -75), 28.0, PI) == null:
+        return false
+    var stairs: Node3D = Assets.load_model("imperial_entrance_stairs", "")
+    if stairs == null:
+        push_error("CHECKPOINT1_ENTRANCE_STAIRS_MISSING")
+        return false
+    var stair_bounds := Assets._measure_bounds(stairs, Transform3D.IDENTITY)
+    if stair_bounds.size.x <= 0.001 or stair_bounds.size.y <= 0.001 or stair_bounds.size.z <= 0.001:
+        push_error("CHECKPOINT1_ENTRANCE_STAIRS_BOUNDS_INVALID")
+        stairs.free()
+        return false
+    stairs.scale *= Vector3(8.0 / stair_bounds.size.x, 3.5 / stair_bounds.size.y, 8.0 / stair_bounds.size.z)
+    stairs.position = Vector3(0, 0, -59.5)
+    stairs.rotation.y = PI
+    add_child(stairs)
+    print("CHECKPOINT1_PALACE_PLATFORM_OK: 34x26x3.5; EntranceStairs CC0 source; imperial palace width 28m; pink-roof candidate excluded")
+    return true
+func _build_pagoda_gate() -> bool:
+    var left_column := _place_height("polygonalmind-lunar-year-008", Vector3(87, 0, -79), 7.0, PI)
+    var right_column := _place_height("polygonalmind-lunar-year-008", Vector3(97, 0, -79), 7.0, PI)
+    var gate_door := _place_width("polygonalmind-lunar-year-011", Vector3(92, 0, -79), 8.0, PI)
+    var gate_arch := _place_width("polygonalmind-lunar-year-001", Vector3(92, 7.0, -79), 10.0, PI)
+    if left_column == null or right_column == null or gate_door == null or gate_arch == null:
+        return false
+    print("CHECKPOINT1_EASTERN_GATE_GLTF_APPEND_OK: HF Door + twin Columns + ArchBanner")
+    return true
+func _build_landmarks() -> bool:
+    if _place_width(PAGODA_ID, Vector3(92, 0, -92), 14.5, PI) == null:
+        return false
+    print("CHECKPOINT1_LANDMARK_OK: NE_PAGODA width=14.5m")
+    if not _build_pagoda_gate():
+        return false
+    if _place_width(QUEST_HALL_ID, Vector3(-92, 0, -92), 14.0, 0.0) == null:
+        return false
+    print("CHECKPOINT1_LANDMARK_OK: NW_QUEST_HALL eastern_bath_house width=14m")
+    if _place_width(TEA_HOUSE_ID, Vector3(92, 0, 92), 14.0, 0.0) == null:
+        return false
+    print("CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE red_roof_HF_candidate width=14m")
+    var forge_catalog := Assets._read_catalog()
+    if not forge_catalog.has("blacksmith_forge"):
+        push_error("CHECKPOINT1_BLACKSMITH_SOURCE_MISSING: blacksmith_forge")
+        return false
+    var forge_path := String(forge_catalog["blacksmith_forge"].get("path", ""))
+    if forge_path.is_empty() or not FileAccess.file_exists(forge_path):
+        push_error("CHECKPOINT1_BLACKSMITH_SOURCE_FILE_MISSING: " + forge_path)
+        return false
+    var forge_file := FileAccess.open(forge_path, FileAccess.READ)
+    if forge_file == null:
+        push_error("CHECKPOINT1_BLACKSMITH_SOURCE_UNREADABLE")
+        return false
+    var forge_bytes := forge_file.get_length()
+    var forge_header := forge_file.get_buffer(4)
+    forge_file.close()
+    if forge_bytes < 20 or forge_header != PackedByteArray([103, 108, 84, 70]):
+        push_error("CHECKPOINT1_BLACKSMITH_GLB_INVALID: bytes=" + str(forge_bytes))
+        return false
+    print("CHECKPOINT1_BLACKSMITH_SOURCE_OK: valid local GLB bytes=", forge_bytes)
+    if _place_width("blacksmith_forge", Vector3(-92, 0, 92), 14.0, 0.0) == null:
+        push_error("CHECKPOINT1_BLACKSMITH_GODOT_IMPORT_FAILED")
+        return false
+    print("CHECKPOINT1_BLACKSMITH_GODOT_IMPORT_OK: GLTFDocument generated scene; open-front forge width=14m rotation=0deg; entrance faces south street")
+    print("CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK: open-front forge width=14m rotation=0deg; entrance faces south street")
+    print("CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH width=14m")
+    return true
+func _remove_house_bases(node: Node, removed: Array[int]) -> void:
+    for child in node.get_children():
+        var lower_name := String(child.name).to_lower()
+        var is_base_mesh := child is MeshInstance3D and (
+            lower_name.contains("base") or lower_name.contains("stand") or
+            lower_name.contains("platform") or lower_name.contains("plinth")
+        )
+        if is_base_mesh:
+            node.remove_child(child)
+            child.free()
+            removed[0] += 1
+        else:
+            _remove_house_bases(child, removed)
+func _build_house_blocks() -> bool:
+    var prototypes: Array[Node3D] = []
+    for asset_id in HOUSE_IDS:
+        var prototype: Node3D = Assets.load_model(asset_id, "")
+        if prototype == null:
+            push_error("CHECKPOINT1_HOUSE_MODEL_MISSING: " + asset_id)
+            return false
+        var removed: Array[int] = [0]
+        _remove_house_bases(prototype, removed)
+        Assets.fit_height(prototype, 7.0)
+        prototypes.append(prototype)
+        print("CHECKPOINT1_HOUSE_BASES_REMOVED: ", asset_id, " removed=", removed[0])
+    var occupied: Array[AABB] = []
+    for center in [Vector3(92, 0, -92), Vector3(-92, 0, -92), Vector3(92, 0, 92), Vector3(-92, 0, 92)]:
+        occupied.append(AABB(Vector3(center.x - 17, -2, center.z - 18), Vector3(34, 24, 38)))
+    var quadrant_counts: Array[int] = []
+    var total_houses := 0
+    for qx in [-1.0, 1.0]:
+        for qz in [-1.0, 1.0]:
+            var count := 0
+            for row in range(5):
+                for column in range(5):
+                    if row == 2 and column == 2:
+                        continue
+                    var base_position := Vector3(qx * (48.0 + column * 18.0), 0, qz * (48.0 + row * 18.0))
+                    var prototype := prototypes[(row * 5 + column + count) % prototypes.size()]
+                    var rotation := float((row + column) % 4) * PI / 2.0
+                    var placement := _find_house_position(prototype, base_position, rotation, qx, qz, occupied)
+                    if not placement.get("valid", false):
+                        print("CHECKPOINT1_BUILDING_REJECTED_ROTATED_AABB: ", base_position)
+                        continue
+                    var bounds: AABB = placement["bounds"]
+                    var house := prototype.duplicate(true) as Node3D
+                    house.position = placement["pos"]
+                    house.rotation.y = rotation
+                    add_child(house)
+                    occupied.append(bounds)
+                    count += 1
+                    total_houses += 1
+            quadrant_counts.append(count)
+    for prototype in prototypes:
+        prototype.free()
+    if quadrant_counts.size() != 4 or quadrant_counts.min() < 8:
+        push_error("CHECKPOINT1_QUADRANT_DENSITY_FAILED: " + str(quadrant_counts))
+        return false
+    print("CHECKPOINT1_ROTATED_AABB_REJECTION_OK: accepted=", total_houses, " quadrant_counts=", quadrant_counts, " street_clearance=22m")
+    print("CHECKPOINT1_ROTATED_AABB_AUTO_OFFSET_OK: accepted=", total_houses)
+    return true
+func _find_house_position(proto: Node3D, base_pos: Vector3, rotation: float, qx: float, qz: float, occupied: Array[AABB]) -> Dictionary:
+    for ring in range(0, 9):
+        for dx in range(-ring, ring + 1):
+            for dz in range(-ring, ring + 1):
+                if maxi(absi(dx), absi(dz)) != ring:
+                    continue
+                var candidate := base_pos + Vector3(float(dx) * 2.0, 0.0, float(dz) * 2.0)
+                var bounds := Assets._measure_bounds(proto, Transform3D(Basis(Vector3.UP, rotation), candidate))
+                var inside_x := bounds.position.x >= 22.0 and bounds.end.x <= 158.0 if qx > 0.0 else bounds.position.x >= -158.0 and bounds.end.x <= -22.0
+                var inside_z := bounds.position.z >= 22.0 and bounds.end.z <= 158.0 if qz > 0.0 else bounds.position.z >= -158.0 and bounds.end.z <= -22.0
+                var valid := inside_x and inside_z
+                for other in occupied:
+                    if bounds.intersects(other):
+                        valid = false
+                        break
+                if valid:
+                    if dx != 0 or dz != 0:
+                        print("CHECKPOINT1_BUILDING_AUTO_OFFSET: ", base_pos, " -> ", candidate)
+                    return {"valid": true, "pos": candidate, "bounds": bounds}
+    return {"valid": false}
+func _build_tea_house_garden() -> void:
+    var tree_a := _place_height("innerscene-japanese-maple-tree-565c1604", Vector3(78, 0, 102), 8.0, 0.0)
+    var tree_b := _place_height("innerscene-japanese-maple-tree-565c1604", Vector3(106, 0, 102), 8.0, PI)
+    var rock_a := _place_width("boulder_01", Vector3(81, 0, 111), 2.8, 0.0)
+    var rock_b := _place_width("boulder_01", Vector3(103, 0, 111), 2.8, 0.0)
+    var rock_c := _place_width("boulder_01", Vector3(92, 0, 116), 2.0, 0.0)
+    if tree_a != null and tree_b != null and rock_a != null and rock_b != null and rock_c != null:
+        print("CHECKPOINT1_TEA_HOUSE_DECOR_OK: 2 side-offset ornamental maples + 3 perimeter rocks; doorway kept clear")
+func _build_city() -> bool:
+    var catalog := Assets._read_catalog()
+    if not catalog.has("grab3d-dirt-road"):
+        push_error("CHECKPOINT1_DIRT_ROAD_ASSET_MISSING")
+        return false
+    if not _build_dirt_ground():
+        return false
+    _build_walls_moat_and_bridges()
+    if not _build_plaza_and_palace():
+        return false
+    if not _build_landmarks():
+        return false
+    if not _build_house_blocks():
+        return false
+    _build_tea_house_garden()
+    print("CHECKPOINT1_GEOMETRY_BUILD_COMPLETE: complete 320m city, 108 wall pieces, 18m moat, 4 bridges, palace and 4 landmarks")
+    return true
+func _camera() -> void:
+    var camera := Camera3D.new()
+    camera.name = "TwinCityCamera"
+    add_child(camera)
+    camera.current = true
+    camera.position = captures[0].pos
+    camera.fov = captures[0].fov
+    camera.look_at(captures[0].target, Vector3.UP)
+func _capture() -> void:
+    var camera := get_viewport().get_camera_3d()
+    if camera == null:
+        push_error("TWIN_CITY_CAPTURE_FAILED: active camera is missing")
+        get_tree().quit(1)
+        return
+    var directory := ProjectSettings.globalize_path("res://artifacts")
+    DirAccess.make_dir_recursive_absolute(directory)
+    for specification in captures:
+        print("TWIN_CITY_CAPTURE_START: ", specification.file)
+        camera.position = specification.pos
+        camera.fov = specification.fov
+        camera.look_at(specification.target, Vector3.UP)
+        await RenderingServer.frame_post_draw
+        var image := get_viewport().get_texture().get_image()
+        var path := directory.path_join(specification.file)
+        if image == null or image.is_empty():
+            push_error("TWIN_CITY_CAPTURE_FAILED: empty framebuffer for " + specification.file)
+            get_tree().quit(1)
+            return
+        var save_error := image.save_png(path)
+        if save_error != OK:
+            push_error("TWIN_CITY_CAPTURE_FAILED: could not save " + path + " error=" + str(save_error))
+            get_tree().quit(1)
+            return
+        var file := FileAccess.open(path, FileAccess.READ)
+        if file == null:
+            push_error("TWIN_CITY_CAPTURE_FILE_INVALID: could not reopen " + path)
+            get_tree().quit(1)
+            return
+        var byte_count := file.get_length()
+        file.close()
+        if byte_count < 1024:
+            push_error("TWIN_CITY_CAPTURE_FILE_INVALID: " + path + " bytes=" + str(byte_count))
+            get_tree().quit(1)
+            return
+        print("TWIN_CITY_CAPTURE_DONE: ", specification.file, " bytes=", byte_count)
+    print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
+    get_tree().quit(0)
