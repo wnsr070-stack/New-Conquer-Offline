@@ -248,16 +248,25 @@ static func _place_bridge(root: Node3D, asset_id: String, label: String, center:
         target_z / source_bounds.size.z
     )
     node.rotation = Vector3(0.0, yaw, 0.0)
+    # Some bridge GLBs place their Origin at one endpoint rather than at AABB center.
     var scaled_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
+    var geometric_center_offset: Vector3 = scaled_bounds.get_center()
     var visual_min_y := 0.16
-    node.position = Vector3(center.x, visual_min_y - scaled_bounds.position.y, center.z)
+    # Center the true horizontal bounds on the river centerline, not the GLB pivot.
+    node.position = Vector3(
+        center.x - geometric_center_offset.x,
+        visual_min_y - scaled_bounds.position.y,
+        center.z - geometric_center_offset.z
+    )
     var final_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
     # _measure_bounds includes the node's root transform, including position.
     var final_min_y := final_bounds.position.y
     var final_max_y := final_bounds.position.y + final_bounds.size.y
-    if final_min_y < 0.12 or final_max_y > 2.60:
+    var final_geometric_center := final_bounds.get_center()
+    var centerline_error := Vector2(final_geometric_center.x - center.x, final_geometric_center.z - center.z).length()
+    if final_min_y < 0.12 or final_max_y > 2.60 or centerline_error > 0.02:
         node.free()
-        push_error("CHECKPOINT3_BRIDGE_VISUAL_HEIGHT_REJECTED: " + label + " min_y=" + str(final_min_y) + " max_y=" + str(final_max_y))
+        push_error("CHECKPOINT3_BRIDGE_AABB_CENTER_REJECTED: " + label + " min_y=" + str(final_min_y) + " max_y=" + str(final_max_y) + " centerline_error=" + str(centerline_error))
         return false
     var tint := Color(0.46, 0.44, 0.39) if asset_id == "bridge_stone" else Color(0.42, 0.25, 0.12)
     _tint_imported_model(node, tint, 0.78)
@@ -276,6 +285,8 @@ static func _place_bridge(root: Node3D, asset_id: String, label: String, center:
         " source_length=", snappedf(source_length, 0.001), "m source_width=", snappedf(source_width, 0.001), "m",
         " scale=", node.scale, " final_min_y=", snappedf(final_min_y, 0.01),
         " final_max_y=", snappedf(final_max_y, 0.01), "m water_y=0.12m",
+        " aabb_center=", final_geometric_center, " river_centerline=", center,
+        " centerline_error=", snappedf(centerline_error, 0.001), "m",
         " span=", span, "m cross_river=true max_ramp_slope_deg=", snappedf(max_slope_degrees, 0.1))
     return true
 
