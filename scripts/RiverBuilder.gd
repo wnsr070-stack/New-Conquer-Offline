@@ -240,18 +240,21 @@ static func _place_bridge(root: Node3D, asset_id: String, label: String, center:
     var span := 34.0
     var width := 9.0
     var target_visual_height := 2.25
+    var target_x := span if long_x else width
+    var target_z := width if long_x else span
     node.scale = Vector3(
-        (span if long_x else width) / source_length,
+        target_x / source_bounds.size.x,
         target_visual_height / source_bounds.size.y,
-        (width if long_x else span) / source_width
+        target_z / source_bounds.size.z
     )
     node.rotation = Vector3(0.0, yaw, 0.0)
     var scaled_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
     var visual_min_y := 0.16
     node.position = Vector3(center.x, visual_min_y - scaled_bounds.position.y, center.z)
     var final_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
-    var final_min_y := final_bounds.position.y + node.position.y
-    var final_max_y := final_bounds.position.y + final_bounds.size.y + node.position.y
+    # _measure_bounds includes the node's root transform, including position.
+    var final_min_y := final_bounds.position.y
+    var final_max_y := final_bounds.position.y + final_bounds.size.y
     if final_min_y < 0.12 or final_max_y > 2.60:
         node.free()
         push_error("CHECKPOINT3_BRIDGE_VISUAL_HEIGHT_REJECTED: " + label + " min_y=" + str(final_min_y) + " max_y=" + str(final_max_y))
