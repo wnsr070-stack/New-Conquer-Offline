@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/hf-assets
-          key: twin-city-hf-assets-v3-${{ hashFiles('ci/fetch_assets.py') }}
+          key: twin-city-hf-assets-v4-${{ hashFiles('ci/fetch_assets.py') }}
       - name: Install preparation dependencies
         run: |
           set -euo pipefail
@@ -130,7 +130,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/hf-assets
-          key: twin-city-hf-assets-v3-${{ hashFiles('ci/fetch_assets.py') }}
+          key: twin-city-hf-assets-v4-${{ hashFiles('ci/fetch_assets.py') }}
       - name: Restore Godot imported resources
         uses: actions/cache@v4
         with:

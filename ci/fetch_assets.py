@@ -117,6 +117,41 @@ def fetch_checkpoint_assets(catalog):
  catalog["imperial_entrance_stairs"] = {"path": str(stair), "kind": "building_entrance_stairs"}
  print("CHECKPOINT1_EXTERNAL_ASSETS_OK")
 
+def normalize_runtime_glbs(catalog):
+ """Decode optional glTF compression and remove quantization for Godot 4.3."""
+ converted_by_source = {}
+ for asset_id, item in catalog.items():
+  source = Path(item["path"])
+  if source.suffix.lower() != ".glb":
+   continue
+  source_key = str(source.resolve())
+  if source_key in converted_by_source:
+   item["path"] = converted_by_source[source_key]
+   continue
+  output = source.with_name(source.stem + ".godot43.glb")
+  subprocess.run(["gltfpack", "-i", str(source), "-o", str(output), "-noq"], check=True, timeout=180)
+  if not output.is_file() or output.stat().st_size < 20:
+   raise RuntimeError(f"gltfpack output missing or empty: {asset_id}")
+  data = output.read_bytes()
+  if data[:4] != b"glTF":
+   raise RuntimeError(f"gltfpack output has invalid GLB header: {asset_id}")
+  json_length = int.from_bytes(data[12:16], "little")
+  if data[16:20] != b"JSON" or json_length < 2 or 20 + json_length > len(data):
+   raise RuntimeError(f"gltfpack output has invalid GLB JSON chunk: {asset_id}")
+  gltf = json.loads(data[20:20 + json_length].decode("utf-8").rstrip("\\x00 "))
+  extensions = set(gltf.get("extensionsUsed", [])) | set(gltf.get("extensionsRequired", []))
+  forbidden = extensions.intersection({"KHR_mesh_quantization", "EXT_meshopt_compression"})
+  if forbidden:
+   raise RuntimeError(f"Unsupported compression extensions remain in {asset_id}: {sorted(forbidden)}")
+  item["path"] = str(output)
+  converted_by_source[source_key] = str(output)
+  print("GODOT43_GLTF_COMPAT_OK:", asset_id,
+        "source_bytes=", len(data), "output_bytes=", output.stat().st_size,
+        "meshes=", len(gltf.get("meshes", [])),
+        "materials=", len(gltf.get("materials", [])),
+        "images=", len(gltf.get("images", [])))
+ print("GODOT43_ALL_RUNTIME_GLBS_NORMALIZED:", len(converted_by_source))
+
 def main():
  catalog = {}
  credits = [
@@ -183,6 +218,7 @@ def main():
  catalog["quest_hall"] = catalog["landmark_chinese_architecture"]
  print("CHECKPOINT1_EASTERN_QUEST_HALL_SOURCE_OK: verified Chinese architecture GLB")
  fetch_checkpoint_assets(catalog)
+ normalize_runtime_glbs(catalog)
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
  output = CACHE_ROOT / "twin_city_runtime_assets.json"
