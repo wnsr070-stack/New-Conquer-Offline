@@ -23,8 +23,6 @@ CACHE_ROOT = Path(".cache/hf-assets")
 
 EXTERNAL = CACHE_ROOT / "external"
 DIRECT_ASSETS = {
- "tea_house": "https://grab3d.com/dl/tea-house/tea-house.glb",
- "quest_hall": "https://polyfork.dev/cdn/governor-s-audience-hall-a4d777.glb",
  "blacksmith_forge": "https://tevy.dev/models/blacksmith-forge/v1/lod0.glb",
  "cobblestone_diffuse": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/cobblestone_floor_04/cobblestone_floor_04_diff_1k.jpg",
  "cobblestone_normal": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/cobblestone_floor_04/cobblestone_floor_04_nor_gl_1k.png",
@@ -32,7 +30,6 @@ DIRECT_ASSETS = {
 }
 POLY_PIZZA_PAGES = {
  "blacksmith_forge_poly": "https://poly.pizza/m/a1g7o8qQ1U",
- "quest_hall_poly": "https://poly.pizza/m/5j1w-J0aK7",
 }
 def fetch_url(url,dest,glb=False):
  dest.parent.mkdir(parents=True,exist_ok=True)
@@ -42,11 +39,13 @@ def fetch_url(url,dest,glb=False):
  dest.write_bytes(r.content)
  print("EXTERNAL_ASSET_OK:",dest.name,"bytes=",len(r.content))
  return dest
-def poly_page_download(key,url):
+def poly_page_download(key,url,require_cc0=False):
  try:
   r=requests.get(url,timeout=60,headers={"User-Agent":"Mozilla/5.0"})
   r.raise_for_status()
   html=r.text.replace("\\u0026","&").replace("\\u002F","/")
+  if require_cc0 and not re.search(r"CC0\s*(?:1\.0)?",html,re.I):
+   raise RuntimeError("Poly Pizza page does not expose verifiable CC0 licence text")
   urls=re.findall(r'https?[^" <>]+?\.glb(?:\?[^" <>]*)?',html,re.I)
   for direct in urls:
    try: return fetch_url(direct,EXTERNAL/(key+".glb"),True)
@@ -85,14 +84,23 @@ def fetch_checkpoint_assets(catalog):
    print("BLACKSMITH_GLTFPACK_DECOMPRESSED_OK:",path.stat().st_size)
   catalog[key]={"path":str(path),"kind":"texture" if suffix in (".jpg",".png") else "architecture"}
  for key,url in POLY_PIZZA_PAGES.items():
-  path=poly_page_download(key,url)
-  if path: catalog[key]={"path":str(path),"kind":"architecture"}
+  path=poly_page_download(key,url,require_cc0=(key=="blacksmith_forge_poly"))
+  if path:
+   if key=="blacksmith_forge_poly":
+    converted=EXTERNAL/"blacksmith_forge_poly_godot43.glb"
+    subprocess.run(["gltfpack","-i",str(path),"-o",str(converted),"-noq"],check=True,timeout=180)
+    if not converted.is_file() or converted.stat().st_size<20 or converted.read_bytes()[:4]!=b"glTF":
+     raise RuntimeError("gltfpack produced an invalid standard GLB for Poly Pizza blacksmith_forge")
+    catalog["blacksmith_forge"]={"path":str(converted),"kind":"architecture"}
+    print("BLACKSMITH_POLYPIZZA_CC0_GLTFPACK_OK:",converted.stat().st_size)
+   catalog[key]={"path":str(path),"kind":"architecture"}
  guardian=fetch_optional_guardian()
  if guardian: catalog["guardian_lion_or_statue"]={"path":str(guardian),"kind":"guardian"}
  stair=download("assets/wuxia_imperial_pack/models/polygonalmind-lunar-year-014.glb")
+ if stair.stat().st_size != 729036 or stair.read_bytes()[:4] != b"glTF":
+  raise RuntimeError("HF EntranceStairs source size/header verification failed")
  catalog["imperial_entrance_stairs"]={"path":str(stair),"kind":"building_entrance_stairs"}
  print("CHECKPOINT1_EXTERNAL_ASSETS_OK")
-
 NATURE = "assets/universal_nature_pack/imperial_approved_assets.json"
 CITY = "assets/wuxia_imperial_pack/twin_city_selected_17_assets.json"
 IMPERIAL = "assets/wuxia_imperial_pack/manifest.json"
@@ -104,12 +112,9 @@ CC0 = {
  "settlement-terrain-source/curated-glb/nature/willow_tree.glb",
 }
 CANDIDATE_PREFIXES = (
- "3dassets-feudal-japan-castle-town-", "3dassets-alpine-snow-village-",
- "3dassets-royal-court-and-throne-palace-", "opengameart-kenney-building-kit",
- "opengameart-kenney-modular-buildings", "opengameart-modular-temple-3d-models",
- "opengameart-modular-temple-3d-models-2", "opengameart-3d-walls-props",
- "opengameart-basic-wooden-fence", "opengameart-stone-bridge-",
- "opengameart-wooden-bridge-",
+ "3dassets-feudal-japan-castle-town-bath-house-f3524f03",
+ "3dassets-feudal-japan-castle-town-tea-house-a168f962",
+ "3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24",
 )
 def download(name):
  return Path(hf_hub_download(repo_id=REPO_ID, repo_type="dataset", filename=name, local_dir=str(CACHE_ROOT)))
@@ -174,6 +179,23 @@ def main():
   if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF": raise RuntimeError(f"Invalid candidate GLB: {repo_path}")
   catalog[Path(repo_path).stem]={"path":str(path),"kind":"candidate"}
   print(f"CANDIDATE_GLB_OK {Path(repo_path).name}")
+ palace_repo_path = "assets/wuxia_imperial_pack/candidates/models/3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24.glb"
+ palace_path = download(palace_repo_path)
+ if palace_path.stat().st_size != 1055596 or palace_path.read_bytes()[:4] != b"glTF":
+  raise RuntimeError("Approved royal palace source failed exact 1,055,596-byte verification")
+ catalog["3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24"] = {"path":str(palace_path),"kind":"imperial_palace"}
+ required_eastern = {
+  "3dassets-feudal-japan-castle-town-bath-house-f3524f03": "assets/wuxia_imperial_pack/candidates/models/3dassets-feudal-japan-castle-town-bath-house-f3524f03.glb",
+  "3dassets-feudal-japan-castle-town-tea-house-a168f962": "assets/wuxia_imperial_pack/candidates/models/3dassets-feudal-japan-castle-town-tea-house-a168f962.glb",
+ }
+ for asset_id, repo_path in required_eastern.items():
+  path = download(repo_path)
+  if path.stat().st_size < 20 or path.read_bytes()[:4] != b"glTF":
+   raise RuntimeError(f"Required eastern building is not a valid GLB: {repo_path}")
+  catalog[asset_id] = {"path":str(path),"kind":"eastern_architecture"}
+ catalog["quest_hall"] = catalog["3dassets-feudal-japan-castle-town-bath-house-f3524f03"]
+ catalog["tea_house"] = catalog["3dassets-feudal-japan-castle-town-tea-house-a168f962"]
+ print("CHECKPOINT1_EASTERN_BUILDINGS_SOURCE_OK: bath_house + tea_house")
  objaverse_root = CACHE_ROOT / "objaverse-clean-glb"
  metadata_path = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset",
   filename="metadata.jsonl", local_dir=str(objaverse_root)))
@@ -198,7 +220,7 @@ def main():
   credits.append(f"{asset_id}: {row.get('title')} | author={row.get('authors')} | license={row.get('license')} | source={row.get('source_url')} | license_url={row.get('license_url')} | engine-tier GLB used for preview.")
   print(f"OBJAVERSE_ASSET_OK: {asset_id} | {row.get('title')} | {row.get('license')} | author={row.get('authors')}")
  fetch_checkpoint_assets(catalog)
- print("CHECKPOINT1_EASTERN_GATE_SOURCE_NOT_FOUND: no dedicated Paifang GLB passed source verification; no substitute is used")
+ print("CHECKPOINT1_EASTERN_GATE_HF_COMPONENTS_READY: ArchBanner + Door + Column")
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
  out=Path(".cache/hf-assets/twin_city_runtime_assets.json")

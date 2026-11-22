@@ -7,7 +7,7 @@ permissions:
   contents: read
 concurrency:
   group: checkpoint1-preview-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 env:
   GODOT_VERSION: "4.3"
   GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
@@ -184,7 +184,13 @@ jobs:
           grep -q "CHECKPOINT1_UNIFIED_DIRT_GROUND_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_COBBLESTONE_PLAZA_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_COBBLE_RUNTIME_IMAGE_TEXTURES_OK:" artifacts/godot.log
-          grep -Eq "CHECKPOINT1_EASTERN_GATE_(GLTF_APPEND_OK|OMITTED_NO_VERIFIED_MODEL)" artifacts/godot.log
+          grep -q "CHECKPOINT1_CITY_WALL_PIECES_OK: 108 pieces" artifacts/godot.log
+          grep -q "CHECKPOINT1_MOAT_WIDTH_OK: 18m continuous ring" artifacts/godot.log
+          grep -q "CHECKPOINT1_FOUR_BRIDGES_OK: north south east west" artifacts/godot.log
+          grep -q "CHECKPOINT1_FULL_GROUND_NO_GREEN_GAPS_OK: 320x320m" artifacts/godot.log
+          grep -q "CHECKPOINT1_PALACE_SOURCE_SIZE_OK: 1055596 bytes" artifacts/godot.log
+          grep -q "CHECKPOINT1_TEA_HOUSE_DECOR_OK:" artifacts/godot.log
+          grep -q "CHECKPOINT1_EASTERN_GATE_GLTF_APPEND_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK" artifacts/godot.log
           grep -q "CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
           grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
