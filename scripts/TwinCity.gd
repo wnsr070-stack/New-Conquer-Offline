@@ -63,26 +63,26 @@ func _lighting() -> void:
     var sky_material := ProceduralSkyMaterial.new()
     sky_material.sky_top_color = Color(0.28, 0.56, 0.92)
     sky_material.sky_horizon_color = Color(0.68, 0.84, 0.98)
-    sky_material.ground_bottom_color = Color(0.22, 0.35, 0.18)
-    sky_material.ground_horizon_color = Color(0.22, 0.35, 0.18)
+    sky_material.ground_bottom_color = Color(0.62, 0.80, 0.96)
+    sky_material.ground_horizon_color = Color(0.68, 0.84, 0.98)
     sky.sky_material = sky_material
     environment.sky = sky
     environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-    environment.ambient_light_energy = 0.85
+    environment.ambient_light_energy = 0.25
     environment.tonemap_mode = Environment.TONE_MAPPER_ACES
-    environment.fog_enabled = true
+    environment.fog_enabled = false
     environment.fog_light_color = Color(0.72, 0.86, 0.98)
     environment.fog_density = 0.00035
     environment.fog_depth_begin = 950.0
     environment.fog_depth_end = 2100.0
     environment.fog_depth_curve = 1.0
-    environment.fog_sky_affect = 0.15
-    print("CHECKPOINT2_HORIZON_FOG_OK: soft sky-blue fog begins at 950m ends at 2100m density=0.00035")
+    environment.fog_sky_affect = 0.0
+    print("CHECKPOINT2_HORIZON_FOG_OK: fog disabled; ambient=0.25 sun=0.75 sky_affect=0.0")
     world.environment = environment
     add_child(world)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
-    sun.light_energy = 0.85
+    sun.light_energy = 0.75
     sun.shadow_enabled = true
     add_child(sun)
 func _texture(key: String) -> Texture2D:

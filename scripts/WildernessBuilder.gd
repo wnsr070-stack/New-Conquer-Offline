@@ -109,11 +109,11 @@ static func build(root: Node3D) -> bool:
     rock.roughness = 0.90
     rock.specular = 0.15
     rock.metallic = 0.0
-    rock.albedo_color = Color(0.34, 0.37, 0.31)
+    rock.albedo_color = Color(0.22, 0.25, 0.23)
 
     var plateau_material := StandardMaterial3D.new()
     plateau_material.albedo_texture = diffuse
-    plateau_material.albedo_color = Color(0.36, 0.48, 0.29)
+    plateau_material.albedo_color = Color(0.48, 0.76, 0.34)
     plateau_material.normal_enabled = true
     plateau_material.normal_texture = normal
     plateau_material.roughness_texture = roughness_map
@@ -144,14 +144,16 @@ static func build(root: Node3D) -> bool:
 
     # Four large, visibly stepped grassy plateaus outside the 25m city safety apron.
     var plateaus := [
-        {"id":"WestPlateau", "p":Vector3(-455,0,-90), "d":Vector3(105,18,92), "yaw":0.08},
-        {"id":"EastPlateau", "p":Vector3(455,0,-70), "d":Vector3(125,22,112), "yaw":-0.08},
-        {"id":"SouthWestPlateau", "p":Vector3(-455,0,430), "d":Vector3(104,16,96), "yaw":0.08},
-        {"id":"SouthEastPlateau", "p":Vector3(455,0,430), "d":Vector3(130,26,116), "yaw":-0.08}
+        {"id":"WestPlateau", "p":Vector3(-455,0,-90), "d":Vector3(105,45,92), "yaw":0.08},
+        {"id":"EastPlateau", "p":Vector3(455,0,-70), "d":Vector3(125,55,112), "yaw":-0.08},
+        {"id":"SouthWestPlateau", "p":Vector3(-455,0,430), "d":Vector3(104,40,96), "yaw":0.08},
+        {"id":"SouthEastPlateau", "p":Vector3(455,0,430), "d":Vector3(130,65,116), "yaw":-0.08}
     ]
     for item in plateaus:
-        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, false):
+        if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, plateau_material, false):
             return false
+    print("CHECKPOINT2_FOUR_PLATEAUS_RAISED_OK: height multiplier=2.5x; rich PBR grass; dark rock outcrops")
+    print("CHECKPOINT2_CITY_APRON_REMOVED: no separate safety-apron mesh; continuous base grass retained")
 
     # Low perimeter terrain closes the east, west and southern horizon.
     var horizon := [
