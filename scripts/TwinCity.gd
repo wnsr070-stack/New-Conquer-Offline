@@ -2,6 +2,7 @@ extends Node3D
 const Assets = preload("res://scripts/AssetLoader.gd")
 const Wilderness = preload("res://scripts/WildernessBuilder.gd")
 const RiverBuilder = preload("res://scripts/RiverBuilder.gd")
+const Flora = preload("res://scripts/WildernessFloraBuilder.gd")
 const PALACE_ID := "imperial_palace"
 const PAGODA_ID := "innerscene-buddhist-temple-pagoda-c5ebacdc"
 const TEA_HOUSE_ID := "3dassets-feudal-japan-castle-town-tea-house-a168f962"
@@ -35,6 +36,10 @@ func _ready() -> void:
         await _shutdown(1)
         return
     captures.append_array(RiverBuilder.captures())
+    if not Flora.build(self):
+        await _shutdown(1)
+        return
+    captures.append_array(Flora.captures())
     _camera()
     if OS.get_environment("CI_CAPTURE") == "1":
         _capture.call_deferred()
