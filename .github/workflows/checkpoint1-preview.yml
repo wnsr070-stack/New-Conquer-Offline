@@ -165,6 +165,15 @@ jobs:
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1
           CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
+      - name: Render Phase 3A-3 four cities and six preview views
+        run: |
+          set -euo pipefail
+          export LIBGL_ALWAYS_SOFTWARE=1
+          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3A3Preview.tscn 2>&1 | tee artifacts/phase3a3.log
+          for image in city_phoenix_castle.png city_ape_mountain.png city_desert_city.png city_bird_island.png city_desert_oasis_closeup.png city_bird_island_bridges_closeup.png; do test -s "artifacts/$image"; done
+          grep -q "PHASE3A3_ALL_SIX_CAPTURES_COMPLETE" artifacts/phase3a3.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3A3_CAPTURE_FAILED|PHASE3A3_REQUIRED_ASSET_MISSING" artifacts/phase3a3.log
+
       - name: Upload six captures and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -173,6 +182,13 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: |
+            artifacts/city_phoenix_castle.png
+            artifacts/city_ape_mountain.png
+            artifacts/city_desert_city.png
+            artifacts/city_bird_island.png
+            artifacts/city_desert_oasis_closeup.png
+            artifacts/city_bird_island_bridges_closeup.png
+            artifacts/phase3a3.log
             artifacts/twin_city_overview.png
             artifacts/twin_city_palace.png
             artifacts/twin_city_ne_pagoda.png
