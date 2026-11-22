@@ -61,7 +61,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -x .cache/tools/bin/gltfpack ]; then npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack; fi
-          .cache/tools/bin/gltfpack --help >/dev/null
+          export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
+          command -v gltfpack
           echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
       - name: Install Python fetch dependencies
         run: |
