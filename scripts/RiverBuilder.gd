@@ -152,41 +152,128 @@ static func _add_waterfall_quad(root: Node3D, label: String, vertices: PackedVec
     instance.material_override = material
     root.add_child(instance)
 
+static func _bridge_surface_height(local_x: float, half_span: float, bank_y: float, crest_y: float) -> float:
+    var normalized := clampf(absf(local_x) / half_span, 0.0, 1.0)
+    return bank_y + (crest_y - bank_y) * (1.0 - normalized * normalized)
+
+static func _add_walkable_bridge_collision(root: Node3D, label: String, center: Vector3, yaw: float, span: float, width: float, bank_y: float, crest_y: float) -> bool:
+    var body := StaticBody3D.new()
+    body.name = label + "_Walkable_StaticBody3D"
+    body.position = Vector3(center.x, 0.0, center.z)
+    body.rotation.y = yaw
+    body.collision_layer = 1
+    body.collision_mask = 1
+    body.set_meta("walkable_bridge", true)
+    var half_span := span * 0.5
+    var segment_count := 16
+    var segment_length := span / float(segment_count)
+    var thickness := 0.46
+    for i in range(segment_count):
+        var x0 := -half_span + float(i) * segment_length
+        var x1 := x0 + segment_length
+        var xm := (x0 + x1) * 0.5
+        var y0 := _bridge_surface_height(x0, half_span, bank_y, crest_y)
+        var y1 := _bridge_surface_height(x1, half_span, bank_y, crest_y)
+        var ym := (y0 + y1) * 0.5
+        var slope := (y1 - y0) / segment_length
+        var shape := BoxShape3D.new()
+        shape.size = Vector3(segment_length + 0.10, thickness, width)
+        var collision := CollisionShape3D.new()
+        collision.name = "WalkableRampSegment_%02d" % i
+        collision.shape = shape
+        collision.position = Vector3(xm, ym - thickness * 0.5, 0.0)
+        collision.rotation.z = atan(slope)
+        body.add_child(collision)
+    root.add_child(body)
+    var max_slope_degrees := rad_to_deg(atan(2.0 * (crest_y - bank_y) / span))
+    if max_slope_degrees > 25.0:
+        push_error("CHECKPOINT3_BRIDGE_RAMP_SLOPE_REJECTED: " + label + " max_slope_deg=" + str(max_slope_degrees))
+        body.queue_free()
+        return false
+    print("CHECKPOINT3_BRIDGE_WALKABLE_COLLISION_OK: ", label, " StaticBody3D segments=", segment_count, " span=", span, "m width=", width, "m bank_y=", bank_y, "m crest_y=", crest_y, "m max_slope_deg=", snappedf(max_slope_degrees, 0.1), " physics=enabled")
+    return true
+
 static func _place_bridge(root: Node3D, asset_id: String, label: String, center: Vector3, river_points: PackedVector3Array) -> bool:
     var node: Node3D = Assets.load_model(asset_id, "")
     if node == null:
         push_error("CHECKPOINT3_BRIDGE_ASSET_LOAD_FAILED: " + asset_id)
         return false
-    var bounds := Assets._measure_bounds(node, Transform3D.IDENTITY)
-    if bounds.size.x <= 0.01 or bounds.size.y <= 0.01 or bounds.size.z <= 0.01:
+    var source_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
+    if source_bounds.size.x <= 0.01 or source_bounds.size.y <= 0.01 or source_bounds.size.z <= 0.01:
         node.free()
         push_error("CHECKPOINT3_BRIDGE_AABB_INVALID: " + asset_id)
         return false
-    var long_x := bounds.size.x > bounds.size.z
-    node.scale = Vector3((34.0 if long_x else 9.0)/bounds.size.x, 1.0, (9.0 if long_x else 34.0)/bounds.size.z)
+
+    # Measure the source GLB before scaling; retain its real long axis and height.
+    var long_x := source_bounds.size.x >= source_bounds.size.z
+    var source_length := source_bounds.size.x if long_x else source_bounds.size.z
+    var source_width := source_bounds.size.z if long_x else source_bounds.size.x
+    if source_length <= 0.01 or source_width <= 0.01:
+        node.free()
+        push_error("CHECKPOINT3_BRIDGE_SOURCE_DIMENSIONS_INVALID: " + asset_id)
+        return false
+
     var nearest_distance := INF
     var tangent := Vector3.FORWARD
-    for i in range(river_points.size()-1):
+    for i in range(river_points.size() - 1):
         var p: Vector3 = river_points[i]
-        var q: Vector3 = river_points[i+1]
-        var seg := q-p
-        var den := seg.length_squared()
-        if den <= 0.0001: continue
-        var delta2 := Vector2(center.x-p.x, center.z-p.z)
-        var t := clampf(delta2.dot(Vector2(seg.x,seg.z))/den,0.0,1.0)
-        var closest := p+seg*t
-        var distance := Vector2(center.x-closest.x,center.z-closest.z).length()
+        var q: Vector3 = river_points[i + 1]
+        var seg := q - p
+        var den := seg.x * seg.x + seg.z * seg.z
+        if den <= 0.0001:
+            continue
+        var delta2 := Vector2(center.x - p.x, center.z - p.z)
+        var t := clampf(delta2.dot(Vector2(seg.x, seg.z)) / den, 0.0, 1.0)
+        var closest := p + seg * t
+        var distance := Vector2(center.x - closest.x, center.z - closest.z).length()
         if distance < nearest_distance:
             nearest_distance = distance
-            tangent = seg.normalized()
-    var yaw := atan2(tangent.z,-tangent.x)
-    node.rotation.y = yaw
-    var rotated_bounds: AABB = Assets._measure_bounds(node,Transform3D.IDENTITY)
-    node.position = Vector3(center.x,-0.38-rotated_bounds.position.y,center.z)
-    var tint := Color(0.46,0.44,0.39) if asset_id=="bridge_stone" else Color(0.42,0.25,0.12)
-    _tint_imported_model(node,tint,0.78)
+            tangent = Vector3(seg.x, 0.0, seg.z).normalized()
+    if tangent.length_squared() < 0.5:
+        node.free()
+        push_error("CHECKPOINT3_BRIDGE_FLOW_TANGENT_INVALID: " + label)
+        return false
+
+    # The bridge's long axis is perpendicular to the local river tangent.
+    var cross_river := Vector3(-tangent.z, 0.0, tangent.x).normalized()
+    var yaw := atan2(-cross_river.z, cross_river.x) if long_x else atan2(cross_river.x, cross_river.z)
+    var span := 34.0
+    var width := 9.0
+    var target_visual_height := 2.25
+    node.scale = Vector3(
+        (span if long_x else width) / source_length,
+        target_visual_height / source_bounds.size.y,
+        (width if long_x else span) / source_width
+    )
+    node.rotation = Vector3(0.0, yaw, 0.0)
+    var scaled_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
+    var visual_min_y := 0.16
+    node.position = Vector3(center.x, visual_min_y - scaled_bounds.position.y, center.z)
+    var final_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
+    var final_min_y := final_bounds.position.y + node.position.y
+    var final_max_y := final_bounds.position.y + final_bounds.size.y + node.position.y
+    if final_min_y < 0.12 or final_max_y > 2.60:
+        node.free()
+        push_error("CHECKPOINT3_BRIDGE_VISUAL_HEIGHT_REJECTED: " + label + " min_y=" + str(final_min_y) + " max_y=" + str(final_max_y))
+        return false
+    var tint := Color(0.46, 0.44, 0.39) if asset_id == "bridge_stone" else Color(0.42, 0.25, 0.12)
+    _tint_imported_model(node, tint, 0.78)
+    node.name = label + "_" + asset_id
     root.add_child(node)
-    print("CHECKPOINT3_BRIDGE_GODOT43_OK: ",label," asset=",asset_id," span=34m perpendicular_to_flow yaw_deg=",snappedf(rad_to_deg(yaw),0.1))
+
+    # River ribbons are visual-only MeshInstances; no river wall collider is created.
+    # A segmented physics ramp connects the two grassy banks and crests above the water.
+    if not _add_walkable_bridge_collision(root, label, center, yaw, span, 8.8, -1.30, 1.95):
+        node.queue_free()
+        return false
+    var max_slope_degrees := rad_to_deg(atan(2.0 * (1.95 - (-1.30)) / span))
+    print("CHECKPOINT3_BRIDGE_AABB_PLACEMENT_OK: ", label, " asset=", asset_id,
+        " source_min_y=", snappedf(source_bounds.position.y, 0.001),
+        " source_max_y=", snappedf(source_bounds.position.y + source_bounds.size.y, 0.001),
+        " source_length=", snappedf(source_length, 0.001), "m source_width=", snappedf(source_width, 0.001), "m",
+        " scale=", node.scale, " final_min_y=", snappedf(final_min_y, 0.01),
+        " final_max_y=", snappedf(final_max_y, 0.01), "m water_y=0.12m",
+        " span=", span, "m cross_river=true max_ramp_slope_deg=", snappedf(max_slope_degrees, 0.1))
     return true
 
 static func build_waterfall(root: Node3D) -> bool:
