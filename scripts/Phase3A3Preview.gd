@@ -2,10 +2,10 @@ extends Node3D
 const SHOTS=[
 {"scene":"res://scenes/cities/PhoenixCastle.tscn","file":"city_phoenix_castle.png","pos":Vector3(390,330,430),"target":Vector3(0,15,0),"fov":58.0},
 {"scene":"res://scenes/cities/ApeMountain.tscn","file":"city_ape_mountain.png","pos":Vector3(410,360,420),"target":Vector3(0,20,0),"fov":58.0},
-{"scene":"res://scenes/cities/DesertCity.tscn","file":"city_desert_city.png","pos":Vector3(390,330,430),"target":Vector3(0,10,0),"fov":58.0},
-{"scene":"res://scenes/cities/BirdIsland.tscn","file":"city_bird_island.png","pos":Vector3(400,360,430),"target":Vector3(0,8,0),"fov":58.0},
-{"scene":"res://scenes/cities/DesertCity.tscn","file":"city_desert_oasis_closeup.png","pos":Vector3(240,105,-20),"target":Vector3(155,8,-65),"fov":48.0},
-{"scene":"res://scenes/cities/BirdIsland.tscn","file":"city_bird_island_bridges_closeup.png","pos":Vector3(180,105,160),"target":Vector3(0,12,35),"fov":48.0}]
+{"scene":"res://scenes/cities/DesertCity.tscn","file":"city_desert_city.png","pos":Vector3(520,330,430),"target":Vector3(80,10,0),"fov":58.0},
+{"scene":"res://scenes/cities/BirdIsland.tscn","file":"city_bird_island.png","pos":Vector3(400,300,430),"target":Vector3(0,5,0),"fov":58.0},
+{"scene":"res://scenes/cities/DesertCity.tscn","file":"city_desert_oasis_closeup.png","pos":Vector3(520,105,-5),"target":Vector3(410,8,-65),"fov":48.0},
+{"scene":"res://scenes/cities/BirdIsland.tscn","file":"city_bird_island_bridges_closeup.png","pos":Vector3(160,85,140),"target":Vector3(0,5,0),"fov":48.0}]
 var camera: Camera3D
 func _ready() -> void:
     var envnode=WorldEnvironment.new()

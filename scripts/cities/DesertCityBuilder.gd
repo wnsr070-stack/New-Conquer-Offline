@@ -2,6 +2,7 @@ extends Node3D
 const K=preload("res://scripts/cities/CityAssetKit.gd")
 func _ready(): build()
 func build():
+    K.add_ground(self,Color(0.84,0.72,0.46),Vector2(300,300),Color(0.76,0.62,0.40))
     var sand=Color(0.84,0.72,0.48)
     var wall=Color(0.76,0.62,0.40)
     for i in range(16):
@@ -17,6 +18,7 @@ func build():
         var a=TAU*float(i)/10.0
         K.place(self,"flora_mangrove",Vector3(155+cos(a)*72,0,-65+sin(a)*48),11,a,Color(0.22,0.48,0.28))
         K.place(self,"boulder_01",Vector3(155+cos(a)*85,0,-65+sin(a)*58),5,a,wall)
+    K.add_oasis_lake(self,Vector3(410,0.14,-65))
     K.portal(self,"ApeMountain",Vector3(-135,0,150))
     K.portal(self,"BirdIsland",Vector3(135,0,150))
-    print("DESERT_CITY_BUILD_OK: GLB sand terrain, eastern buildings, oasis vegetation; water mesh asset unavailable")
+    print("DESERT_CITY_BUILD_OK: 2200m golden sand, central court, organized Chinese houses and pagoda, turquoise oasis lake")

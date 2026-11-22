@@ -2,6 +2,7 @@ extends Node3D
 const K=preload("res://scripts/cities/CityAssetKit.gd")
 func _ready(): build()
 func build():
+    K.add_ground(self,Color(0.52,0.48,0.24),Vector2(300,300),Color(0.58,0.44,0.32))
     var grass=Color(0.58,0.52,0.28)
     var stone=Color(0.62,0.45,0.32)
     for i in range(12):
@@ -14,9 +15,11 @@ func build():
     K.place(self,"imperial_palace",Vector3(0,0,-115),34,PI,stone)
     for p in [Vector3(-90,0,-90),Vector3(90,0,-90),Vector3(-90,0,90),Vector3(90,0,90)]:
         K.place(self,"innerscene-buddhist-temple-pagoda-c5ebacdc",p,15,0,stone)
+    for p in [Vector3(-115,0,-35),Vector3(-70,0,65),Vector3(-20,0,105),Vector3(45,0,105),Vector3(115,0,55),Vector3(115,0,-35),Vector3(65,0,-170),Vector3(-65,0,-170)]:
+        K.place(self,"obj_chinese_house",p,12,PI,stone)
     for i in range(8):
         var a=TAU*float(i)/8.0
         K.place(self,"rock_face_01",Vector3(cos(a)*145,0,sin(a)*145),18,a,stone)
     K.portal(self,"TwinCity",Vector3(0,0,145))
     K.portal(self,"ApeMountain",Vector3(18,0,145))
-    print("PHOENIX_CASTLE_BUILD_OK: imported palace, four landmarks, GLB ramparts and autumn forests")
+    print("PHOENIX_CASTLE_BUILD_OK: 2200m ground, central court, royal palace, Chinese house districts, four approach gates and autumn forests")

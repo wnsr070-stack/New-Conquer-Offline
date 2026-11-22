@@ -1,6 +1,66 @@
 extends RefCounted
 class_name CityAssetKit
 const Assets = preload("res://scripts/AssetLoader.gd")
+static func add_ground(root: Node3D, color: Color, court_size: Vector2, court_color: Color, roughness: float=0.92, ocean: bool=false) -> void:
+    var plane := PlaneMesh.new()
+    plane.size = Vector2(2200.0, 2200.0)
+    var material := StandardMaterial3D.new()
+    material.albedo_color = color
+    material.roughness = roughness
+    var floor := MeshInstance3D.new()
+    floor.name = "MainGroundPlane_2200m"
+    floor.mesh = plane
+    floor.material_override = material
+    floor.position.y = 0.0
+    root.add_child(floor)
+    if not ocean:
+        var body := StaticBody3D.new()
+        body.name = "MainGroundCollision"
+        body.position.y = -0.25
+        var collision := CollisionShape3D.new()
+        var shape := BoxShape3D.new()
+        shape.size = Vector3(2200.0, 0.5, 2200.0)
+        collision.shape = shape
+        collision.position.y = 0.25
+        body.add_child(collision)
+        root.add_child(body)
+    if court_size.x > 0.0 and court_size.y > 0.0:
+        var court_mesh := PlaneMesh.new()
+        court_mesh.size = court_size
+        var court_material := StandardMaterial3D.new()
+        court_material.albedo_color = court_color
+        court_material.roughness = 0.9
+        var court := MeshInstance3D.new()
+        court.name = "CentralCityCourt"
+        court.mesh = court_mesh
+        court.material_override = court_material
+        court.position.y = 0.08
+        root.add_child(court)
+        var court_body := StaticBody3D.new()
+        court_body.name = "CentralCourtCollision"
+        court_body.position.y = -0.17
+        var court_collision := CollisionShape3D.new()
+        var court_shape := BoxShape3D.new()
+        court_shape.size = Vector3(court_size.x, 0.5, court_size.y)
+        court_collision.shape = court_shape
+        court_collision.position.y = 0.25
+        court_body.add_child(court_collision)
+        root.add_child(court_body)
+static func add_oasis_lake(root: Node3D, center: Vector3) -> void:
+    var water := CylinderMesh.new()
+    water.top_radius = 65.0
+    water.bottom_radius = 65.0
+    water.height = 0.18
+    water.radial_segments = 64
+    var material := StandardMaterial3D.new()
+    material.albedo_color = Color(0.06, 0.48, 0.60)
+    material.roughness = 0.24
+    var lake := MeshInstance3D.new()
+    lake.name = "OasisLake_130m"
+    lake.mesh = water
+    lake.material_override = material
+    lake.position = center
+    root.add_child(lake)
 static func tint_model(node: Node, color: Color, roughness: float = 0.88) -> void:
     for child in node.get_children():
         if child is MeshInstance3D and child.mesh != null:
