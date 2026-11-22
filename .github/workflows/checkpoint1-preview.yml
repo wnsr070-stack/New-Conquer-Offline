@@ -164,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1
-          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 1280x720x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
+          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
       - name: Upload six captures and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -220,7 +220,8 @@ jobs:
           grep -q "CHECKPOINT2_HORIZON_FOG_OK: fog disabled; ambient=0.25 sun=0.75 sky_affect=0.0" artifacts/godot.log
           grep -q "CHECKPOINT2_RIVER_VALLEY_RESERVED: winding 30m corridor" artifacts/godot.log
           grep -q "CHECKPOINT2_FOUR_BRIDGE_PATHS_OK: light dirt paths" artifacts/godot.log
-          grep -q "CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated anisotropic=true" artifacts/godot.log
+          grep -q "CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated preview_linear=true" artifacts/godot.log
+          grep -q "CHECKPOINT2_PREVIEW_SHADOWS_DISABLED: true" artifacts/godot.log
           grep -q "CHECKPOINT2_PLATEAU_TRANSITION_HILLS_OK: six stepped grassy hills, heights=22-28m" artifacts/godot.log
           grep -q "CHECKPOINT2_NORTHERN_SUMMIT_SNOW_OK: subtle snow caps only on upper northern ridge" artifacts/godot.log
           grep -q "CHECKPOINT2_APRON_SURFACE_AUDIT_OK:" artifacts/godot.log

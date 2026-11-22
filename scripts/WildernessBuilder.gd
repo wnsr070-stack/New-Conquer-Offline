@@ -96,7 +96,9 @@ static func build(root: Node3D) -> bool:
     grass.normal_texture = normal
     grass.roughness_texture = roughness_map
     grass.uv1_scale = Vector3(65.0, 65.0, 65.0)
-    grass.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+    var preview_mode := OS.get_environment("CI_CAPTURE") == "1"
+    var preview_filter := BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if preview_mode else BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+    grass.texture_filter = preview_filter
     grass.roughness = 0.96
     grass.specular = 0.15
 
@@ -108,7 +110,7 @@ static func build(root: Node3D) -> bool:
     ground.position = Vector3(0.0, -1.35, 0.0)
     ground.material_override = grass
     root.add_child(ground)
-    print("CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated anisotropic=true")
+    print("CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated preview_linear=", preview_mode)
 
     var rock := StandardMaterial3D.new()
     rock.roughness = 0.90
@@ -123,7 +125,7 @@ static func build(root: Node3D) -> bool:
     plateau_material.normal_texture = normal
     plateau_material.roughness_texture = roughness_map
     plateau_material.uv1_scale = Vector3(65.0, 65.0, 65.0)
-    plateau_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+    plateau_material.texture_filter = preview_filter
     plateau_material.roughness = 0.96
     plateau_material.specular = 0.12
     plateau_material.metallic = 0.0

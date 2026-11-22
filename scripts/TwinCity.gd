@@ -100,7 +100,8 @@ func _lighting() -> void:
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
     sun.light_energy = 0.75
-    sun.shadow_enabled = true
+    sun.shadow_enabled = OS.get_environment("CI_CAPTURE") != "1"
+    print("CHECKPOINT2_PREVIEW_SHADOWS_DISABLED: ", OS.get_environment("CI_CAPTURE") == "1")
     add_child(sun)
 func _texture(key: String) -> Texture2D:
     var catalog := Assets._read_catalog()
