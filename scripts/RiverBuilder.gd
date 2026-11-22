@@ -22,6 +22,19 @@ static func _tinted_material(source: Material, tint: Color, roughness_floor: flo
     adjusted.metallic = minf(adjusted.metallic, 0.08)
     return adjusted
 
+static func _force_dark_rock_material(node: Node) -> void:
+    if node is MeshInstance3D:
+        var mesh_node := node as MeshInstance3D
+        var dark := StandardMaterial3D.new()
+        dark.albedo_color = Color(0.28, 0.27, 0.25)
+        dark.roughness = 0.92
+        dark.vertex_color_use_as_albedo = false
+        dark.metallic = 0.0
+        mesh_node.material_override = dark
+        mesh_node.material_overlay = null
+    for child in node.get_children():
+        _force_dark_rock_material(child)
+
 static func _tint_imported_model(node: Node, tint: Color, roughness_floor: float) -> void:
     if node is MeshInstance3D:
         var mesh_node := node as MeshInstance3D
@@ -48,7 +61,10 @@ static func _place_asset(root: Node3D, asset_id: String, label: String, position
     node.rotation = Vector3(pitch, yaw, 0.0)
     var rotated_bounds: AABB = Assets._measure_bounds(node, Transform3D.IDENTITY)
     node.position = Vector3(position.x, base_y - rotated_bounds.position.y, position.z)
-    _tint_imported_model(node, tint, roughness_floor)
+    if asset_id.begins_with("rock_face") or asset_id == "boulder_01":
+        _force_dark_rock_material(node)
+    else:
+        _tint_imported_model(node, tint, roughness_floor)
     root.add_child(node)
     print("CHECKPOINT3_IMPORTED_GLB_OK: ", label, " asset=", asset_id, " target_dimensions=", dimensions)
     return true
@@ -115,7 +131,7 @@ static func _add_pool_disk(root: Node3D, center: Vector3, radius: float, y: floa
     var mesh := ArrayMesh.new()
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
     var pool := MeshInstance3D.new()
-    pool.name = "Checkpoint3_Circular_Plunge_Pool_34m"
+    pool.name = "Checkpoint3_Wide_Plunge_Lake_124m"
     pool.mesh = mesh
     pool.material_override = material
     root.add_child(pool)
@@ -136,7 +152,7 @@ static func _add_waterfall_quad(root: Node3D, label: String, vertices: PackedVec
     instance.material_override = material
     root.add_child(instance)
 
-static func _place_bridge(root: Node3D, asset_id: String, label: String, center: Vector3) -> bool:
+static func _place_bridge(root: Node3D, asset_id: String, label: String, center: Vector3, river_points: PackedVector3Array) -> bool:
     var node: Node3D = Assets.load_model(asset_id, "")
     if node == null:
         push_error("CHECKPOINT3_BRIDGE_ASSET_LOAD_FAILED: " + asset_id)
@@ -146,34 +162,48 @@ static func _place_bridge(root: Node3D, asset_id: String, label: String, center:
         node.free()
         push_error("CHECKPOINT3_BRIDGE_AABB_INVALID: " + asset_id)
         return false
-    var long_x := bounds.size.x >= bounds.size.z
-    var sx := (22.0 if long_x else 8.5) / bounds.size.x
-    var sz := (8.5 if long_x else 22.0) / bounds.size.z
-    node.scale = Vector3(sx, 1.0, sz)
-    node.position = Vector3(center.x, -0.38 - bounds.position.y, center.z)
-    # Both verified bridge GLBs have their long axis along local Z; rotate 90 degrees to span the north-south river.
-    node.rotation.y = PI * 0.5
-    var tint := Color(0.46, 0.44, 0.39) if asset_id == "bridge_stone" else Color(0.42, 0.25, 0.12)
-    _tint_imported_model(node, tint, 0.78)
+    var long_x := bounds.size.x > bounds.size.z
+    node.scale = Vector3((34.0 if long_x else 9.0)/bounds.size.x, 1.0, (9.0 if long_x else 34.0)/bounds.size.z)
+    var nearest_distance := INF
+    var tangent := Vector3.FORWARD
+    for i in range(river_points.size()-1):
+        var p: Vector3 = river_points[i]
+        var q: Vector3 = river_points[i+1]
+        var seg := q-p
+        var den := seg.length_squared()
+        if den <= 0.0001: continue
+        var delta2 := Vector2(center.x-p.x, center.z-p.z)
+        var t := clampf(delta2.dot(Vector2(seg.x,seg.z))/den,0.0,1.0)
+        var closest := p+seg*t
+        var distance := Vector2(center.x-closest.x,center.z-closest.z).length()
+        if distance < nearest_distance:
+            nearest_distance = distance
+            tangent = seg.normalized()
+    var yaw := atan2(tangent.z,-tangent.x)
+    node.rotation.y = yaw
+    var rotated_bounds: AABB = Assets._measure_bounds(node,Transform3D.IDENTITY)
+    node.position = Vector3(center.x,-0.38-rotated_bounds.position.y,center.z)
+    var tint := Color(0.46,0.44,0.39) if asset_id=="bridge_stone" else Color(0.42,0.25,0.12)
+    _tint_imported_model(node,tint,0.78)
     root.add_child(node)
-    print("CHECKPOINT3_BRIDGE_GODOT43_OK: ", label, " asset=", asset_id, " source_bounds=", bounds.size, " calibrated_color=", tint)
+    print("CHECKPOINT3_BRIDGE_GODOT43_OK: ",label," asset=",asset_id," span=34m perpendicular_to_flow yaw_deg=",snappedf(rad_to_deg(yaw),0.1))
     return true
 
 static func build_waterfall(root: Node3D) -> bool:
     var catalog := Assets._read_catalog()
-    for key in ["rock_face_01", "rock_face_02", "boulder_01"]:
+    for key in ["rock_face_01","rock_face_02","boulder_01"]:
         if not catalog.has(key):
-            push_error("CHECKPOINT3_WATERFALL_ASSET_MISSING: " + key)
+            push_error("CHECKPOINT3_WATERFALL_ASSET_MISSING: "+key)
             return false
-
-    # The cliff is built only from approved, imported GLB rock-face assets.
-    var rock_tint := Color(0.42, 0.44, 0.42)
-    if not _place_asset(root, "rock_face_01", "NorthernWaterfall_Cliff_Lower", Vector3(-260,0,-528), Vector3(32,18,28), 0.06, rock_tint, 0.90, 0.0, PI * 0.5):
-        return false
-    if not _place_asset(root, "rock_face_02", "NorthernWaterfall_Cliff_Upper", Vector3(-260,28.0,-515), Vector3(32,27,7), -0.04, rock_tint, 0.90, 28.0, PI * 0.5):
-        return false
-
-    var water := _material(Color(0.55,0.85,0.95,0.88), 0.25)
+    var dark_rock := Color(0.28,0.27,0.25)
+    var offsets := [-30.0,-10.0,10.0,30.0]
+    for i in range(offsets.size()):
+        var x := -260.0+offsets[i]
+        var lower := "rock_face_01" if i%2==0 else "rock_face_02"
+        var upper := "rock_face_02" if i%2==0 else "rock_face_01"
+        if not _place_asset(root,lower,"NorthernWaterfall_Cliff_Lower_%02d"%i,Vector3(x,-2,-866),Vector3(22,28,30),0.0,dark_rock,0.92,-2.0,PI*0.5): return false
+        if not _place_asset(root,upper,"NorthernWaterfall_Cliff_Upper_%02d"%i,Vector3(x,26,-870),Vector3(22,28,24),0.0,dark_rock,0.92,26.0,PI*0.5): return false
+    var water := _material(Color(0.55,0.85,0.95,0.88),0.25)
     water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     water.albedo_color = Color(0.55,0.85,0.95,0.88)
     water.roughness = 0.25
@@ -181,13 +211,11 @@ static func build_waterfall(root: Node3D) -> bool:
     water.emission = Color(0.18,0.35,0.42)
     water.emission_energy_multiplier = 0.35
     water.cull_mode = BaseMaterial3D.CULL_DISABLED
-
-    # 30m vertical drop over 11m horizontal run = 69.8 degrees.
-    _add_waterfall_quad(root, "Checkpoint3_Turquoise_Waterfall_Cascade_19m", PackedVector3Array([
-        Vector3(-269.5,30.0,-548.0), Vector3(-250.5,30.0,-548.0),
-        Vector3(-269.5,0.12,-537.0), Vector3(-250.5,0.12,-537.0)
-    ]), water)
-    var foam := _material(Color.WHITE, 0.22)
+    _add_waterfall_quad(root,"Checkpoint3_Turquoise_Waterfall_Cascade_35m",PackedVector3Array([
+        Vector3(-277.5,50,-855),Vector3(-242.5,50,-855),
+        Vector3(-277.5,0.12,-826.1),Vector3(-242.5,0.12,-826.1)
+    ]),water)
+    var foam := _material(Color.WHITE,0.22)
     foam.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     foam.vertex_color_use_as_albedo = true
     foam.albedo_color = Color.WHITE
@@ -195,38 +223,28 @@ static func build_waterfall(root: Node3D) -> bool:
     foam.emission = Color(0.72,0.90,0.98)
     foam.emission_energy_multiplier = 0.18
     foam.cull_mode = BaseMaterial3D.CULL_DISABLED
-    _add_waterfall_quad(root, "Checkpoint3_Waterfall_White_Foam_Gradient", PackedVector3Array([
-        Vector3(-261.2,29.0,-548.3), Vector3(-258.8,29.0,-548.3),
-        Vector3(-261.2,0.18,-537.3), Vector3(-258.8,0.18,-537.3)
-    ]), foam, true)
-    # Multiple narrow foam trails break up the flat water sheet and read as flowing cascade streaks.
-    for streak_index in range(7):
-        var streak_x: float = -267.0 + float(streak_index) * 2.25
-        var streak_half: float = 0.18 + float(streak_index % 3) * 0.07
-        _add_waterfall_quad(root, "Checkpoint3_Waterfall_Foam_Streak_%02d" % streak_index, PackedVector3Array([
-            Vector3(streak_x - streak_half,28.8,-548.35), Vector3(streak_x + streak_half,28.8,-548.35),
-            Vector3(streak_x - streak_half,0.24,-537.35), Vector3(streak_x + streak_half,0.24,-537.35)
-        ]), foam, true)
-
-    _add_pool_disk(root, Vector3(-260,0,-520), 17.0, -0.56, water)
-    var pool_boulders: Array[Dictionary] = [
-        {"p":Vector3(-280,0,-520),"d":Vector3(8,4.5,7),"yaw":0.2},
-        {"p":Vector3(-240,0,-520),"d":Vector3(7,4,6),"yaw":-0.3},
-        {"p":Vector3(-273,0,-507),"d":Vector3(7,4,6),"yaw":0.4},
-        {"p":Vector3(-247,0,-507),"d":Vector3(8,4.5,7),"yaw":-0.2},
-        {"p":Vector3(-280,0,-533),"d":Vector3(7,4,6),"yaw":0.1},
-        {"p":Vector3(-240,0,-533),"d":Vector3(7,4,6),"yaw":-0.1},
-        {"p":Vector3(-268,0,-500),"d":Vector3(6,3.5,5),"yaw":0.3},
-        {"p":Vector3(-252,0,-500),"d":Vector3(6,3.5,5),"yaw":-0.3}
-    ]
-    for i in range(pool_boulders.size()):
-        var item: Dictionary = pool_boulders[i]
-        if not _place_asset(root, "boulder_01", "PlungePool_Boulder_%02d" % i, item.p, item.d, float(item.yaw), rock_tint, 0.90):
-            return false
-
-    print("CHECKPOINT3_WATERFALL_ASSETS_OK: rock_face_01 rock_face_02 boulder_01; imported GLB cliff and pool edging")
-    print("CHECKPOINT3_WATERFALL_CASCADE_OK: angle=69.8deg width=19m top_y=30m pool_y=0.12m turquoise=0.55,0.85,0.95,0.88 emission_energy=0.35")
-    print("CHECKPOINT3_PLUNGE_POOL_OK: circular diameter=34m; eight imported boulders; joined to open river source")
+    _add_waterfall_quad(root,"Checkpoint3_Waterfall_White_Foam_Gradient",PackedVector3Array([
+        Vector3(-261.5,49,-855.3),Vector3(-258.5,49,-855.3),
+        Vector3(-261.5,0.18,-826.4),Vector3(-258.5,0.18,-826.4)
+    ]),foam,true)
+    for i in range(11):
+        var x := -273.0+float(i)*2.6
+        var half := 0.18+float(i%3)*0.08
+        _add_waterfall_quad(root,"Checkpoint3_Waterfall_Foam_Streak_%02d"%i,PackedVector3Array([
+            Vector3(x-half,48.8,-855.35),Vector3(x+half,48.8,-855.35),
+            Vector3(x-half,0.24,-826.45),Vector3(x+half,0.24,-826.45)
+        ]),foam,true)
+    _add_pool_disk(root,Vector3(-260,0,-780),62.0,0.12,water)
+    for i in range(24):
+        if i == 6: continue
+        var angle := TAU*float(i)/24.0
+        var factor := 0.9+float(i%4)*0.3
+        var pos := Vector3(-260+cos(angle)*62.0,-2,-780+sin(angle)*62.0)
+        var dims := Vector3(6.0,3.5,5.5)*factor
+        if not _place_asset(root,"boulder_01","PlungeLake_Perimeter_Boulder_%02d"%i,pos,dims,angle,dark_rock,0.92,-2.0): return false
+    print("CHECKPOINT3_WATERFALL_ASSETS_OK: 8 imported rock_face_01/02 cliff masses; dark material_override Color(0.28,0.27,0.25)")
+    print("CHECKPOINT3_WATERFALL_CASCADE_OK: angle=60deg width=35m top_y=50m pool_y=0.12m turquoise=0.55,0.85,0.95,0.88 emission_energy=0.35")
+    print("CHECKPOINT3_PLUNGE_LAKE_OK: oval visual basin diameter=124m; 23 dark imported boulders; south outlet clear opening≈24m")
     return true
 
 static func _catmull_rom(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
@@ -250,8 +268,8 @@ static func build(root: Node3D) -> bool:
 
     # Open channel begins at the waterfall pool, clears the city moat and all four plateau clusters, and exits south.
     var control := PackedVector3Array([
-        Vector3(-276,0,-520), Vector3(-350,0,-525), Vector3(-470,0,-490),
-        Vector3(-585,0,-400), Vector3(-650,0,-280), Vector3(-675,0,-110),
+        Vector3(-260,0,-718), Vector3(-330,0,-690), Vector3(-440,0,-625),
+        Vector3(-555,0,-500), Vector3(-650,0,-350), Vector3(-675,0,-150),
         Vector3(-680,0,100), Vector3(-650,0,300), Vector3(-590,0,500),
         Vector3(-500,0,700), Vector3(-420,0,950)
     ])
@@ -278,7 +296,7 @@ static func build(root: Node3D) -> bool:
     if min_moat_clearance < 45.0:
         push_error("CHECKPOINT3_MOAT_CLEARANCE_REJECTED: " + str(min_moat_clearance) + "m")
         return false
-    if min_plateau_clearance < 35.0:
+    if min_plateau_clearance < 40.0:
         push_error("CHECKPOINT3_PLATEAU_CLEARANCE_REJECTED: " + str(min_plateau_clearance) + "m")
         return false
 
@@ -304,12 +322,12 @@ static func build(root: Node3D) -> bool:
     ]
     for item in bridges:
         var bridge: Dictionary = item
-        if not _place_bridge(root, String(bridge["id"]), String(bridge["name"]), bridge["p"]):
+        if not _place_bridge(root, String(bridge["id"]), String(bridge["name"]), bridge["p"], points):
             return false
-    print("CHECKPOINT3_FOUR_REAL_BRIDGES_OK: 4 HF GLB bridge instances; stone and wooden sources; Godot 4.3 normalized; warm calibrated tint")
+    print("CHECKPOINT3_FOUR_REAL_BRIDGES_OK: 4 HF GLB bridge instances; 2 stone + 2 wood; 34m spans; perpendicular 90deg to local flow")
     print("CHECKPOINT3_RIVER_WIDTH_OK: 20m turquoise winding course; minimum moat safety offset=45m")
-    print("CHECKPOINT3_RIVER_OPEN_SOURCE_TO_MOUTH_OK: start=(-260,-520) waterfall pool; end=(-420,950) south map edge; Catmull-Rom open spline; width=20m")
-    print("CHECKPOINT3_RIVER_CLEARANCE_OK: moat=", snappedf(min_moat_clearance,0.1), "m minimum; plateau_centers=", snappedf(min_plateau_clearance,0.1), "m minimum; thresholds=45m/35m")
+    print("CHECKPOINT3_RIVER_OPEN_SOURCE_TO_MOUTH_OK: start=(-260,-718) 24m south lake outlet; end=(-420,950) south map edge; Catmull-Rom open spline; width=20m")
+    print("CHECKPOINT3_RIVER_CLEARANCE_OK: moat=", snappedf(min_moat_clearance,0.1), "m minimum; plateau_centers=", snappedf(min_plateau_clearance,0.1), "m minimum; thresholds=45m/40m")
     print("CHECKPOINT3_RIVER_BANKS_OK: paired natural sandy shore ribbons")
 
     var rock_specs: Array[Dictionary] = [
@@ -324,16 +342,16 @@ static func build(root: Node3D) -> bool:
     ]
     for item in rock_specs:
         var rock: Dictionary = item
-        if not _place_asset(root, String(rock["id"]), "RiverBank_" + String(rock["id"]) + "_" + str(rock["p"]), rock["p"], rock["d"], float(rock["yaw"]), Color(0.88,0.90,0.88), 0.90):
+        if not _place_asset(root, String(rock["id"]), "RiverBank_" + String(rock["id"]) + "_" + str(rock["p"]), rock["p"], rock["d"], float(rock["yaw"]), Color(0.28,0.27,0.25), 0.92):
             return false
-    print("CHECKPOINT3_WATER_EDGE_ROCKS_OK: 12 imported rock_face and boulder placements; natural tint; no plateau intersections")
+    print("CHECKPOINT3_WATER_EDGE_ROCKS_OK: imported dark override rocks; roughness=0.92; no plateau intersections")
     print("CHECKPOINT3_OPEN_RIVER_BUILD_COMPLETE: waterfall source, circular plunge pool, four real bridges, 20m open river and natural banks")
     return true
 
 static func captures() -> Array:
     return [
         {"file":"wilderness_river_overview.png","pos":Vector3(-1180,900,1020),"target":Vector3(-500,0,180),"fov":58.0},
-        {"file":"wilderness_river_north_waterfall.png","pos":Vector3(-220,72,-630),"target":Vector3(-260,10,-525),"fov":48.0},
+        {"file":"wilderness_river_north_waterfall.png","pos":Vector3(-260,95,-700),"target":Vector3(-260,22,-840),"fov":48.0},
         {"file":"wilderness_river_east_bridge.png","pos":Vector3(-610,38,-180),"target":Vector3(-675,0,-100),"fov":42.0},
         {"file":"wilderness_river_south_bridge.png","pos":Vector3(-490,38,620),"target":Vector3(-565,0,560),"fov":42.0},
         {"file":"wilderness_river_west_bend.png","pos":Vector3(-760,48,80),"target":Vector3(-680,0,100),"fov":46.0},

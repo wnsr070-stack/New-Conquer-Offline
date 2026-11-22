@@ -74,11 +74,11 @@ static func _place_mass(root: Node3D, asset_id: String, label: String, center: V
     var final_bounds := Assets._measure_bounds(node, Transform3D.IDENTITY)
     var actual_max_y := final_bounds.position.y + final_bounds.size.y
     if label.contains("Plateau"):
-        if final_bounds.size.y < 18.0 or final_bounds.size.y > 28.0:
-            push_error("CHECKPOINT2_PLATEAU_HEIGHT_REJECTED: " + label + " visible_height=" + str(final_bounds.size.y) + " expected=18-28m")
+        if final_bounds.size.y < 30.0 or final_bounds.size.y > 42.0:
+            push_error("CHECKPOINT2_PLATEAU_HEIGHT_REJECTED: " + label + " visible_height=" + str(final_bounds.size.y) + " expected=30-42m")
             node.queue_free()
             return false
-        print("CHECKPOINT2_PLATEAU_HEIGHT_OK: ", label, " visible_AABB_height=", snappedf(final_bounds.size.y, 0.01), "m expected=18-28m")
+        print("CHECKPOINT2_PLATEAU_HEIGHT_OK: ", label, " visible_AABB_height=", snappedf(final_bounds.size.y, 0.01), "m expected=30-42m")
     elif label.contains("Transition"):
         if actual_max_y < 22.0 or actual_max_y > 38.0:
             push_error("CHECKPOINT2_INNER_HILL_MAX_Y_REJECTED: " + label + " max_y=" + str(actual_max_y))
@@ -156,27 +156,27 @@ static func build(root: Node3D) -> bool:
     # Four plateau regions use the exact same mountainside GLB as the northern ridge.
     # Four interlocking copies per region; no flattened platform meshes or snow caps.
     var plateau_blocks := [
-        {"id":"WestPlateau_A","p":Vector3(-510,0,-125),"d":Vector3(82,28,78),"yaw":0.08},
-        {"id":"WestPlateau_B","p":Vector3(-455,0,-105),"d":Vector3(74,24,70),"yaw":-0.12},
-        {"id":"WestPlateau_C","p":Vector3(-505,0,-65),"d":Vector3(66,22,62),"yaw":0.05},
-        {"id":"WestPlateau_D","p":Vector3(-455,0,-48),"d":Vector3(60,20,58),"yaw":-0.06},
-        {"id":"EastPlateau_A","p":Vector3(510,0,-125),"d":Vector3(84,28,80),"yaw":-0.08},
-        {"id":"EastPlateau_B","p":Vector3(455,0,-100),"d":Vector3(76,24,72),"yaw":0.12},
-        {"id":"EastPlateau_C","p":Vector3(510,0,-60),"d":Vector3(68,22,62),"yaw":-0.05},
-        {"id":"EastPlateau_D","p":Vector3(455,0,-42),"d":Vector3(60,20,58),"yaw":0.06},
-        {"id":"SouthWestPlateau_A","p":Vector3(-510,0,430),"d":Vector3(82,28,80),"yaw":0.08},
-        {"id":"SouthWestPlateau_B","p":Vector3(-455,0,465),"d":Vector3(74,24,72),"yaw":-0.12},
-        {"id":"SouthWestPlateau_C","p":Vector3(-510,0,505),"d":Vector3(66,22,62),"yaw":0.05},
-        {"id":"SouthWestPlateau_D","p":Vector3(-455,0,530),"d":Vector3(60,20,58),"yaw":-0.06},
-        {"id":"SouthEastPlateau_A","p":Vector3(510,0,430),"d":Vector3(84,28,82),"yaw":-0.08},
-        {"id":"SouthEastPlateau_B","p":Vector3(455,0,465),"d":Vector3(76,24,72),"yaw":0.12},
-        {"id":"SouthEastPlateau_C","p":Vector3(510,0,505),"d":Vector3(68,22,62),"yaw":-0.05},
-        {"id":"SouthEastPlateau_D","p":Vector3(455,0,530),"d":Vector3(60,20,58),"yaw":0.06}
+        {"id":"WestPlateau_A","p":Vector3(-510,0,-125),"d":Vector3(123,42,117),"yaw":0.08},
+        {"id":"WestPlateau_B","p":Vector3(-455,0,-105),"d":Vector3(111,36,105),"yaw":-0.12},
+        {"id":"WestPlateau_C","p":Vector3(-505,0,-65),"d":Vector3(99,33,93),"yaw":0.05},
+        {"id":"WestPlateau_D","p":Vector3(-455,0,-48),"d":Vector3(90,30,87),"yaw":-0.06},
+        {"id":"EastPlateau_A","p":Vector3(510,0,-125),"d":Vector3(126,42,120),"yaw":-0.08},
+        {"id":"EastPlateau_B","p":Vector3(455,0,-100),"d":Vector3(114,36,108),"yaw":0.12},
+        {"id":"EastPlateau_C","p":Vector3(510,0,-60),"d":Vector3(102,33,93),"yaw":-0.05},
+        {"id":"EastPlateau_D","p":Vector3(455,0,-42),"d":Vector3(90,30,87),"yaw":0.06},
+        {"id":"SouthWestPlateau_A","p":Vector3(-510,0,430),"d":Vector3(123,42,120),"yaw":0.08},
+        {"id":"SouthWestPlateau_B","p":Vector3(-455,0,465),"d":Vector3(111,36,108),"yaw":-0.12},
+        {"id":"SouthWestPlateau_C","p":Vector3(-510,0,505),"d":Vector3(99,33,93),"yaw":0.05},
+        {"id":"SouthWestPlateau_D","p":Vector3(-455,0,530),"d":Vector3(90,30,87),"yaw":-0.06},
+        {"id":"SouthEastPlateau_A","p":Vector3(510,0,430),"d":Vector3(126,42,123),"yaw":-0.08},
+        {"id":"SouthEastPlateau_B","p":Vector3(455,0,465),"d":Vector3(114,36,108),"yaw":0.12},
+        {"id":"SouthEastPlateau_C","p":Vector3(510,0,505),"d":Vector3(102,33,93),"yaw":-0.05},
+        {"id":"SouthEastPlateau_D","p":Vector3(455,0,530),"d":Vector3(90,30,87),"yaw":0.06}
     ]
     for item in plateau_blocks:
         if not _place_mass(root, "mountainside", item.id, item.p, item.d, item.yaw, grass, false):
             return false
-    print("CHECKPOINT2_FOUR_3D_PLATEAU_CLUSTERS_OK: 16 identical mountainside GLB masses; 4 per cluster; width=55-85m height=20-28m; leafy grass applied")
+    print("CHECKPOINT2_FOUR_3D_PLATEAU_CLUSTERS_OK: 16 identical mountainside GLB masses; 4 per cluster; width=90-126m height=30-42m; leafy grass applied")
     # Snow is restricted to the uppermost northern ridge peaks; the dark rock bodies remain visible.
     var snow := StandardMaterial3D.new()
     snow.albedo_color = Color(0.88, 0.92, 0.96)
