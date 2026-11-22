@@ -220,20 +220,40 @@ func _camera() -> void:
  c.look_at(Vector3(0,8,0),Vector3.UP)
 func _capture() -> void:
  var cam:=get_viewport().get_camera_3d()
+ if cam==null:
+  push_error("TWIN_CITY_CAPTURE_FAILED: active camera is missing")
+  get_tree().quit(1)
+  return
  var dir:=ProjectSettings.globalize_path("res://artifacts")
  DirAccess.make_dir_recursive_absolute(dir)
  for spec in captures:
+  print("TWIN_CITY_CAPTURE_START: ",spec.file)
   cam.position=spec.pos
   cam.fov=spec.fov
   cam.look_at(spec.target,Vector3.UP)
   await RenderingServer.frame_post_draw
-  await RenderingServer.frame_post_draw
   var image:=get_viewport().get_texture().get_image()
   var path:=dir.path_join(spec.file)
-  if image==null or image.is_empty() or image.save_png(path)!=OK:
-   push_error("TWIN_CITY_CAPTURE_FAILED: "+path); return false
-  if not FileAccess.file_exists(path) or FileAccess.get_file_as_bytes(path).size()<1024:
-   push_error("TWIN_CITY_CAPTURE_FILE_INVALID: "+path); return false
-  print("TWIN_CITY_CAPTURE_OK: ",path," bytes=",FileAccess.get_file_as_bytes(path).size())
+  if image==null or image.is_empty():
+   push_error("TWIN_CITY_CAPTURE_FAILED: empty framebuffer for "+spec.file)
+   get_tree().quit(1)
+   return
+  var save_error:=image.save_png(path)
+  if save_error!=OK:
+   push_error("TWIN_CITY_CAPTURE_FAILED: could not save "+path+" error="+str(save_error))
+   get_tree().quit(1)
+   return
+  var file:=FileAccess.open(path,FileAccess.READ)
+  if file==null:
+   push_error("TWIN_CITY_CAPTURE_FILE_INVALID: could not reopen "+path)
+   get_tree().quit(1)
+   return
+  var byte_count:=file.get_length()
+  file.close()
+  if byte_count<1024:
+   push_error("TWIN_CITY_CAPTURE_FILE_INVALID: "+path+" bytes="+str(byte_count))
+   get_tree().quit(1)
+   return
+  print("TWIN_CITY_CAPTURE_DONE: ",spec.file," bytes=",byte_count)
  print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
  get_tree().quit(0)

@@ -17,7 +17,7 @@ jobs:
   twin-city-build-and-capture:
     name: Godot 4.3 build and six captures
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 10
     env:
       GODOT_VERSION: "4.3"
       HF_HOME: ${{ github.workspace }}/.cache/huggingface
@@ -85,17 +85,37 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --import --quit
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit
 
       - name: Render Twin City and capture six views
         shell: bash
         run: |
           set -euo pipefail
-          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 1920x1080x24" \
-            "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
+          export LIBGL_ALWAYS_SOFTWARE=1
+          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 1280x720x24" \
+            timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" \
             --rendering-driver opengl3 --audio-driver Dummy \
-            --resolution 1920x1080 res://scenes/TwinCity.tscn \
+            --resolution 1280x720 res://scenes/TwinCity.tscn \
             2>&1 | tee artifacts/godot.log
+
+      - name: Upload preview images and diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twin-city-checkpoint1-preview-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            artifacts/twin_city_overview.png
+            artifacts/twin_city_palace.png
+            artifacts/twin_city_ne_pagoda.png
+            artifacts/twin_city_nw_quest_hall.png
+            artifacts/twin_city_se_tea_house.png
+            artifacts/twin_city_sw_blacksmith.png
+            artifacts/landmarks_preview.png
+            artifacts/landmark_sources.txt
+            artifacts/godot.log
+            artifacts/asset_fetch.log
 
       - name: Verify all six captures and checkpoint markers
         if: always()
@@ -127,21 +147,3 @@ jobs:
           grep -q "CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH" artifacts/godot.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log
 
-      - name: Upload preview images and diagnostic logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: twin-city-checkpoint1-preview-${{ github.run_number }}
-          if-no-files-found: warn
-          retention-days: 14
-          path: |
-            artifacts/twin_city_overview.png
-            artifacts/twin_city_palace.png
-            artifacts/twin_city_ne_pagoda.png
-            artifacts/twin_city_nw_quest_hall.png
-            artifacts/twin_city_se_tea_house.png
-            artifacts/twin_city_sw_blacksmith.png
-            artifacts/landmarks_preview.png
-            artifacts/landmark_sources.txt
-            artifacts/godot.log
-            artifacts/asset_fetch.log
