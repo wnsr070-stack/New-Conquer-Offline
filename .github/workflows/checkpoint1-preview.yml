@@ -188,10 +188,12 @@ jobs:
           grep -q "CHECKPOINT1_MOAT_WIDTH_OK: 18m continuous ring" artifacts/godot.log
           grep -q "CHECKPOINT1_FOUR_BRIDGES_OK: north south east west" artifacts/godot.log
           grep -q "CHECKPOINT1_FULL_GROUND_NO_GREEN_GAPS_OK: 320x320m" artifacts/godot.log
-          grep -q "CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: 2876988 bytes" artifacts/godot.log
+          grep -q "CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: valid GLB bytes=" artifacts/godot.log
           grep -q "CHECKPOINT1_GROUND_GREEN_MATERIAL_OVERRIDE_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_TEA_HOUSE_DECOR_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_EASTERN_GATE_GLTF_APPEND_OK:" artifacts/godot.log
+          grep -q "CHECKPOINT1_BLACKSMITH_SOURCE_OK: valid local GLB bytes=" artifacts/godot.log
+          grep -q "CHECKPOINT1_BLACKSMITH_GODOT_IMPORT_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK: open-front forge width=14m rotation=0deg" artifacts/godot.log
           grep -q "pink-roof candidate excluded" artifacts/godot.log
           grep -q "CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log

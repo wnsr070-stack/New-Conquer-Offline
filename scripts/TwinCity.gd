@@ -256,11 +256,12 @@ func _build_plaza_and_palace() -> bool:
         push_error("CHECKPOINT1_PALACE_SOURCE_UNREADABLE")
         return false
     var palace_bytes := palace_file.get_length()
+    var palace_header := palace_file.get_buffer(4)
     palace_file.close()
-    if palace_bytes != 2876988:
-        push_error("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_SIZE_MISMATCH: " + str(palace_bytes))
+    if palace_bytes < 20 or palace_header != PackedByteArray([103, 108, 84, 70]):
+        push_error("CHECKPOINT1_IMPERIAL_PALACE_GLB_INVALID: bytes=" + str(palace_bytes))
         return false
-    print("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: 2876988 bytes")
+    print("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: valid GLB bytes=", palace_bytes, " (gltfpack-normalized size accepted)")
     if _place_width(PALACE_ID, Vector3(0, 3.5, -75), 28.0, PI) == null:
         return false
     var stairs: Node3D = Assets.load_model("imperial_entrance_stairs", "")
@@ -299,8 +300,29 @@ func _build_landmarks() -> bool:
     if _place_width(TEA_HOUSE_ID, Vector3(92, 0, 92), 14.0, 0.0) == null:
         return false
     print("CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE red_roof_HF_candidate width=14m")
-    if _place_width("blacksmith_forge", Vector3(-92, 0, 92), 14.0, 0.0) == null:
+    var forge_catalog := Assets._read_catalog()
+    if not forge_catalog.has("blacksmith_forge"):
+        push_error("CHECKPOINT1_BLACKSMITH_SOURCE_MISSING: blacksmith_forge")
         return false
+    var forge_path := String(forge_catalog["blacksmith_forge"].get("path", ""))
+    if forge_path.is_empty() or not FileAccess.file_exists(forge_path):
+        push_error("CHECKPOINT1_BLACKSMITH_SOURCE_FILE_MISSING: " + forge_path)
+        return false
+    var forge_file := FileAccess.open(forge_path, FileAccess.READ)
+    if forge_file == null:
+        push_error("CHECKPOINT1_BLACKSMITH_SOURCE_UNREADABLE")
+        return false
+    var forge_bytes := forge_file.get_length()
+    var forge_header := forge_file.get_buffer(4)
+    forge_file.close()
+    if forge_bytes < 20 or forge_header != PackedByteArray([103, 108, 84, 70]):
+        push_error("CHECKPOINT1_BLACKSMITH_GLB_INVALID: bytes=" + str(forge_bytes))
+        return false
+    print("CHECKPOINT1_BLACKSMITH_SOURCE_OK: valid local GLB bytes=", forge_bytes)
+    if _place_width("blacksmith_forge", Vector3(-92, 0, 92), 14.0, 0.0) == null:
+        push_error("CHECKPOINT1_BLACKSMITH_GODOT_IMPORT_FAILED")
+        return false
+    print("CHECKPOINT1_BLACKSMITH_GODOT_IMPORT_OK: GLTFDocument generated scene; open-front forge width=14m rotation=0deg; entrance faces south street")
     print("CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK: open-front forge width=14m rotation=0deg; entrance faces south street")
     print("CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH width=14m")
     return true
