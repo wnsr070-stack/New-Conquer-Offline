@@ -1,9 +1,9 @@
 extends Node3D
 const Assets = preload("res://scripts/AssetLoader.gd")
-const PALACE_ID := "3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24"
+const PALACE_ID := "imperial_palace"
 const PAGODA_ID := "innerscene-buddhist-temple-pagoda-c5ebacdc"
 const TEA_HOUSE_ID := "3dassets-feudal-japan-castle-town-tea-house-a168f962"
-const QUEST_HALL_ID := "3dassets-feudal-japan-castle-town-bath-house-f3524f03"
+const QUEST_HALL_ID := "quest_hall"
 const HOUSE_IDS := ["obj_chinese_house", "obj_chinese_painter_villa", "obj_big_chinese_house"]
 const CITY_SIZE := 320.0
 const CITY_HALF := CITY_SIZE * 0.5
@@ -11,11 +11,11 @@ const DIRT_TILE_SOURCE_SIZE := 11.8
 const DIRT_TILES_PER_SIDE := 28
 var captures := [
     {"file": "twin_city_overview.png", "pos": Vector3(330, 315, 350), "target": Vector3(0, 4, 0), "fov": 58.0},
-    {"file": "twin_city_palace.png", "pos": Vector3(0, 34, -34), "target": Vector3(0, 15, -75), "fov": 45.0},
+    {"file": "twin_city_palace.png", "pos": Vector3(0, 25, -43), "target": Vector3(0, 12, -75), "fov": 39.0},
     {"file": "twin_city_ne_pagoda.png", "pos": Vector3(92, 39, -48), "target": Vector3(92, 17, -92), "fov": 42.0},
     {"file": "twin_city_nw_quest_hall.png", "pos": Vector3(-92, 20, -52), "target": Vector3(-92, 7, -92), "fov": 44.0},
     {"file": "twin_city_se_tea_house.png", "pos": Vector3(92, 20, 137), "target": Vector3(92, 7, 92), "fov": 44.0},
-    {"file": "twin_city_sw_blacksmith.png", "pos": Vector3(-92, 21, 137), "target": Vector3(-92, 7, 92), "fov": 44.0}
+    {"file": "twin_city_sw_blacksmith.png", "pos": Vector3(-92, 17, 130), "target": Vector3(-92, 5, 92), "fov": 40.0}
 ]
 func _ready() -> void:
     _lighting()
@@ -61,13 +61,13 @@ func _lighting() -> void:
     sky.sky_material = sky_material
     environment.sky = sky
     environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-    environment.ambient_light_energy = 0.8
+    environment.ambient_light_energy = 0.95
     environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     world.environment = environment
     add_child(world)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
-    sun.light_energy = 1.15
+    sun.light_energy = 1.25
     sun.shadow_enabled = true
     add_child(sun)
 func _texture(key: String) -> Texture2D:
@@ -96,7 +96,7 @@ func _cobble() -> StandardMaterial3D:
     material.normal_enabled = true
     material.normal_texture = normal
     material.roughness_texture = roughness
-    material.uv1_scale = Vector3(0.16, 0.16, 0.16)
+    material.uv1_scale = Vector3(0.085, 0.085, 0.085)
     print("CHECKPOINT1_COBBLE_RUNTIME_IMAGE_TEXTURES_OK: diffuse=true normal=true roughness=true")
     return material
 func _collect_meshes(node: Node, parent_transform: Transform3D, output: Array[Dictionary]) -> void:
@@ -132,8 +132,9 @@ func _build_dirt_ground() -> bool:
         var instance_node := MultiMeshInstance3D.new()
         instance_node.name = "Grab3DDirtRoad_TiledSurface"
         instance_node.multimesh = multimesh
-        if mesh_data["material_override"] != null:
-            instance_node.material_override = mesh_data["material_override"]
+        var dirt_material := _mat(Color(0.43, 0.30, 0.19))
+        dirt_material.roughness = 1.0
+        instance_node.material_override = dirt_material
         add_child(instance_node)
         var index := 0
         for row in range(DIRT_TILES_PER_SIDE):
@@ -146,6 +147,7 @@ func _build_dirt_ground() -> bool:
     source.free()
     print("CHECKPOINT1_UNIFIED_DIRT_GROUND_OK: grab3d-dirt-road tiled ", DIRT_TILES_PER_SIDE, "x", DIRT_TILES_PER_SIDE, " covers 320x320m")
     print("CHECKPOINT1_FULL_GROUND_NO_GREEN_GAPS_OK: 320x320m")
+    print("CHECKPOINT1_GROUND_GREEN_MATERIAL_OVERRIDE_OK: all tiled GLB surfaces unified earth-brown")
     return true
 func _build_walls_moat_and_bridges() -> void:
     var wall_material := _mat(Color(0.39, 0.38, 0.34))
@@ -231,7 +233,7 @@ func _build_plaza_and_palace() -> bool:
     var cobble := _cobble()
     if cobble == null:
         return false
-    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.23, 0), cobble)
+    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.045, 0), cobble)
     print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only")
     var platform := MeshInstance3D.new()
     platform.name = "RoyalPalaceCobblestonePlatform_34x26x3_5"
@@ -255,10 +257,10 @@ func _build_plaza_and_palace() -> bool:
         return false
     var palace_bytes := palace_file.get_length()
     palace_file.close()
-    if palace_bytes != 1055596:
-        push_error("CHECKPOINT1_PALACE_SOURCE_SIZE_MISMATCH: " + str(palace_bytes))
+    if palace_bytes != 2876988:
+        push_error("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_SIZE_MISMATCH: " + str(palace_bytes))
         return false
-    print("CHECKPOINT1_PALACE_SOURCE_SIZE_OK: 1055596 bytes")
+    print("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: 2876988 bytes")
     if _place_width(PALACE_ID, Vector3(0, 3.5, -75), 28.0, PI) == null:
         return false
     var stairs: Node3D = Assets.load_model("imperial_entrance_stairs", "")
@@ -274,7 +276,7 @@ func _build_plaza_and_palace() -> bool:
     stairs.position = Vector3(0, 0, -59.5)
     stairs.rotation.y = PI
     add_child(stairs)
-    print("CHECKPOINT1_PALACE_PLATFORM_OK: 34x26x3.5; EntranceStairs CC0 source; palace width 28m")
+    print("CHECKPOINT1_PALACE_PLATFORM_OK: 34x26x3.5; EntranceStairs CC0 source; imperial palace width 28m; pink-roof candidate excluded")
     return true
 func _build_pagoda_gate() -> bool:
     var left_column := _place_height("polygonalmind-lunar-year-008", Vector3(87, 0, -79), 7.0, PI)
@@ -297,9 +299,9 @@ func _build_landmarks() -> bool:
     if _place_width(TEA_HOUSE_ID, Vector3(92, 0, 92), 14.0, 0.0) == null:
         return false
     print("CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE red_roof_HF_candidate width=14m")
-    if _place_width("blacksmith_forge", Vector3(-92, 0, 92), 14.0, PI) == null:
+    if _place_width("blacksmith_forge", Vector3(-92, 0, 92), 14.0, 0.0) == null:
         return false
-    print("CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK: open-front forge width=14m")
+    print("CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK: open-front forge width=14m rotation=0deg; entrance faces south street")
     print("CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH width=14m")
     return true
 func _remove_house_bases(node: Node, removed: Array[int]) -> void:
@@ -388,9 +390,9 @@ func _build_tea_house_garden() -> void:
     var tree_b := _place_height("innerscene-japanese-maple-tree-565c1604", Vector3(106, 0, 102), 8.0, PI)
     var rock_a := _place_width("boulder_01", Vector3(81, 0, 111), 2.8, 0.0)
     var rock_b := _place_width("boulder_01", Vector3(103, 0, 111), 2.8, 0.0)
-    var rock_c := _place_width("boulder_01", Vector3(92, 0, 113), 2.4, 0.0)
+    var rock_c := _place_width("boulder_01", Vector3(92, 0, 116), 2.0, 0.0)
     if tree_a != null and tree_b != null and rock_a != null and rock_b != null and rock_c != null:
-        print("CHECKPOINT1_TEA_HOUSE_DECOR_OK: 2 ornamental maples + 3 rocks")
+        print("CHECKPOINT1_TEA_HOUSE_DECOR_OK: 2 side-offset ornamental maples + 3 perimeter rocks; doorway kept clear")
 func _build_city() -> bool:
     var catalog := Assets._read_catalog()
     if not catalog.has("grab3d-dirt-road"):

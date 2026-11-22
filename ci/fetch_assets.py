@@ -33,9 +33,7 @@ CITY_MODELS = {
  "polygonalmind-lunar-year-011": "assets/wuxia_imperial_pack/models/polygonalmind-lunar-year-011.glb",
 }
 CANDIDATE_MODELS = {
- "3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24": "assets/wuxia_imperial_pack/candidates/models/3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24.glb",
  "3dassets-feudal-japan-castle-town-tea-house-a168f962": "assets/wuxia_imperial_pack/candidates/models/3dassets-feudal-japan-castle-town-tea-house-a168f962.glb",
- "3dassets-feudal-japan-castle-town-bath-house-f3524f03": "assets/wuxia_imperial_pack/candidates/models/3dassets-feudal-japan-castle-town-bath-house-f3524f03.glb",
 }
 DIRECT_ASSETS = {
  "blacksmith_forge": "https://tevy.dev/models/blacksmith-forge/v1/lod0.glb",
@@ -124,6 +122,7 @@ def main():
  credits = [
   "Hugging Face dataset: ZzwahwahzZ/clash-of-legends-terrain-assets",
   "Approved royal palace source: 1,055,596 bytes; HF Wuxia Imperial candidate.",
+  "Imperial palace source: 2,876,988 bytes; HF curated Chinese architecture GLB.",
   "EntranceStairs source: 729,036 bytes; HF Wuxia Imperial model.",
  ]
 
@@ -151,13 +150,12 @@ def main():
   catalog[asset_id] = {"path": str(path), "kind": "eastern_architecture"}
   print("CANDIDATE_GLB_OK:", asset_id, "bytes=", path.stat().st_size)
 
- palace_path = Path(catalog["3dassets-royal-court-and-throne-palace-palace-audience-house-55f0cb24"]["path"])
- if palace_path.stat().st_size != 1055596:
-  raise RuntimeError("Approved royal palace source failed exact 1,055,596-byte verification")
- catalog["quest_hall"] = catalog["3dassets-feudal-japan-castle-town-bath-house-f3524f03"]
+ palace_path = download("settlement-terrain-source/curated-glb/architecture/imperial_china_palace_and_garden.glb")
+ if palace_path.stat().st_size != 2876988 or palace_path.read_bytes()[:4] != b"glTF":
+  raise RuntimeError("Imperial China palace source failed exact 2,876,988-byte/header verification")
+ catalog["imperial_palace"] = {"path": str(palace_path), "kind": "imperial_palace"}
  catalog["tea_house"] = catalog["3dassets-feudal-japan-castle-town-tea-house-a168f962"]
- print("CHECKPOINT1_PALACE_SOURCE_SIZE_OK: 1055596 bytes")
- print("CHECKPOINT1_EASTERN_BUILDINGS_SOURCE_OK: bath_house + tea_house")
+ print("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: 2876988 bytes")
 
  objaverse_root = CACHE_ROOT / "objaverse-clean-glb"
  metadata_path = Path(hf_hub_download(repo_id=OBJAVERSE_REPO_ID, repo_type="dataset", filename="metadata.jsonl", local_dir=str(objaverse_root)))
@@ -182,6 +180,8 @@ def main():
   credits.append(f"{asset_id}: {row.get('title')} | author={row.get('authors')} | license={row.get('license')} | source={row.get('source_url')} | license_url={row.get('license_url')}.")
   print(f"OBJAVERSE_ASSET_OK: {asset_id} | {row.get('license')}")
 
+ catalog["quest_hall"] = catalog["landmark_chinese_architecture"]
+ print("CHECKPOINT1_EASTERN_QUEST_HALL_SOURCE_OK: verified Chinese architecture GLB")
  fetch_checkpoint_assets(catalog)
  Path("artifacts").mkdir(parents=True, exist_ok=True)
  Path("artifacts/landmark_sources.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")
