@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/hf-assets
-          key: twin-city-hf-assets-v4-${{ hashFiles('ci/fetch_assets.py') }}
+          key: wilderness-hf-assets-v6-${{ hashFiles('ci/fetch_assets.py', 'ci/prepare_wilderness.py') }}
       - name: Install preparation dependencies
         run: |
           set -euo pipefail
@@ -81,6 +81,14 @@ jobs:
           test -s .cache/hf-assets/twin_city_runtime_assets.json
           test -s artifacts/landmark_sources.txt
           cp artifacts/landmark_sources.txt .cache/hf-assets/landmark_sources.txt
+      - name: Prepare Checkpoint 2 terrain assets and upload CC0 textures
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          .venv/bin/python ci/prepare_wilderness.py 2>&1 | tee artifacts/wilderness_prepare.log
+          test -s .cache/hf-assets/wilderness_checkpoint2_manifest.json
+          test -s artifacts/wilderness_asset_report.json
       - name: Reuse cached asset source report
         if: steps.assets.outputs.cache-hit == 'true'
         run: |
@@ -130,7 +138,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/hf-assets
-          key: twin-city-hf-assets-v4-${{ hashFiles('ci/fetch_assets.py') }}
+          key: wilderness-hf-assets-v6-${{ hashFiles('ci/fetch_assets.py', 'ci/prepare_wilderness.py') }}
       - name: Restore Godot imported resources
         uses: actions/cache@v4
         with:
@@ -156,7 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1
-          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 1280x720x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
+          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
       - name: Upload six captures and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -171,8 +179,17 @@ jobs:
             artifacts/twin_city_nw_quest_hall.png
             artifacts/twin_city_se_tea_house.png
             artifacts/twin_city_sw_blacksmith.png
+            artifacts/wilderness_overview.png
+            artifacts/wilderness_snowy_mountains.png
+            artifacts/wilderness_bridge_grass.png
+            artifacts/wilderness_eastern_plateau.png
+            artifacts/wilderness_western_plateau.png
+            artifacts/wilderness_south_plaza.png
+            artifacts/wilderness_bridge_exits.png
             artifacts/landmarks_preview.png
             artifacts/landmark_sources.txt
+            artifacts/wilderness_prepare.log
+            artifacts/wilderness_asset_report.json
             artifacts/import.log
             artifacts/godot.log
       - name: Verify all six captures and checkpoint markers
@@ -197,6 +214,21 @@ jobs:
           grep -q "CHECKPOINT1_BLACKSMITH_GLTF_APPEND_OK: open-front forge width=14m rotation=0deg" artifacts/godot.log
           grep -q "pink-roof candidate excluded" artifacts/godot.log
           grep -q "CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
+          grep -q "CHECKPOINT2_ALL_SIX_CAPTURES_COMPLETE" artifacts/godot.log
+          grep -q "CHECKPOINT2_ALL_MASS_AABB_VALIDATED" artifacts/godot.log
+          grep -q "CHECKPOINT2_NORTHERN_RIDGE_CONNECTED: two overlapping rows" artifacts/godot.log
+          grep -q "CHECKPOINT2_HORIZON_FOG_OK: fog disabled; ambient=0.25 sun=0.75 sky_affect=0.0" artifacts/godot.log
+          grep -q "CHECKPOINT2_RIVER_VALLEY_RESERVED: winding 30m corridor" artifacts/godot.log
+          grep -q "CHECKPOINT2_FOUR_BRIDGE_PATHS_OK: light dirt paths lead toward outer plateaus" artifacts/godot.log
+          grep -q "CHECKPOINT2_GRASS_GROUND_OK: 2200x2200m uv1_scale=65 albedo=0.62,0.78,0.45 mipmaps=generated preview_linear=true" artifacts/godot.log
+          grep -q "CHECKPOINT2_PREVIEW_SHADOWS_DISABLED: true" artifacts/godot.log
+          grep -q "CHECKPOINT2_FOUR_3D_PLATEAU_CLUSTERS_OK: 16 identical mountainside GLB masses; 4 per cluster; width=55-85m height=20-28m; leafy grass applied" artifacts/godot.log
+          grep -q "CHECKPOINT2_PERIMETER_RIDGES_CONNECTED_OK: 83 interlocking mountainside masses; east X=+1050 Z=-1050..+1050; west and south closed; visible_AABB_height=24-40m; north ridge unchanged" artifacts/godot.log
+          grep -q "CHECKPOINT2_BRIDGE_GRASS_TEXTURE_OK: continuous Leafy Grass ground exposed at all bridge exits" artifacts/godot.log
+          grep -q "CHECKPOINT2_NORTHERN_SUMMIT_SNOW_OK: subtle snow caps only on upper northern ridge" artifacts/godot.log
+          grep -q "CHECKPOINT2_APRON_SURFACE_AUDIT_OK:" artifacts/godot.log
+          grep -q "GODOT_RESOURCE_CLEANUP_COMPLETE:" artifacts/godot.log
+          for image in wilderness_overview.png wilderness_snowy_mountains.png wilderness_bridge_grass.png wilderness_eastern_plateau.png wilderness_western_plateau.png wilderness_south_plaza.png; do test -s "artifacts/$image"; grep -Fq "WILDERNESS_CAPTURE_DONE: $image" artifacts/godot.log; done
           grep -q "CHECKPOINT1_PALACE_PLATFORM_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_ROTATED_AABB_REJECTION_OK:" artifacts/godot.log
           grep -q "CHECKPOINT1_ROTATED_AABB_AUTO_OFFSET_OK:" artifacts/godot.log
@@ -205,4 +237,4 @@ jobs:
           grep -q "CHECKPOINT1_LANDMARK_OK: SE_TEA_HOUSE" artifacts/godot.log
           grep -q "CHECKPOINT1_LANDMARK_OK: SW_BLACKSMITH" artifacts/godot.log
           for image in twin_city_overview.png twin_city_palace.png twin_city_ne_pagoda.png twin_city_nw_quest_hall.png twin_city_se_tea_house.png twin_city_sw_blacksmith.png; do grep -Fq "TWIN_CITY_CAPTURE_DONE: $image" artifacts/godot.log; done
-          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|TWIN_CITY_CAPTURE_FAILED|WILDERNESS_CAPTURE_FAILED|CHECKPOINT2_PROPORTION_REJECTED|CHECKPOINT2_BASE_ABOVE_GROUND|CHECKPOINT2_BASE_BURIAL_OUT_OF_RANGE|CHECKPOINT2_AABB_INVALID|LANDMARKS_PREVIEW_FAILED|GLB import failed|ARCHITECTURE_WHITELIST_VIOLATION" artifacts/godot.log

@@ -1,5 +1,6 @@
 extends Node3D
 const Assets = preload("res://scripts/AssetLoader.gd")
+const Wilderness = preload("res://scripts/WildernessBuilder.gd")
 const PALACE_ID := "imperial_palace"
 const PAGODA_ID := "innerscene-buddhist-temple-pagoda-c5ebacdc"
 const TEA_HOUSE_ID := "3dassets-feudal-japan-castle-town-tea-house-a168f962"
@@ -20,11 +21,32 @@ var captures := [
 func _ready() -> void:
     _lighting()
     if not _build_city():
-        get_tree().quit(1)
+        await _shutdown(1)
         return
+    var removed_aprons: Array[int] = [0]
+    _remove_named_apron_meshes(self, removed_aprons)
+    print("CHECKPOINT2_APRON_SURFACE_AUDIT_OK: removed_named_surfaces=", removed_aprons[0], "; city moat, bridges and dirt floor preserved")
+    if not Wilderness.build(self):
+        await _shutdown(1)
+        return
+    captures.append_array(Wilderness.captures())
     _camera()
     if OS.get_environment("CI_CAPTURE") == "1":
         _capture.call_deferred()
+func _remove_named_apron_meshes(node: Node, removed: Array[int]) -> void:
+    for child in node.get_children():
+        var lower_name := String(child.name).to_lower()
+        var is_apron := child is MeshInstance3D and (
+            lower_name.contains("apron") or lower_name.contains("safety_frame") or
+            lower_name.contains("outer_city_frame") or lower_name.contains("moat_frame")
+        )
+        if is_apron:
+            node.remove_child(child)
+            child.free()
+            removed[0] += 1
+        else:
+            _remove_named_apron_meshes(child, removed)
+
 func _mat(color: Color) -> StandardMaterial3D:
     var material := StandardMaterial3D.new()
     material.albedo_color = color
@@ -56,19 +78,30 @@ func _lighting() -> void:
     environment.background_mode = Environment.BG_SKY
     var sky := Sky.new()
     var sky_material := ProceduralSkyMaterial.new()
-    sky_material.sky_top_color = Color(0.16, 0.30, 0.48)
-    sky_material.sky_horizon_color = Color(0.76, 0.80, 0.79)
+    sky_material.sky_top_color = Color(0.28, 0.56, 0.92)
+    sky_material.sky_horizon_color = Color(0.68, 0.84, 0.98)
+    sky_material.ground_bottom_color = Color(0.62, 0.80, 0.96)
+    sky_material.ground_horizon_color = Color(0.68, 0.84, 0.98)
     sky.sky_material = sky_material
     environment.sky = sky
     environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-    environment.ambient_light_energy = 0.95
-    environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+    environment.ambient_light_energy = 0.25
+    environment.tonemap_mode = Environment.TONE_MAPPER_ACES
+    environment.fog_enabled = false
+    environment.fog_light_color = Color(0.72, 0.86, 0.98)
+    environment.fog_density = 0.00035
+    environment.fog_depth_begin = 950.0
+    environment.fog_depth_end = 2100.0
+    environment.fog_depth_curve = 1.0
+    environment.fog_sky_affect = 0.0
+    print("CHECKPOINT2_HORIZON_FOG_OK: fog disabled; ambient=0.25 sun=0.75 sky_affect=0.0")
     world.environment = environment
     add_child(world)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
-    sun.light_energy = 1.25
-    sun.shadow_enabled = true
+    sun.light_energy = 0.75
+    sun.shadow_enabled = OS.get_environment("CI_CAPTURE") != "1"
+    print("CHECKPOINT2_PREVIEW_SHADOWS_DISABLED: ", OS.get_environment("CI_CAPTURE") == "1")
     add_child(sun)
 func _texture(key: String) -> Texture2D:
     var catalog := Assets._read_catalog()
@@ -233,7 +266,7 @@ func _build_plaza_and_palace() -> bool:
     var cobble := _cobble()
     if cobble == null:
         return false
-    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.045, 0), cobble)
+    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.105, 0), cobble)
     print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only")
     var platform := MeshInstance3D.new()
     platform.name = "RoyalPalaceCobblestonePlatform_34x26x3_5"
@@ -432,6 +465,16 @@ func _build_city() -> bool:
     _build_tea_house_garden()
     print("CHECKPOINT1_GEOMETRY_BUILD_COMPLETE: complete 320m city, 108 wall pieces, 18m moat, 4 bridges, palace and 4 landmarks")
     return true
+func _shutdown(exit_code: int) -> void:
+    for child in get_children():
+        remove_child(child)
+        child.free()
+    Assets.clear_cached_prototypes()
+    await get_tree().process_frame
+    RenderingServer.force_sync()
+    print("GODOT_RESOURCE_CLEANUP_COMPLETE: scene nodes and cached GLTF prototypes released")
+    get_tree().quit(exit_code)
+
 func _camera() -> void:
     var camera := Camera3D.new()
     camera.name = "TwinCityCamera"
@@ -444,12 +487,13 @@ func _capture() -> void:
     var camera := get_viewport().get_camera_3d()
     if camera == null:
         push_error("TWIN_CITY_CAPTURE_FAILED: active camera is missing")
-        get_tree().quit(1)
+        await _shutdown(1)
         return
     var directory := ProjectSettings.globalize_path("res://artifacts")
     DirAccess.make_dir_recursive_absolute(directory)
     for specification in captures:
-        print("TWIN_CITY_CAPTURE_START: ", specification.file)
+        var is_wilderness := String(specification.file).begins_with("wilderness_")
+        print("WILDERNESS_CAPTURE_START: " if is_wilderness else "TWIN_CITY_CAPTURE_START: ", specification.file)
         camera.position = specification.pos
         camera.fov = specification.fov
         camera.look_at(specification.target, Vector3.UP)
@@ -458,7 +502,7 @@ func _capture() -> void:
         var path := directory.path_join(specification.file)
         if image == null or image.is_empty():
             push_error("TWIN_CITY_CAPTURE_FAILED: empty framebuffer for " + specification.file)
-            get_tree().quit(1)
+            await _shutdown(1)
             return
         var save_error := image.save_png(path)
         if save_error != OK:
@@ -476,6 +520,8 @@ func _capture() -> void:
             push_error("TWIN_CITY_CAPTURE_FILE_INVALID: " + path + " bytes=" + str(byte_count))
             get_tree().quit(1)
             return
-        print("TWIN_CITY_CAPTURE_DONE: ", specification.file, " bytes=", byte_count)
+        image = null
+        print("WILDERNESS_CAPTURE_DONE: " if is_wilderness else "TWIN_CITY_CAPTURE_DONE: ", specification.file, " bytes=", byte_count)
     print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
-    get_tree().quit(0)
+    print("CHECKPOINT2_ALL_SIX_CAPTURES_COMPLETE")
+    await _shutdown(0)
