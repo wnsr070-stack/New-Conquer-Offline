@@ -196,9 +196,9 @@ static func build_waterfall(root: Node3D) -> bool:
             push_error("CHECKPOINT3_WATERFALL_ASSET_MISSING: "+key)
             return false
     var dark_rock := Color(0.28,0.27,0.25)
-    var offsets := [-30.0,-10.0,10.0,30.0]
+    var offsets: Array[float] = [-30.0,-10.0,10.0,30.0]
     for i in range(offsets.size()):
-        var x := -260.0+offsets[i]
+        var x: float = -260.0 + offsets[i]
         var lower := "rock_face_01" if i%2==0 else "rock_face_02"
         var upper := "rock_face_02" if i%2==0 else "rock_face_01"
         if not _place_asset(root,lower,"NorthernWaterfall_Cliff_Lower_%02d"%i,Vector3(x,-2,-866),Vector3(22,28,30),0.0,dark_rock,0.92,-2.0,PI*0.5): return false
