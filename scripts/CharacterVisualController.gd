@@ -47,14 +47,14 @@ func build_character(class_id: String, level: int) -> void:
     if skeleton == null:
         push_error("PHASE3B_CHARACTER_SKELETON_MISSING: " + character_path)
         return
-    var right_bone := skeleton.find_bone("WeaponR")
-    if right_bone < 0:
-        push_error("PHASE3B_WEAPONR_SOCKET_NOT_FOUND: " + character_path)
+    var right_bone_name := _find_right_hand_bone(skeleton)
+    if right_bone_name.is_empty():
+        push_error("PHASE3B_RIGHT_HAND_BONE_NOT_FOUND: " + character_path)
         return
     var family := str(WEAPONS.get(class_id, "bow"))
     active_weapon_tier = _tier_for_level(level)
     var right_path := _weapon_path(family, active_weapon_tier)
-    if not _attach_weapon(skeleton, "WeaponR", right_path, family, false):
+    if not _attach_weapon(skeleton, right_bone_name, right_path, family, false):
         return
     if class_id in DUAL_CLASSES:
         var left_bone_name := _find_left_hand_bone(skeleton)
@@ -142,9 +142,7 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
     root.position = -grip
     if left_hand:
         root.rotation.y += PI
-        root.position.x += 0.025
-    else:
-        root.position.x -= 0.015
+
     print("PHASE3B_WEAPON_GRIP_FITTED: ", family, " hand=", "L" if left_hand else "R",
         " bounds=", fitted, " local_grip=", grip)
 
@@ -162,9 +160,9 @@ func normalize_character() -> bool:
 func set_weapon_upgrade(plus_level: int, quality: String = "Super", _tier: int = 130) -> void:
     if plus_level == 12 and quality == "Super":
         if is_instance_valid(weapon_root):
-            _emission(weapon_root, Color(1.0, 0.72, 0.22), 1.6)
+            _emission(weapon_root, Color(1.0, 0.72, 0.22), 0.64)
         if is_instance_valid(left_weapon_root):
-            _emission(left_weapon_root, Color(1.0, 0.72, 0.22), 1.6)
+            _emission(left_weapon_root, Color(1.0, 0.72, 0.22), 0.64)
     elif plus_level >= 9:
         if is_instance_valid(weapon_root):
             _emission(weapon_root, Color(1.0, 0.58, 0.16), 0.9)
@@ -182,14 +180,19 @@ func _apply_vertex_color_pbr(root: Node) -> void:
             var mi := node as MeshInstance3D
             if mi.mesh != null:
                 for surface in range(mi.mesh.get_surface_count()):
+                    var arrays: Array = mi.mesh.surface_get_arrays(surface)
+                    var has_vertex_colors := arrays.size() > Mesh.ARRAY_COLOR and arrays[Mesh.ARRAY_COLOR] != null
                     var source = mi.get_active_material(surface)
-                    var material := StandardMaterial3D.new()
                     if source is StandardMaterial3D:
-                        material = (source as StandardMaterial3D).duplicate() as StandardMaterial3D
-                    material.vertex_color_use_as_albedo = true
-                    material.metallic = maxf(material.metallic, 0.22)
-                    material.roughness = clampf(material.roughness, 0.16, 0.82)
-                    mi.set_surface_override_material(surface, material)
+                        var material := (source as StandardMaterial3D).duplicate() as StandardMaterial3D
+                        material.vertex_color_use_as_albedo = has_vertex_colors
+                        material.metallic = maxf(material.metallic, 0.22)
+                        material.roughness = clampf(material.roughness, 0.16, 0.82)
+                        mi.set_surface_override_material(surface, material)
+                    elif has_vertex_colors:
+                        var material := StandardMaterial3D.new()
+                        material.vertex_color_use_as_albedo = true
+                        mi.set_surface_override_material(surface, material)
         for child in node.get_children():
             stack.append(child)
 
@@ -208,6 +211,20 @@ func _emission(root: Node, color: Color, energy: float) -> void:
                 mi.set_surface_override_material(i, mat)
     for child in root.get_children():
         _emission(child, color, energy)
+
+func _find_right_hand_bone(skeleton: Skeleton3D) -> String:
+    var preferred := ["RightHand", "hand.r", "hand_r", "righthand", "right_hand", "handright", "hand_r_end", "WeaponR"]
+    for wanted in preferred:
+        for index in range(skeleton.get_bone_count()):
+            var name := skeleton.get_bone_name(index)
+            if name.to_lower().replace(" ", "") == wanted.to_lower().replace(" ", ""):
+                return name
+    for index in range(skeleton.get_bone_count()):
+        var name := skeleton.get_bone_name(index)
+        var normalized := name.to_lower().replace("_", "").replace(".", "").replace(":", "")
+        if normalized.contains("righthand") or normalized.contains("handright") or normalized.ends_with("handr"):
+            return name
+    return ""
 
 func _find_left_hand_bone(skeleton: Skeleton3D) -> String:
     var preferred := ["WeaponL", "hand.l", "hand_l", "lefthand", "left_hand", "handleft", "hand_l_end"]
