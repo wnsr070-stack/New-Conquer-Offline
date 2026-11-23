@@ -143,6 +143,16 @@ def optimize_to_glb(source,dest):
   raw_glb.unlink(missing_ok=True)
   blender_script=dest.with_name(dest.stem+"_blender_import.py")
   blender_script.write_text(
+   "import sys\n"
+   "sys.path.append('/usr/lib/python3/dist-packages')\n"
+   "try:\n"
+   "    import numpy\n"
+   "except ImportError:\n"
+   "    import subprocess\n"
+   "    subprocess.check_call([sys.executable, '-m', 'ensurepip', '--upgrade'])\n"
+   "    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--disable-pip-version-check', 'numpy<2'])\n"
+   "    import numpy\n"
+   "print('BLENDER_NUMPY_OK:', numpy.__version__, flush=True)\n"
    "import bpy\n"
    "dae_path = "+repr(str(source.resolve()))+"\n"
    "raw_glb = "+repr(str(raw_glb.resolve()))+"\n"
@@ -335,12 +345,16 @@ def main():
  manifest=OUT/"phase3b_asset_manifest.json"
  manifest.write_text(json.dumps(report,indent=2),encoding="utf-8")
  files=sorted(x for x in OUT.rglob("*") if x.is_file())
+ upload_bytes=sum(item.stat().st_size for item in files)
+ upload_summary={"files":len(files),"bytes":upload_bytes,**inventory}
  print("PHASE3B_HF_UPLOAD_FILE_COUNT:",len(files))
+ print("PHASE3B_HF_UPLOAD_BYTE_COUNT:",upload_bytes)
+ print("PHASE3B_HF_UPLOAD_CATEGORY_COUNTS:",json.dumps(upload_summary,sort_keys=True),flush=True)
  for item in files:
   print("PHASE3B_HF_UPLOAD_FILE:",item.relative_to(OUT).as_posix(),"bytes=",item.stat().st_size)
  api=HfApi(token=token)
  hf_repo="Zzwahwahz/clash-of-legends-terrain-assets"
  api.create_repo(hf_repo,repo_type="dataset",private=True,exist_ok=True)
  api.upload_folder(repo_id=hf_repo,repo_type="dataset",folder_path=str(OUT),path_in_repo="phase3b",commit_message="cache(phase3b): verified Quaternius CC0 and OpenGameArt models")
- print("PHASE3B_HF_UPLOAD_COMPLETE:",hf_repo,"files=",len(files),"path=phase3b")
+ print("PHASE3B_HF_UPLOAD_COMPLETE:",hf_repo,"files=",len(files),"bytes=",upload_bytes,"category_counts=",json.dumps(upload_summary,sort_keys=True),"path=phase3b",flush=True)
 if __name__=="__main__": main()
