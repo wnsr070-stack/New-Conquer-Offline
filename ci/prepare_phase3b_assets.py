@@ -83,8 +83,22 @@ def fetch_sources():
    if str(meta.get("license","")).upper()!="CC0": raise RuntimeError(f"source pack license is not CC0: {meta.get('license')}")
    if key!="base_mesh" and meta.get("creator")!="Quaternius": raise RuntimeError("source pack creator is not verified as Quaternius")
    candidates=[x for x in entries if x.get("type")=="blob" and x.get("path","").startswith(pack_root+"/models/") and x["path"].lower().endswith(".glb")]
-   if key=="base_mesh": candidates=[x for x in candidates if x["path"].endswith(("/models/halberd/halberd.glb","/models/3_point_shuriken/3_point_shuriken.glb","/models/4_point_shuriken/4_point_shuriken.glb","/models/throwing_knife/throwing_knife.glb"))]
-   if not candidates: raise RuntimeError("pinned source pack contains no GLB models")
+   if key=="base_mesh":
+    # Discover real weapon files by their model filename, not a brittle full-path suffix.
+    # The pinned pack currently contains both 3- and 4-point shuriken GLBs.
+    base_mesh_names={"halberd","3_point_shuriken","4_point_shuriken","throwing_knife"}
+    candidates=[x for x in entries if x.get("type")=="blob"
+                and x.get("path","").lower().startswith(pack_root.lower()+"/models/")
+                and pathlib.PurePosixPath(x["path"]).suffix.lower()==".glb"
+                and pathlib.PurePosixPath(x["path"]).stem.lower() in base_mesh_names]
+   if key=="base_mesh":
+    discovered=sorted(pathlib.PurePosixPath(x["path"]).stem for x in candidates)
+    report.setdefault("base_mesh_source_models",[]).extend(
+     {"path":x["path"],"bytes":x.get("size",0)} for x in candidates)
+    required_base={"halberd","3_point_shuriken","4_point_shuriken","throwing_knife"}
+    missing_base=sorted(required_base-set(discovered))
+    if missing_base: raise RuntimeError("pinned Base Mesh is missing required real model files: "+str(missing_base))
+   if not candidates: raise RuntimeError("pinned source pack contains no supported model files")
    target=RAW/key
    for item in candidates:
     rel=item["path"][len(pack_root)+1:]; dest=target/rel; dest.parent.mkdir(parents=True,exist_ok=True)
@@ -155,9 +169,32 @@ def pick_model(pack,aliases):
  if not hits: raise RuntimeError("no model matched aliases "+str(aliases)+" in "+pack)
  hits.sort(key=lambda p:(0 if p.suffix.lower() in {".glb",".gltf"} else 1 if p.suffix.lower()==".fbx" else 2,len(p.name)))
  return hits[0]
+def pick_model_anywhere(name_tokens):
+ # Search every extracted Quaternius and OpenGameArt source folder, recursively and case-insensitively.
+ roots=[RAW,EXTRACT]
+ hits=[]
+ for root in roots:
+  if root.exists():
+   for src in models_under(root):
+    normalized=re.sub(r"[^a-z0-9]+","_",src.stem.lower()).strip("_")
+    if any(token in normalized for token in name_tokens):
+     hits.append(src)
+ if not hits:
+  raise RuntimeError("no real source model matched any of "+str(name_tokens)+" under "+str(roots))
+ # Prefer already packaged GLB/GLTF; retain deterministic ordering for reproducible builds.
+ hits.sort(key=lambda p:(0 if p.suffix.lower()==".glb" else 1 if p.suffix.lower()==".gltf" else 2 if p.suffix.lower()==".fbx" else 3,len(p.parts),str(p).lower()))
+ return hits[0]
+def export_ninja_weapon(asset_name,name_tokens):
+ src=pick_model_anywhere(name_tokens)
+ dst=OUT/("quaternius_"+asset_name+".glb")
+ optimize_to_glb(src,dst)
+ report["converted"].append({"source":str(src.relative_to(ROOT)),"output":str(dst.relative_to(ROOT)),"bytes":dst.stat().st_size,"origin":"verified source model","category":"weapon","matched_name_tokens":name_tokens})
+ report["counts"]["weapons"]+=1
+ print("PHASE3B_NINJA_WEAPON_RESOLVED:",asset_name,"source=",src.relative_to(ROOT),"output=",dst.relative_to(ROOT),flush=True)
+ return dst
 def export_named_models():
  characters=[("archer","rpg_characters",["ranger"]),("assassin","rpg_characters",["rogue"]),("knight","knight_character",["knight_character"]),("warrior","rpg_characters",["warrior"]),("mage","rpg_characters",["wizard"])]
- weapons=[("bow","modular_weapons",["bow_wooden"]),("dagger","rpg_characters",["rogue_dagger"]),("spear","modular_weapons",["spear"]),("halberd","base_mesh",["halberd"]),("axe","modular_weapons",["axe_double"]),("staff","rpg_characters",["wizard_staff"]),("sword","modular_weapons",["sword_big"]),("shield","modular_weapons",["shield_heater"]),("shuriken","base_mesh",["3_point_shuriken"]),("throwing_knife","base_mesh",["throwing_knife"])]
+ weapons=[("bow","modular_weapons",["bow_wooden"]),("dagger","rpg_characters",["rogue_dagger"]),("spear","modular_weapons",["spear"]),("halberd","base_mesh",["halberd"]),("axe","modular_weapons",["axe_double"]),("staff","rpg_characters",["wizard_staff"]),("sword","modular_weapons",["sword_big"]),("shield","modular_weapons",["shield_heater"])]
  for key,pack,aliases in characters:
   try:
    src=pick_model(pack,aliases); dst=OUT/("quaternius_"+key+".glb"); optimize_to_glb(src,dst)
@@ -197,6 +234,14 @@ def main():
   try: convert_quaternius(pack)
   except Exception as e: report["errors"].append({"source":pack+"_conversion","error":str(e)})
  export_named_models()
+ # Resolve ninja throwing weapons from actual files anywhere in the unpacked source trees.
+ # The pinned Base Mesh inventory contains 3_point_shuriken.glb and 4_point_shuriken.glb;
+ # other source archives may use Shuriken_1, ninja_star, or throwing_star names.
+ for asset_name,tokens in [("shuriken",["shuriken","ninja_star","throwing_star"]),("throwing_knife",["throwing_knife","throwing_knife_","kunai"])]:
+  try: export_ninja_weapon(asset_name,tokens)
+  except Exception as e:
+   report["errors"].append({"source":"required_"+asset_name,"error":str(e)})
+   print("PHASE3B_REQUIRED_NINJA_WEAPON_SOURCE_ERROR:",asset_name,str(e),flush=True)
  convert_oga()
  # Preserve effect textures without pretending they are 3D models.
  for p in (EXTRACT/"special_effects").rglob("*"):
@@ -216,8 +261,10 @@ def main():
   print("PHASE3B_REQUIRED_QUATERNIUS_PACKS_MISSING:",missing_packs); sys.exit(5)
  if report["oga_counts"]["weapons"] != 19 or report["oga_counts"]["monsters"] != 2:
   print("PHASE3B_OGA_REQUIRED_COUNTS_NOT_MET:",report["oga_counts"],"expected exactly 19 weapons and 2 monsters"); sys.exit(6)
- if not (OUT/"quaternius_shuriken.glb").is_file() or not (OUT/"quaternius_throwing_knife.glb").is_file():
-  print("PHASE3B_REQUIRED_NINJA_WEAPONS_MISSING"); sys.exit(7)
+ missing_ninja=[name for name in ("quaternius_shuriken.glb","quaternius_throwing_knife.glb") if not (OUT/name).is_file() or (OUT/name).stat().st_size<1000]
+ report["required_ninja_weapons_missing"]=missing_ninja
+ if missing_ninja:
+  print("PHASE3B_REQUIRED_NINJA_WEAPONS_MISSING:",missing_ninja); sys.exit(7)
  REPORT.write_text(json.dumps(report,indent=2),encoding="utf-8")
  print("PHASE3B_ASSET_REPORT:",REPORT)
  print("PHASE3B_OGA_DOWNLOADED:",len(report["oga"]),"QUATERNIUS_PACKS:",len(report["quaternius_packs"]),"CONVERTED:",len(report["converted"]),"COUNTS:",report["counts"],"OGA_COUNTS:",report["oga_counts"])
