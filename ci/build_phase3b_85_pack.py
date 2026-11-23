@@ -259,6 +259,45 @@ def set_tier_materials(tier):
         bsdf.inputs["Roughness"].default_value = roughness
         mat.diffuse_color = tint
 
+def apply_creature_fallback(job):
+    palette = job.get("fallback_colors") or []
+    if not palette:
+        return
+    mesh_index = 0
+    for obj in [item for item in bpy.context.scene.objects if item.type == "MESH"]:
+        if not obj.data.materials:
+            obj.data.materials.append(bpy.data.materials.new(name="Phase3B_Creature_Fallback"))
+        for slot_index, material in enumerate(obj.data.materials):
+            if material is None:
+                material = bpy.data.materials.new(name="Phase3B_Creature_Fallback")
+                obj.data.materials[slot_index] = material
+            material.use_nodes = True
+            nodes = material.node_tree.nodes
+            links = material.node_tree.links
+            bsdf = next((node for node in nodes if node.type == "BSDF_PRINCIPLED"), None)
+            if bsdf is None:
+                bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+                output = next((node for node in nodes if node.type == "OUTPUT_MATERIAL"), None)
+                if output is None:
+                    output = nodes.new("ShaderNodeOutputMaterial")
+                links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+            has_image_texture = any(
+                node.type == "TEX_IMAGE" and node.image is not None and node.image.has_data
+                for node in nodes
+            )
+            base = bsdf.inputs["Base Color"]
+            flat_white = (
+                not base.is_linked
+                and min(float(base.default_value[i]) for i in range(3)) >= 0.92
+            )
+            if not has_image_texture or flat_white:
+                color = palette[(mesh_index + slot_index) % len(palette)]
+                base.default_value = color
+                bsdf.inputs["Metallic"].default_value = 0.18 if len(palette) > 1 else 0.05
+                bsdf.inputs["Roughness"].default_value = 0.58
+                material.diffuse_color = color
+        mesh_index += 1
+
 def import_model(path):
     bpy.ops.import_scene.gltf(filepath=path)
     meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
@@ -350,8 +389,10 @@ for index, job in enumerate(jobs, 1):
                 obj.scale *= 1.035
             elif job.get("tier") == "beginner":
                 obj.scale *= 0.985
+    apply_creature_fallback(job)
     if not job.get("render_only"):
         os.makedirs(os.path.dirname(job["dest"]), exist_ok=True)
+        bpy.ops.file.pack_all()
         bpy.ops.export_scene.gltf(filepath=job["dest"], export_format="GLB", export_apply=True)
         if not os.path.isfile(job["dest"]) or os.path.getsize(job["dest"]) < 1000:
             raise RuntimeError("GLB export failed: " + job["dest"])
@@ -551,6 +592,28 @@ def build():
         })
 
     monster_root = [OUT / "monsters"]
+    CREATURE_COLORS = {
+        "bunny": [(0.72, 0.48, 0.27, 1.0)],
+        "chicken": [(0.92, 0.62, 0.12, 1.0)],
+        "dog": [(0.34, 0.16, 0.075, 1.0)],
+        "cactoro": [(0.16, 0.48, 0.20, 1.0)],
+        "orc": [(0.34, 0.17, 0.075, 1.0), (0.48, 0.27, 0.11, 1.0)],
+        "demon": [(0.48, 0.035, 0.045, 1.0)],
+        "ghost": [(0.35, 0.72, 0.82, 1.0)],
+        "blob": [(0.34, 0.18, 0.58, 1.0)],
+        "dino": [(0.12, 0.42, 0.16, 1.0), (0.22, 0.58, 0.20, 1.0)],
+        "birb": [(0.12, 0.38, 0.72, 1.0)],
+        "pigeon": [(0.34, 0.42, 0.52, 1.0)],
+        "frog": [(0.10, 0.52, 0.18, 1.0), (0.22, 0.68, 0.24, 1.0)],
+        "yeti": [(0.42, 0.72, 0.92, 1.0), (0.72, 0.88, 0.98, 1.0)],
+        "alien": [(0.12, 0.58, 0.48, 1.0)],
+        "armabee": [(0.82, 0.48, 0.06, 1.0), (0.16, 0.12, 0.06, 1.0)],
+        "alpaking_evolved": [(0.76, 0.52, 0.12, 1.0), (0.26, 0.42, 0.12, 1.0)],
+        "mushroom_king": [(0.68, 0.12, 0.16, 1.0), (0.88, 0.76, 0.52, 1.0)],
+        "blue_demon": [(0.045, 0.20, 0.72, 1.0), (0.12, 0.42, 0.92, 1.0)],
+        "orc_skull": [(0.30, 0.14, 0.06, 1.0), (0.72, 0.52, 0.20, 1.0)],
+        "dragon_evolved": [(0.62, 0.035, 0.025, 1.0), (0.92, 0.58, 0.10, 1.0)]
+    }
     normal_groups = [
         ("Twin City", 1, 20, [("bunny", "bunny"), ("chicken", "chicken"), ("dog", "dog")]),
         ("Desert City", 21, 40, [("cactoro", "cactoro"), ("orc", "orc"), ("demon", "demon")]),
@@ -572,7 +635,8 @@ def build():
                 "preview": f"previews/{asset_id}.png"
             })
             weapon_jobs.append({"id": asset_id, "source": str(source), "tier": "natural",
-                                "dest": str(OUT / relative)})
+                                "dest": str(OUT / relative),
+                                "fallback_colors": CREATURE_COLORS[key]})
     boss_specs = [
         ("Twin City", "alpaking_evolved", "Alpaking Overlord", 1, 20),
         ("Desert City", "mushroom_king", "Mushroom King", 21, 40),
@@ -592,7 +656,8 @@ def build():
             "preview": f"previews/{asset_id}.png"
         })
         weapon_jobs.append({"id": asset_id, "source": str(source), "tier": "natural",
-                            "dest": str(OUT / relative)})
+                            "dest": str(OUT / relative),
+                            "fallback_colors": CREATURE_COLORS[alias]})
 
     jobs = hero_jobs + weapon_jobs + armor_jobs
     expected = {"character": 10, "weapon": 27, "armor": 33, "normal_mob": 15, "boss": 5}
