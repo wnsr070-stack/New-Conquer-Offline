@@ -353,8 +353,31 @@ def main():
  for item in files:
   print("PHASE3B_HF_UPLOAD_FILE:",item.relative_to(OUT).as_posix(),"bytes=",item.stat().st_size)
  api=HfApi(token=token)
- hf_repo="Zzwahwahz/clash-of-legends-terrain-assets"
- api.create_repo(hf_repo,repo_type="dataset",private=True,exist_ok=True)
- api.upload_folder(repo_id=hf_repo,repo_type="dataset",folder_path=str(OUT),path_in_repo="phase3b",commit_message="cache(phase3b): verified Quaternius CC0 and OpenGameArt models")
- print("PHASE3B_HF_UPLOAD_COMPLETE:",hf_repo,"files=",len(files),"bytes=",upload_bytes,"category_counts=",json.dumps(upload_summary,sort_keys=True),"path=phase3b",flush=True)
+ # The destination is an existing private Hugging Face Dataset. Keep the exact
+ # owner spelling (including the final zZ) and never require create_repo for it.
+ hf_repo="ZzwahwahzZ/clash-of-legends-terrain-assets"
+ hf_repo_type="dataset"
+ try:
+  repo_info=api.repo_info(repo_id=hf_repo,repo_type=hf_repo_type)
+  print("PHASE3B_HF_REPO_CONFIRMED:",hf_repo,"type=",hf_repo_type,"private=",getattr(repo_info,"private",None),flush=True)
+ except Exception as repo_info_error:
+  response=getattr(repo_info_error,"response",None)
+  status=getattr(response,"status_code",None)
+  if status != 404:
+   raise
+  try:
+   api.create_repo(repo_id=hf_repo,repo_type=hf_repo_type,private=True,exist_ok=True)
+   print("PHASE3B_HF_REPO_CREATED:",hf_repo,"type=",hf_repo_type,flush=True)
+  except Exception as create_error:
+   create_response=getattr(create_error,"response",None)
+   create_status=getattr(create_response,"status_code",None)
+   if create_status in (403,409):
+    print("HF_CREATE_REPO_SKIPPED:", "HTTP",create_status,str(create_error),flush=True)
+   else:
+    raise
+ upload_commit=api.upload_folder(repo_id=hf_repo,repo_type=hf_repo_type,folder_path=str(OUT),path_in_repo="phase3b",commit_message="cache(phase3b): verified Quaternius CC0 and OpenGameArt models")
+ upload_commit_oid=getattr(upload_commit,"oid",None)
+ if not upload_commit_oid:
+  raise RuntimeError("Hugging Face upload_folder returned without a verifiable commit OID")
+ print("PHASE3B_HF_UPLOAD_COMPLETE:",hf_repo,"repo_type=",hf_repo_type,"files=",len(files),"bytes=",upload_bytes,"category_counts=",json.dumps(upload_summary,sort_keys=True),"path=phase3b","commit=",upload_commit_oid,flush=True)
 if __name__=="__main__": main()
