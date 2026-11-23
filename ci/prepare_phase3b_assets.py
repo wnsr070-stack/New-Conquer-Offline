@@ -32,7 +32,7 @@ def official_download_url(page):
  req=urllib.request.Request(page,headers={"User-Agent":"Mozilla/5.0 (compatible; Phase3BAssetBot/1.0)"})
  with urllib.request.urlopen(req,timeout=45) as r: body=r.read().decode("utf-8","replace")
  # Quaternius currently stores its public Drive download in a button onclick attribute, not an href.
- embedded=re.findall(r"https?://drive\.google\.com/drive/folders/[A-Za-z0-9_-]+(?:\?[^'\\"\s)]*)?",body)
+ embedded=re.findall(r'https?://drive\.google\.com/drive/folders/[A-Za-z0-9_-]+', body)
  if embedded: return embedded[0]
  p=Links(); p.feed(body)
  links=[]
