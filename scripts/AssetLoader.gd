@@ -50,7 +50,28 @@ static func _load_gltf(path: String) -> Node3D:
  if node == null or not node is Node3D:
   if node != null: node.free()
   return null
- return node as Node3D
+ var model := node as Node3D
+ _apply_vertex_color_pbr(model)
+ return model
+
+static func _apply_vertex_color_pbr(root: Node) -> void:
+ var stack: Array[Node] = [root]
+ while not stack.is_empty():
+  var current: Node = stack.pop_back()
+  if current is MeshInstance3D:
+   var mesh_instance := current as MeshInstance3D
+   if mesh_instance.mesh != null:
+    for surface in range(mesh_instance.mesh.get_surface_count()):
+     var source = mesh_instance.get_active_material(surface)
+     var material := StandardMaterial3D.new()
+     if source is StandardMaterial3D:
+      material = (source as StandardMaterial3D).duplicate() as StandardMaterial3D
+     material.vertex_color_use_as_albedo = true
+     material.metallic = maxf(material.metallic, 0.22)
+     material.roughness = clampf(material.roughness, 0.16, 0.82)
+     mesh_instance.set_surface_override_material(surface, material)
+  for child in current.get_children():
+   stack.append(child)
 
 static func clear_cached_prototypes() -> void:
  for prototype in _prototypes.values():

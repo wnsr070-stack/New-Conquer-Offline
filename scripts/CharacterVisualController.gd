@@ -15,7 +15,7 @@ const WEAPONS := {
     "trojan":"dual_blades",
     "warrior":"spear_halberd",
     "taoist":"magic_staff",
-    "ninja":"katana_shuriken",
+    "ninja":"katana",
     "monk":"magic_staff"
 }
 const DUAL_CLASSES := ["oriental_assassin", "trojan", "ninja", "warrior"]
@@ -81,6 +81,8 @@ func _tier_for_level(level: int) -> String:
 func _weapon_path(family: String, tier: String) -> String:
     if family == "shuriken":
         return ROOT + "quaternius_shuriken.glb"
+    if family == "katana":
+        return ROOT + "quaternius_library/katana_katana.glb"
     return ROOT + "weapons/" + family + "_" + tier + ".glb"
 
 func _attach_weapon(skeleton: Skeleton3D, bone_name: String, path: String, family: String, left_hand: bool) -> bool:
@@ -132,11 +134,11 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
     if family not in ["bow", "shield", "shuriken"]:
         # Put the lower end of the blade/staff/spear at the palm, not its centre.
         if fitted.size.y >= fitted.size.x and fitted.size.y >= fitted.size.z:
-            grip.y = fitted.position.y
+            grip.y = fitted.position.y + fitted.size.y * 0.12
         elif fitted.size.x >= fitted.size.z:
-            grip.x = fitted.position.x
+            grip.x = fitted.position.x + fitted.size.x * 0.12
         else:
-            grip.z = fitted.position.z
+            grip.z = fitted.position.z + fitted.size.z * 0.12
     root.position = -grip
     if left_hand:
         root.rotation.y += PI

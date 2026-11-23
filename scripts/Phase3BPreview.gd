@@ -4,12 +4,12 @@ const CharacterController = preload("res://scripts/CharacterVisualController.gd"
 const ASSET_ROOT := "res://assets/phase3b/"
 
 var captures := [
-    {"file":"phase3b_01_archer_bow.png","kind":"hero","class":"archer","level":30,"plus":1},
-    {"file":"phase3b_02_oriental_assassin_dual_knives.png","kind":"hero","class":"oriental_assassin","level":40,"plus":3,"shadow":true},
-    {"file":"phase3b_03_dual_blades_axes.png","kind":"hero","class":"trojan","level":60,"plus":5},
-    {"file":"phase3b_04_spear_halberd_greatsword_shield.png","kind":"hero","class":"warrior","level":90,"plus":7},
-    {"file":"phase3b_05_mage_magic_staff.png","kind":"hero","class":"taoist","level":100,"plus":9},
-    {"file":"phase3b_06_ninja_katana_shuriken_plus12.png","kind":"hero","class":"ninja","level":130,"plus":12},
+    {"file":"phase3b_01_archer_bow.png","kind":"hero","class":"archer","label":"ARCHER","level":30,"plus":1},
+    {"file":"phase3b_02_oriental_assassin_dual_knives.png","kind":"hero","class":"oriental_assassin","label":"ORIENTAL ASSASSIN","level":40,"plus":3,"shadow":true},
+    {"file":"phase3b_03_dual_blades_axes.png","kind":"hero","class":"trojan","label":"TROJAN","level":60,"plus":5},
+    {"file":"phase3b_04_spear_halberd_greatsword_shield.png","kind":"hero","class":"warrior","label":"WARRIOR","level":90,"plus":7},
+    {"file":"phase3b_05_mage_magic_staff.png","kind":"hero","class":"taoist","label":"TAOIST","level":100,"plus":9},
+    {"file":"phase3b_06_ninja_katana_shuriken_plus12.png","kind":"hero","class":"ninja","label":"NINJA — KATANA + SHURIKEN","level":130,"plus":12},
     {"file":"phase3b_07_oga_dragon_daylight.png","kind":"model","asset":"oga_monsters/cethiel_dragon_dragon.glb","target_extent":2.4},
     {"file":"phase3b_08_quaternius_dragon_daylight.png","kind":"model","asset":"monsters/dragon_dragon.glb","target_extent":2.4},
     {"file":"phase3b_09_quaternius_demon_daylight.png","kind":"model","asset":"monsters/demon_demon.glb","target_extent":2.2},
@@ -24,7 +24,32 @@ func _capture_all() -> void:
     var output: String = "res://artifacts/"
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output))
     var completed := 0
-    for spec in captures:
+    var capture_specs: Array = captures.duplicate(true)
+    var manifest_path := ASSET_ROOT + "phase3b_manifest.json"
+    if not FileAccess.file_exists(manifest_path):
+        _fail("PHASE3B_CATALOG_MANIFEST_MISSING: " + manifest_path)
+        return
+    var manifest: Variant = JSON.parse_string(FileAccess.get_file_as_string(manifest_path))
+    if typeof(manifest) != TYPE_DICTIONARY or not manifest.has("assets"):
+        _fail("PHASE3B_CATALOG_MANIFEST_INVALID")
+        return
+    var creature_index := 0
+    for record in manifest["assets"]:
+        var category := str(record.get("category", ""))
+        if category == "normal_mob" or category == "boss":
+            creature_index += 1
+            var creature_id := str(record.get("id", "creature_" + str(creature_index)))
+            capture_specs.append({
+                "file": "phase3b_catalog_%02d_%s.png" % [creature_index, creature_id],
+                "kind": "model",
+                "asset": str(record.get("file", "")),
+                "target_extent": 2.25,
+                "label": str(record.get("name", creature_id))
+            })
+    if creature_index != 20:
+        _fail("PHASE3B_CREATURE_CATALOG_COUNT_MISMATCH: " + str(creature_index) + "/20")
+        return
+    for spec in capture_specs:
         for child in get_children():
             child.queue_free()
         await get_tree().process_frame
@@ -119,6 +144,18 @@ func _capture_all() -> void:
             _fail("PHASE3B_UNKNOWN_CAPTURE_KIND: " + kind)
             return
 
+        var overlay := CanvasLayer.new()
+        overlay.layer = 10
+        add_child(overlay)
+        var title := Label.new()
+        title.text = str(spec.get("label", str(spec.get("asset", spec.get("class", "PHASE 3B"))).to_upper()))
+        title.position = Vector2(24.0, 18.0)
+        title.add_theme_font_size_override("font_size", 28)
+        title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55, 1.0))
+        title.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+        title.add_theme_constant_override("shadow_offset_x", 2)
+        title.add_theme_constant_override("shadow_offset_y", 2)
+        overlay.add_child(title)
         await get_tree().process_frame
         await get_tree().process_frame
         var image: Image = get_viewport().get_texture().get_image()
@@ -137,10 +174,10 @@ func _capture_all() -> void:
             return
         completed += 1
         print("PHASE3B_CAPTURE_OK: ", filename, " bytes=", saved.size(), " size=", image.get_width(), "x", image.get_height())
-    if completed != captures.size():
-        _fail("PHASE3B_CAPTURE_COUNT_MISMATCH: " + str(completed) + "/" + str(captures.size()))
+    if completed != capture_specs.size():
+        _fail("PHASE3B_CAPTURE_COUNT_MISMATCH: " + str(completed) + "/" + str(capture_specs.size()))
         return
-    print("PHASE3B_ALL_TEN_CAPTURES_COMPLETE")
+    print("PHASE3B_ALL_CATALOG_CAPTURES_COMPLETE: ", completed)
     get_tree().quit(0)
 
 func _normalize_model(root: Node3D, target_extent: float) -> bool:
@@ -160,17 +197,6 @@ func _normalize_model(root: Node3D, target_extent: float) -> bool:
         var node: Node = stack.pop_back()
         if node is MeshInstance3D:
             var mesh_instance := node as MeshInstance3D
-            var needs_fallback := mesh_instance.material_override == null
-            if mesh_instance.material_override is StandardMaterial3D:
-                var current := mesh_instance.material_override as StandardMaterial3D
-                needs_fallback = current.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or current.albedo_color.a < 0.95
-            if needs_fallback:
-                var fallback := StandardMaterial3D.new()
-                fallback.albedo_color = Color(0.42, 0.58, 0.68, 1.0)
-                fallback.roughness = 0.72
-                fallback.cull_mode = BaseMaterial3D.CULL_DISABLED
-                fallback.vertex_color_use_as_albedo = true
-                mesh_instance.material_override = fallback
             for surface in range(mesh_instance.mesh.get_surface_count()):
                 var source = mesh_instance.get_active_material(surface)
                 var pbr := StandardMaterial3D.new()

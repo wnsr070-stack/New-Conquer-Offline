@@ -238,7 +238,8 @@ def render_preview(job, index):
     if background is not None:
         background.inputs["Color"].default_value = (0.055, 0.065, 0.08, 1.0)
     scene.view_settings.view_transform = "Standard"
-    scene.view_settings.look = "Medium High Contrast"
+    available_looks = [item.identifier for item in scene.view_settings.bl_rna.properties["look"].enum_items]
+    scene.view_settings.look = "Medium High Contrast" if "Medium High Contrast" in available_looks else "None"
     scene.render.filepath = os.path.join(preview_dir, job["id"] + ".png")
     bpy.ops.render.render(write_still=True)
     output = scene.render.filepath

@@ -203,12 +203,15 @@ jobs:
         run: |
           set -euo pipefail
           LIBGL_ALWAYS_SOFTWARE=1 CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
+          test -s assets/phase3b/quaternius_library/katana_katana.glb
           for image in phase3b_01_archer_bow.png phase3b_02_oriental_assassin_dual_knives.png phase3b_03_dual_blades_axes.png phase3b_04_spear_halberd_greatsword_shield.png phase3b_05_mage_magic_staff.png phase3b_06_ninja_katana_shuriken_plus12.png phase3b_07_oga_dragon_daylight.png phase3b_08_quaternius_dragon_daylight.png phase3b_09_quaternius_demon_daylight.png phase3b_10_weapon_collection.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
             [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small"; exit 1; }
           done
-          grep -q "PHASE3B_ALL_TEN_CAPTURES_COMPLETE" artifacts/phase3b_render.log
+          creature_count=$(find artifacts -maxdepth 1 -type f -name 'phase3b_catalog_*.png' | wc -l)
+          [ "$creature_count" -eq 20 ] || { echo "::error::Expected 20 mob/boss catalog images, got $creature_count"; exit 1; }
+          grep -q "PHASE3B_ALL_CATALOG_CAPTURES_COMPLETE: 30" artifacts/phase3b_render.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3B_CAPTURE_FAILED" artifacts/phase3b_render.log
       - uses: actions/upload-artifact@v4
         if: always()
@@ -225,6 +228,7 @@ jobs:
             artifacts/phase3b_08_quaternius_dragon_daylight.png
             artifacts/phase3b_09_quaternius_demon_daylight.png
             artifacts/phase3b_10_weapon_collection.png
+            artifacts/phase3b_catalog_*.png
             artifacts/phase3b_asset_report.json
             artifacts/phase3b_asset_prepare.log
             artifacts/phase3b_import.log
