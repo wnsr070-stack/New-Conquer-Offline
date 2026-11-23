@@ -138,7 +138,7 @@ func _capture_all() -> void:
                 model.position.x = -2.4 + float(i) * 0.6
                 model.position.y = 0.9
             camera.fov = 42.0
-            camera.position = Vector3(0.0, 1.2, 4.8)
+            camera.position = Vector3(0.0, 1.12, 3.7)
             camera.look_at(Vector3(0.0, 0.9, 0.0), Vector3.UP)
         else:
             _fail("PHASE3B_UNKNOWN_CAPTURE_KIND: " + kind)
@@ -198,14 +198,19 @@ func _normalize_model(root: Node3D, target_extent: float) -> bool:
         if node is MeshInstance3D:
             var mesh_instance := node as MeshInstance3D
             for surface in range(mesh_instance.mesh.get_surface_count()):
+                var arrays: Array = mesh_instance.mesh.surface_get_arrays(surface)
+                var has_vertex_colors := arrays.size() > Mesh.ARRAY_COLOR and arrays[Mesh.ARRAY_COLOR] != null
                 var source = mesh_instance.get_active_material(surface)
-                var pbr := StandardMaterial3D.new()
                 if source is StandardMaterial3D:
-                    pbr = (source as StandardMaterial3D).duplicate() as StandardMaterial3D
-                pbr.vertex_color_use_as_albedo = true
-                pbr.metallic = maxf(pbr.metallic, 0.22)
-                pbr.roughness = clampf(pbr.roughness, 0.16, 0.82)
-                mesh_instance.set_surface_override_material(surface, pbr)
+                    var pbr := (source as StandardMaterial3D).duplicate() as StandardMaterial3D
+                    pbr.vertex_color_use_as_albedo = has_vertex_colors
+                    pbr.metallic = maxf(pbr.metallic, 0.22)
+                    pbr.roughness = clampf(pbr.roughness, 0.16, 0.82)
+                    mesh_instance.set_surface_override_material(surface, pbr)
+                elif has_vertex_colors:
+                    var pbr := StandardMaterial3D.new()
+                    pbr.vertex_color_use_as_albedo = true
+                    mesh_instance.set_surface_override_material(surface, pbr)
         for child in node.get_children():
             stack.append(child)
     return true
