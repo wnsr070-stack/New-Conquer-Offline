@@ -19,7 +19,8 @@ QUATERNIUS={
  "modular_weapons":"quaternius-medieval-weapons",
  "ultimate_monsters":"quaternius-ultimate-monsters",
  "knight_character":"quaternius-knightcharacter",
- "base_mesh":"the-base-mesh"}
+ "base_mesh":"the-base-mesh",
+ "ultimate_rpg":"quaternius-ultimaterpg"}
 report={"oga":[],"quaternius_packs":[],"converted":[],"skipped":[],"errors":[],"counts":{"characters":0,"weapons":0,"monsters":0},"oga_counts":{"weapons":0,"monsters":0}}
 MODEL_EXT={".obj",".fbx",".gltf",".glb",".stl",".ply",".dae"}
 def run(cmd,**kw): return subprocess.run(cmd,check=True,**kw)
@@ -140,7 +141,7 @@ def fetch_sources():
    if key=="base_mesh":
     # Discover real weapon files by their model filename, not a brittle full-path suffix.
     # The pinned pack currently contains both 3- and 4-point shuriken GLBs.
-    base_mesh_names={"halberd","3_point_shuriken","4_point_shuriken","throwing_knife"}
+    base_mesh_names={"halberd","3_point_shuriken","4_point_shuriken","throwing_knife","stylized_boot"}
     candidates=[x for x in entries if x.get("type")=="blob"
                 and x.get("path","").lower().startswith(pack_root.lower()+"/models/")
                 and pathlib.PurePosixPath(x["path"]).suffix.lower()==".glb"
@@ -149,7 +150,7 @@ def fetch_sources():
     discovered=sorted(pathlib.PurePosixPath(x["path"]).stem for x in candidates)
     report.setdefault("base_mesh_source_models",[]).extend(
      {"path":x["path"],"bytes":x.get("size",0)} for x in candidates)
-    required_base={"halberd","3_point_shuriken","4_point_shuriken","throwing_knife"}
+    required_base={"halberd","3_point_shuriken","4_point_shuriken","throwing_knife","stylized_boot"}
     missing_base=sorted(required_base-set(discovered))
     if missing_base: raise RuntimeError("pinned Base Mesh is missing required real model files: "+str(missing_base))
    if not candidates: raise RuntimeError("pinned source pack contains no supported model files")
@@ -367,7 +368,6 @@ def main():
  # Build the exact 90-model progression pack and 90 real preview renders.
  run([sys.executable,"ci/build_phase3b_85_pack.py"])
  report["counts"]["characters"]=10
- report["generated_heroes"]={"count":10,"source":"Quaternius Modular Character Outfits - Fantasy","license":"CC0-1.0"}
  # Reuse the now-restored HF seed for Ninja weapons before declaring a missing source.
  for asset_name,tokens in [("shuriken",["shuriken","ninja_star","throwing_star"]),("throwing_knife",["throwing_knife","throwing_knife_","kunai"])]:
   try: export_ninja_weapon(asset_name,tokens)
@@ -379,10 +379,11 @@ def main():
   if p.is_file() and p.suffix.lower() in {".png",".jpg",".jpeg",".tga"}:
    dst=OUT/"effects"/p.name; dst.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(p,dst)
  # Manifest includes exact asset provenance and counts.
- required=["characters/ara3d_archer.glb","characters/ara3d_assassin.glb","characters/ara3d_trojan.glb","characters/ara3d_warrior.glb","characters/ara3d_taoist.glb"]
- missing=[x for x in required if not (OUT/x).is_file() or (OUT/x).stat().st_size<1000]
+ required=[]
+ missing=[]
  report["required_missing"]=missing
- required_packs={"rpg_characters","modular_weapons","ultimate_monsters"}
+ report["generated_heroes"]={"count":10,"source":"four complete Quaternius CC0 Outfits; class-specific clothing albedo tints","license":"CC0-1.0"}
+ required_packs={"rpg_characters","modular_weapons","ultimate_monsters","ultimate_rpg","base_mesh"}
  found_packs={x.get("pack") for x in report["quaternius_packs"] if x.get("files",0)>0}
  missing_packs=sorted(required_packs-found_packs)
  report["required_packs_missing"]=missing_packs

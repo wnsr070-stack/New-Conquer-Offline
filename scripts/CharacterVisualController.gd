@@ -71,7 +71,9 @@ func build_character(class_id: String, level: int, gender: String = "male") -> v
     character_root.rotation_degrees.y = 25.0
     assets_ready = true
     print("PHASE3B_CHARACTER_WEAPONS_ATTACHED: ", class_id, " tier=", active_weapon_tier,
-        " right=", right_path, " left=", is_instance_valid(left_weapon_root))
+        " right_bone=", right_bone_name, " right=", right_path,
+        " left_bone=", _find_left_hand_bone(skeleton) if class_id in DUAL_CLASSES else "none",
+        " left=", is_instance_valid(left_weapon_root))
 
 func _tier_for_level(level: int) -> String:
     if level <= 29:
@@ -97,8 +99,18 @@ func _attach_weapon(skeleton: Skeleton3D, bone_name: String, path: String, famil
         return false
     var attachment := BoneAttachment3D.new()
     attachment.name = ("WeaponL_Attachment" if left_hand else "WeaponR_Attachment")
+    var bone_index := skeleton.find_bone(bone_name)
+    if bone_index < 0:
+        push_error("PHASE3B_WEAPON_ATTACHMENT_BONE_INDEX_INVALID: " + bone_name)
+        attachment.queue_free()
+        return false
     attachment.bone_name = bone_name
+    attachment.bone_idx = bone_index
     skeleton.add_child(attachment)
+    if attachment.bone_idx != bone_index:
+        push_error("PHASE3B_WEAPON_ATTACHMENT_BONE_BIND_FAILED: " + bone_name)
+        attachment.queue_free()
+        return false
     var weapon := packed.instantiate() as Node3D
     if weapon == null:
         push_error("PHASE3B_TIERED_WEAPON_ROOT_INVALID: " + path)

@@ -7,7 +7,7 @@ OUT = ROOT / "assets/phase3b"
 CACHE = ROOT / ".cache/phase3b"
 MODULAR_REPO = "agentkaerf/FreeModels"
 MODULAR_REV = "db3df04d1e4714298a09510b26fb6de6645138a2"
-MODULAR_PREFIX = "Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Modular Parts/"
+OUTFITS_PREFIX = "Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/"
 TIERS = [
     ("beginner", "Beginner", 1, 29),
     ("steel", "Steel", 30, 59),
@@ -79,89 +79,52 @@ def valid_glb(path):
         raise RuntimeError("Invalid GLB: " + str(path))
     return len(data)
 
-def fetch_modular_parts():
-    target = CACHE / "modular_outfits"
+def fetch_complete_outfits():
+    """Fetch only the four complete CC0 Outfits; never traverse Modular Parts."""
+    target = CACHE / "complete_outfits"
     target.mkdir(parents=True, exist_ok=True)
     api = f"https://api.github.com/repos/{MODULAR_REPO}/git/trees/{MODULAR_REV}?recursive=1"
     tree = json.loads(download(api).decode("utf-8"))
-    if tree.get("truncated"):
-        raise RuntimeError("Pinned CC0 modular outfit tree was truncated")
+    if tree.get("truncated"): raise RuntimeError("Pinned CC0 complete-outfit tree was truncated")
     entries = {x["path"]: x for x in tree.get("tree", []) if x.get("type") == "blob"}
-    wanted = [
-        "Male_Ranger_Body.gltf", "Female_Ranger_Body.gltf",
-        "Male_Peasant_Body.gltf", "Female_Peasant_Body.gltf",
-        "Male_Ranger_Acc_Pauldron.gltf",
-        "Male_Ranger_Head_Hood.gltf", "Female_Ranger_Head_Hood.gltf",
-        "Male_Ranger_Feet_Boots.gltf",
-    ]
-    downloaded = set()
+    names = ["Male_Ranger.gltf", "Female_Ranger.gltf", "Male_Peasant.gltf", "Female_Peasant.gltf"]
     raw_base = f"https://raw.githubusercontent.com/{MODULAR_REPO}/{MODULAR_REV}/"
+    downloaded = set()
     def fetch_path(path):
-        if path in downloaded:
-            return target / pathlib.PurePosixPath(path).relative_to(MODULAR_PREFIX)
-        if not path.startswith(MODULAR_PREFIX) or path not in entries:
-            raise RuntimeError("Missing pinned modular source dependency: " + path)
-        dest = target / pathlib.PurePosixPath(path).relative_to(MODULAR_PREFIX)
+        if not path.startswith(OUTFITS_PREFIX) or "Modular Parts" in path:
+            raise RuntimeError("Refusing non-Outfits CC0 dependency: " + path)
+        if path not in entries: raise RuntimeError("Missing complete-outfit dependency: " + path)
+        dest = target / pathlib.PurePosixPath(path).relative_to(OUTFITS_PREFIX)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        if _valid_cached_file(dest):
-            print("PHASE3B_MODULAR_CACHE_HIT:", path, "bytes=", dest.stat().st_size, flush=True)
-            downloaded.add(path)
-            return dest
-        if dest.exists(): dest.unlink()
-        dest.write_bytes(download(raw_base + urllib.parse.quote(path, safe="/")))
         if not _valid_cached_file(dest):
             dest.unlink(missing_ok=True)
-            raise RuntimeError("Downloaded modular dependency failed local validation: " + path)
+            dest.write_bytes(download(raw_base + urllib.parse.quote(path, safe="/")))
+        if not _valid_cached_file(dest):
+            dest.unlink(missing_ok=True)
+            raise RuntimeError("Invalid complete-outfit dependency: " + path)
         downloaded.add(path)
         return dest
-    usable = {}
-    failed = {}
-    for name in wanted:
-        full = MODULAR_PREFIX + name
-        try:
-            source = fetch_path(full)
-            doc = json.loads(source.read_text(encoding="utf-8"))
-            refs = []
-            for section in ("buffers", "images"):
-                for item in doc.get(section, []):
-                    uri = item.get("uri", "")
-                    if uri and not uri.startswith("data:"): refs.append((section, uri))
-            for section, uri in refs:
-                dependency = pathlib.PurePosixPath(posixpath.normpath(posixpath.join(posixpath.dirname(full), urllib.parse.unquote(uri)))).as_posix()
-                try: fetch_path(dependency)
-                except Exception as dependency_error:
-                    suffix = pathlib.PurePosixPath(uri).suffix.lower()
-                    if section == "images" or suffix in {".png", ".jpg", ".jpeg", ".webp", ".tga"}:
-                        print("PHASE3B_OPTIONAL_TEXTURE_FALLBACK:", name, "texture=", uri, "warning=", str(dependency_error), flush=True)
-                        continue
-                    raise
-            usable[name] = source
-        except Exception as source_error:
-            failed[name] = str(source_error)
-            print("PHASE3B_MODULAR_PART_DOWNLOAD_WARNING:", name, "error=", str(source_error), flush=True)
-    fallback_preferences = {
-        "Male_Ranger_Body.gltf": ["Female_Ranger_Body.gltf", "Male_Peasant_Body.gltf", "Female_Peasant_Body.gltf"],
-        "Female_Ranger_Body.gltf": ["Male_Ranger_Body.gltf", "Female_Peasant_Body.gltf", "Male_Peasant_Body.gltf"],
-        "Male_Peasant_Body.gltf": ["Male_Ranger_Body.gltf", "Female_Peasant_Body.gltf", "Female_Ranger_Body.gltf"],
-        "Female_Peasant_Body.gltf": ["Female_Ranger_Body.gltf", "Male_Peasant_Body.gltf", "Male_Ranger_Body.gltf"],
-        "Male_Ranger_Acc_Pauldron.gltf": ["Male_Ranger_Body.gltf", "Male_Peasant_Body.gltf"],
-        "Male_Ranger_Head_Hood.gltf": ["Female_Ranger_Head_Hood.gltf", "Male_Ranger_Body.gltf"],
-        "Female_Ranger_Head_Hood.gltf": ["Male_Ranger_Head_Hood.gltf", "Female_Ranger_Body.gltf"],
-        "Male_Ranger_Feet_Boots.gltf": ["Male_Ranger_Body.gltf", "Male_Peasant_Body.gltf"],
-    }
-    result = dict(usable)
-    for name in wanted:
-        if name in result: continue
-        if name.startswith("Outfits/"):
-            raise RuntimeError("Required complete Humanoid outfit source is unavailable: " + name + "; " + failed.get(name, "unknown source error"))
-        fallback = next((candidate for candidate in fallback_preferences.get(name, []) if candidate in usable), None)
-        if fallback is None and usable: fallback = sorted(usable)[0]
-        if fallback is None:
-            raise RuntimeError("No valid cached/downloaded modular part can replace " + name + "; " + failed.get(name, "unknown source error"))
-        result[name] = usable[fallback]
-        print("PHASE3B_MODULAR_PART_FALLBACK:", "requested=", name, "using_real_model=", fallback, flush=True)
-    print("PHASE3B_MODULAR_CC0_READY:", len(result), "model slots;", len(downloaded), "files;",
-          "downloaded=", len(usable), "fallbacks=", len(failed), "repo=", MODULAR_REPO, "revision=", MODULAR_REV, flush=True)
+    result = {}
+    for name in names:
+        full = OUTFITS_PREFIX + name
+        source = fetch_path(full)
+        doc = json.loads(source.read_text(encoding="utf-8"))
+        if not doc.get("meshes") or not doc.get("skins"): raise RuntimeError("Complete outfit lacks mesh geometry or skin: " + name)
+        joints = [doc.get("nodes", [])[i].get("name", "") for i in doc["skins"][0].get("joints", [])]
+        right = next((x for x in joints if x.lower() == "hand_r"), "")
+        left = next((x for x in joints if x.lower() == "hand_l"), "")
+        if len(joints) < 60 or not right or not left:
+            raise RuntimeError("Complete outfit must expose 60+ joints and exact hand_r/hand_l bones: " + name)
+        deps = []
+        for section in ("buffers", "images"):
+            for item in doc.get(section, []):
+                uri = item.get("uri", "")
+                if uri and not uri.startswith("data:"):
+                    deps.append(pathlib.PurePosixPath(posixpath.normpath(posixpath.join(posixpath.dirname(full), urllib.parse.unquote(uri)))).as_posix())
+        for dep in deps: fetch_path(dep)
+        result[name] = source
+        print("PHASE3B_COMPLETE_CC0_OUTFIT_VALIDATED:", name, "meshes=", len(doc["meshes"]), "joints=", len(joints), "right_hand=", right, "left_hand=", left, flush=True)
+    print("PHASE3B_COMPLETE_CC0_OUTFITS_READY:", len(result), "models;", len(downloaded), "files; source=", MODULAR_REPO, "revision=", MODULAR_REV, flush=True)
     return result
 
 def restore_hf_seed():
@@ -258,6 +221,27 @@ def set_tier_materials(tier):
         bsdf.inputs["Metallic"].default_value = metallic
         bsdf.inputs["Roughness"].default_value = roughness
         mat.diffuse_color = tint
+
+def apply_class_tint(tint):
+    """Multiply clothing albedo only; preserve the skin material."""
+    for mat in bpy.data.materials:
+        if not any(token.lower() in mat.name.lower() for token in ("MI_Ranger", "MI_Peasant")): continue
+        mat.use_nodes = True
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+        bsdf = next((n for n in nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is None: continue
+        base = bsdf.inputs["Base Color"]
+        mix = nodes.new("ShaderNodeMixRGB")
+        mix.blend_type = "MULTIPLY"
+        mix.inputs["Fac"].default_value = 1.0
+        mix.inputs["Color2"].default_value = tint
+        if base.is_linked:
+            old = base.links[0]; source = old.from_socket
+            links.remove(old); links.new(source, mix.inputs["Color1"])
+        else: mix.inputs["Color1"].default_value = base.default_value
+        links.new(mix.outputs["Color"], base)
+        mat.diffuse_color = tint
+        print("PHASE3B_CLASS_CLOTHING_ALBEDO_TINT:", mat.name, tint, flush=True)
 
 def apply_creature_fallback(job):
     palette = job.get("fallback_colors") or []
@@ -384,6 +368,8 @@ for index, job in enumerate(jobs, 1):
             dup.location.x += 0.32
             dup.rotation_euler.z += math.pi
     set_tier_materials(job.get("tier", "natural"))
+    if job.get("class_tint"):
+        apply_class_tint(job["class_tint"])
     if job.get("tier") != "natural":
         # Tiered models retain the source mesh while receiving a real PBR material treatment.
         for obj in [o for o in bpy.context.scene.objects if o.type == "MESH"]:
@@ -458,100 +444,103 @@ def build():
                 "license": "CC0-1.0", "source_license_url": "https://quaternius.com/packs/modularcharacteroutfitsfantasy.html", "preview": f"previews/{asset_id}.png"
             })
 
-    modular = fetch_modular_parts()
-    armor_sources = [
-        ("body_01", "Ranger Male Chest", "Male_Ranger_Body.gltf"),
-        ("body_02", "Ranger Female Chest", "Female_Ranger_Body.gltf"),
-        ("body_03", "Peasant Male Chest", "Male_Peasant_Body.gltf"),
-        ("body_04", "Peasant Female Chest", "Female_Peasant_Body.gltf"),
-        ("body_05", "Ranger Pauldrons", "Male_Ranger_Acc_Pauldron.gltf"),
-    ]
-    helmet_sources = [
-        ("helmet_01", "Ranger Male Hood", "Male_Ranger_Head_Hood.gltf"),
-        ("helmet_02", "Ranger Female Hood", "Female_Ranger_Head_Hood.gltf"),
-        ("helmet_03", "Quaternius Helmet I", None),
-        ("helmet_04", "Quaternius Helmet II", None),
-        ("helmet_05", "Quaternius Helmet III", None),
-    ]
-    modular_glbs = {}
-    for filename, source in modular.items():
-        dest = CACHE / "modular_glb" / (pathlib.Path(filename).stem + ".glb")
+    outfits = fetch_complete_outfits()
+    outfit_glbs = {}
+    for filename, source in outfits.items():
+        dest = CACHE / "complete_outfit_glb" / (pathlib.Path(filename).stem + ".glb")
         dest.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(["gltfpack", "-noq", "-i", str(source), "-o", str(dest)], check=True)
         valid_glb(dest)
-        modular_glbs[filename] = dest
+        outfit_glbs[filename] = dest
 
-    # Two complete, independently rigged fantasy Ranger outfits from the pinned
-    # Quaternius CC0 pack. Their 65-joint Humanoid skeletons provide real male/female
-    # source meshes; class identity is expressed by the weapon loadout in-game.
+    armor_sources = [
+        ("body_01", "Black Full Plate", "armor_black"),
+        ("body_02", "Golden Full Plate", "armor_golden"),
+        ("body_03", "Leather Armor", "armor_leather"),
+        ("body_04", "Metal Armor", "armor_metal"),
+        ("body_05", "Reinforced Metal Armor", "armor_metal2"),
+    ]
+    helmet_sources = [
+        ("helmet_01", "Knight Helmet I", "helmet1_helmet1"),
+        ("helmet_02", "Knight Helmet II", "helmet2_helmet2"),
+        ("helmet_03", "Knight Helmet III", "helmet3_helmet3"),
+        ("helmet_04", "Knight Helmet I Variant", "helmet1_helmet1"),
+        ("helmet_05", "Knight Helmet II Variant", "helmet2_helmet2"),
+    ]
+    class_tints = {
+        "trojan": (0.78, 0.035, 0.075, 1.0),
+        "warrior": (0.20, 0.36, 0.58, 1.0),
+        "archer": (0.12, 0.52, 0.20, 1.0),
+        "assassin": (0.075, 0.085, 0.11, 1.0),
+        "taoist": (0.12, 0.66, 0.88, 1.0),
+    }
     hero_specs = [
-        ("Trojan", "trojan", "male", "Male_Ranger_Body.gltf"),
-        ("Trojan", "trojan", "female", "Female_Ranger_Body.gltf"),
-        ("Warrior", "warrior", "male", "Male_Ranger_Body.gltf"),
-        ("Warrior", "warrior", "female", "Female_Ranger_Body.gltf"),
-        ("Archer", "archer", "male", "Male_Ranger_Body.gltf"),
-        ("Archer", "archer", "female", "Female_Ranger_Body.gltf"),
-        ("Assassin", "assassin", "male", "Male_Ranger_Body.gltf"),
-        ("Assassin", "assassin", "female", "Female_Ranger_Body.gltf"),
-        ("Taoist", "taoist", "male", "Male_Ranger_Body.gltf"),
-        ("Taoist", "taoist", "female", "Female_Ranger_Body.gltf"),
+        ("Trojan", "trojan", "male", "Male_Ranger.gltf"),
+        ("Trojan", "trojan", "female", "Female_Ranger.gltf"),
+        ("Warrior", "warrior", "male", "Male_Peasant.gltf"),
+        ("Warrior", "warrior", "female", "Female_Peasant.gltf"),
+        ("Archer", "archer", "male", "Male_Ranger.gltf"),
+        ("Archer", "archer", "female", "Female_Ranger.gltf"),
+        ("Assassin", "assassin", "male", "Male_Peasant.gltf"),
+        ("Assassin", "assassin", "female", "Female_Peasant.gltf"),
+        ("Taoist", "taoist", "male", "Male_Ranger.gltf"),
+        ("Taoist", "taoist", "female", "Female_Ranger.gltf"),
     ]
     character_report = {
-        "generator": "Quaternius Modular Character Outfits - Fantasy",
+        "generator": "Quaternius Modular Character Outfits - Fantasy / complete Outfits only",
         "source_repository": MODULAR_REPO,
         "source_revision": MODULAR_REV,
         "source_license": "CC0-1.0",
         "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
         "source_pack_url": "https://quaternius.itch.io/modular-character-outfits-fantasy",
+        "forbidden_source_paths": ["Modular Parts/"],
         "rig": "Humanoid",
         "profiles": []
     }
     for display, key, gender, source_key in hero_specs:
-        source_gltf = modular[source_key]
+        source_gltf = outfits[source_key]
         source_doc = json.loads(source_gltf.read_text(encoding="utf-8"))
         skins = source_doc.get("skins", [])
-        if not skins or len(skins[0].get("joints", [])) < 60:
-            raise RuntimeError("Fantasy hero source lacks a full Humanoid skin: " + source_key)
+        if not source_doc.get("meshes") or not skins or len(skins[0].get("joints", [])) < 60:
+            raise RuntimeError("Complete CC0 hero source lacks full mesh geometry or Humanoid skin: " + source_key)
         joint_names = [source_doc.get("nodes", [])[i].get("name", "") for i in skins[0]["joints"]]
-        normalized = {name.lower().replace("_", "").replace(".", "") for name in joint_names}
-        if not any(name.endswith("handr") or "righthand" in name for name in normalized):
-            raise RuntimeError("Fantasy hero source has no right-hand bone: " + source_key)
-        if not any(name.endswith("handl") or "lefthand" in name for name in normalized):
-            raise RuntimeError("Fantasy hero source has no left-hand bone: " + source_key)
+        right_hand = next((name for name in joint_names if name.lower() == "hand_r"), "")
+        left_hand = next((name for name in joint_names if name.lower() == "hand_l"), "")
+        if not right_hand or not left_hand:
+            raise RuntimeError("Complete CC0 hero source missing exact hand_r/hand_l bones: " + source_key)
         relative = f"characters/{key}_{gender}.glb"
         destination = OUT / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(modular_glbs[source_key], destination)
-        size = valid_glb(destination)
         asset_id = f"hero_{key}_{gender}"
         preview = f"previews/{asset_id}.png"
-        hero_jobs.append({"id": asset_id, "source": str(destination), "tier": "natural",
-                          "dest": str(destination), "render_only": True})
+        tint = class_tints[key]
+        hero_jobs.append({"id": asset_id, "source": str(outfit_glbs[source_key]), "tier": "natural",
+                          "dest": str(destination), "class_tint": tint})
         records.append({
             "id": asset_id, "name": f"{display} — {'Male' if gender == 'male' else 'Female'}",
             "category": "character", "class": key, "gender": gender,
             "file": relative, "level_min": 1, "level_max": 110,
-            "source": "Quaternius Modular Character Outfits - Fantasy",
+            "source": "Quaternius complete CC0 Outfit",
             "source_repository": MODULAR_REPO, "source_revision": MODULAR_REV,
-            "source_model": source_key, "license": "CC0-1.0",
-            "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-            "bytes": size, "preview": preview
+            "source_model": source_key, "class_clothing_albedo_tint": list(tint),
+            "license": "CC0-1.0", "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "bytes": 0, "preview": preview
         })
         character_report["profiles"].append({
             "file": relative, "class": key, "gender": gender, "source_model": source_key,
             "skin_count": len(skins), "humanoid_joint_count": len(skins[0]["joints"]),
-            "right_hand_bone": "hand_r", "left_hand_bone": "hand_l",
-            "bytes": size, "status": "validated"
+            "right_hand_bone": right_hand, "left_hand_bone": left_hand,
+            "clothing_albedo_tint": list(tint), "bytes": 0, "status": "validated"
         })
     if len(character_report["profiles"]) != 10:
-        raise RuntimeError("Expected ten real male/female fantasy hero assets")
+        raise RuntimeError("Expected ten real male/female complete CC0 outfit hero assets")
     (OUT / "characters" / "character_quality_report.json").write_text(
         json.dumps(character_report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print("PHASE3B_TEN_CC0_HUMANOID_HEROES_READY:", len(character_report["profiles"]), flush=True)
+    print("PHASE3B_TEN_COMPLETE_CC0_HUMANOID_HEROES_READY:", len(character_report["profiles"]), flush=True)
 
     armor_jobs = []
-    for slug, display, filename in armor_sources:
-        source = modular_glbs[filename]
+    for slug, display, alias in armor_sources:
+        source = choose_model([OUT / "quaternius_library"], [alias], label=display)
         for tier, label, low, high in TIERS:
             asset_id = slug + "_" + tier
             relative = "armor/" + asset_id + ".glb"
@@ -559,17 +548,12 @@ def build():
             records.append({
                 "id": asset_id, "name": display + " — " + label, "category": "armor",
                 "armor_slot": "body", "tier": tier, "level_min": low, "level_max": high,
-                "file": relative, "source": "Quaternius Modular Character Outfits - Fantasy",
-                "source_repo": MODULAR_REPO, "source_revision": MODULAR_REV,
-                "license": "CC0-1.0", "preview": f"previews/{asset_id}.png"
+                "file": relative, "source": "Quaternius CC0", "license": "CC0-1.0",
+                "preview": f"previews/{asset_id}.png"
             })
     helmet_candidates = [OUT / "quaternius_library"]
-    for slug, display, filename in helmet_sources:
-        if filename:
-            source = modular_glbs[filename]
-        else:
-            qname = {"helmet_03": "helmet1_helmet1", "helmet_04": "helmet2_helmet2", "helmet_05": "helmet3_helmet3"}[slug]
-            source = choose_model(helmet_candidates, [qname], label=display)
+    for slug, display, alias in helmet_sources:
+        source = choose_model(helmet_candidates, [alias], label=display)
         for tier, label, low, high in TIERS:
             asset_id = slug + "_" + tier
             relative = "armor/" + asset_id + ".glb"
@@ -577,20 +561,19 @@ def build():
             records.append({
                 "id": asset_id, "name": display + " — " + label, "category": "armor",
                 "armor_slot": "helmet", "tier": tier, "level_min": low, "level_max": high,
-                "file": relative, "source": "Quaternius CC0",
-                "license": "CC0-1.0", "preview": f"previews/{asset_id}.png"
+                "file": relative, "source": "Quaternius CC0", "license": "CC0-1.0",
+                "preview": f"previews/{asset_id}.png"
             })
-    boots_source = modular_glbs["Male_Ranger_Feet_Boots.gltf"]
+    boots_source = choose_model([OUT / "quaternius_library"], ["stylized_boot"], label="Stylized Boots")
     for tier, label, low, high in TIERS:
         asset_id = "boots_01_" + tier
         relative = "armor/" + asset_id + ".glb"
         armor_jobs.append({"id": asset_id, "source": str(boots_source), "tier": tier, "dest": str(OUT / relative)})
         records.append({
-            "id": asset_id, "name": "Ranger Boots — " + label, "category": "armor",
+            "id": asset_id, "name": "Stylized Boots — " + label, "category": "armor",
             "armor_slot": "boots", "tier": tier, "level_min": low, "level_max": high,
-            "file": relative, "source": "Quaternius Modular Character Outfits - Fantasy",
-            "source_repo": MODULAR_REPO, "source_revision": MODULAR_REV,
-            "license": "CC0-1.0", "preview": f"previews/{asset_id}.png"
+            "file": relative, "source": "The Base Mesh CC0", "license": "CC0-1.0",
+            "preview": f"previews/{asset_id}.png"
         })
 
     monster_root = [OUT / "monsters"]
@@ -689,10 +672,9 @@ def build():
         "tiers": [{"id": t, "name": n, "levels": f"Lv.{lo}-Lv.{hi}"} for t, n, lo, hi in TIERS],
         "armor_slots": {"body": 15, "helmet": 15, "boots": 3},
         "sources": {
-            "characters": "Quaternius Modular Character Outfits - Fantasy (10 male/female Humanoid variants, CC0)",
+            "characters": "Quaternius complete CC0 Outfits (4 source models reused across 10 class/gender profiles)",
             "weapons_monsters": "Quaternius CC0",
-            "armor": {"repo": MODULAR_REPO, "revision": MODULAR_REV, "license": "CC0-1.0",
-                     "source_url": "https://quaternius.com/packs/modularcharacteroutfitsfantasy.html"}
+            "armor": {"source": "Quaternius CC0 armor models + The Base Mesh CC0 boots"}
         },
         "assets": records
     }

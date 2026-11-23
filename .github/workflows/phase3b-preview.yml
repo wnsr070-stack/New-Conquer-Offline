@@ -58,30 +58,11 @@ jobs:
           command -v gltfpack
           gltfpack -h >/dev/null 2>&1 || true
           "$GODOT_BIN" --version
-      - name: Set up Node for Ara 3D Gen
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Install pinned Ara 3D Gen CLI and print its actual preset catalogue
-        run: |
-          set -euo pipefail
-          npm install --global "ara3d@0.9.0"
-          command -v ara3d
-          ara3d presets | tee artifacts/ara3d_presets.log
-      - name: Generate five high-detail CC0 humanoids and audit topology
-        run: |
-          set -euo pipefail
-          python3 ci/generate_phase3b_characters.py 2>&1 | tee artifacts/phase3b_character_generation.log
-          test -s assets/phase3b/characters/ara3d_archer.glb
-          test -s assets/phase3b/characters/ara3d_assassin.glb
-          test -s assets/phase3b/characters/ara3d_trojan.glb
-          test -s assets/phase3b/characters/ara3d_warrior.glb
-          test -s assets/phase3b/characters/ara3d_taoist.glb
       - name: Syntax-check asset preparation script (no Google Drive dependencies)
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
-          python3 -m py_compile ci/prepare_phase3b_assets.py ci/build_phase3b_85_pack.py ci/generate_phase3b_characters.py
+          python3 -m py_compile ci/prepare_phase3b_assets.py ci/build_phase3b_85_pack.py
       - name: Fetch pinned Quaternius CC0 packs from GitHub and approved OGA archives
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -124,11 +105,9 @@ jobs:
             assets/phase3b/phase3b_manifest.json
             assets/phase3b/previews/**
             assets/phase3b/characters/character_quality_report.json
-            artifacts/phase3b_character_generation.log
-            artifacts/ara3d_presets.log
+
             artifacts/phase3b_asset_prepare.log
-            artifacts/phase3b_character_generation.log
-            artifacts/ara3d_presets.log
+
           retention-days: 14
   render-previews:
     name: Import Godot and render Phase 3B previews and 90-model catalog
