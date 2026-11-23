@@ -2,6 +2,9 @@ name: Phase 3B Characters, Weapons and Monster Cache
 on:
   push:
     branches: ['test/phase3b-characters-weapons']
+    paths:
+      - 'ci/**'
+      - '.github/workflows/phase3b-preview.yml'
   workflow_dispatch:
     inputs:
       rebuild_assets:
