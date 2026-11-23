@@ -4,16 +4,20 @@ const CharacterController = preload("res://scripts/CharacterVisualController.gd"
 const ASSET_ROOT := "res://assets/phase3b/"
 
 var captures := [
-    {"file":"phase3b_01_archer_bow.png","kind":"hero","class":"archer","label":"ARCHER","level":30,"plus":1},
-    {"file":"phase3b_02_oriental_assassin_dual_knives.png","kind":"hero","class":"oriental_assassin","label":"ORIENTAL ASSASSIN","level":40,"plus":3,"shadow":true},
-    {"file":"phase3b_03_dual_blades_axes.png","kind":"hero","class":"trojan","label":"TROJAN","level":60,"plus":5},
-    {"file":"phase3b_04_spear_halberd_greatsword_shield.png","kind":"hero","class":"warrior","label":"WARRIOR","level":90,"plus":7},
-    {"file":"phase3b_05_mage_magic_staff.png","kind":"hero","class":"taoist","label":"TAOIST","level":100,"plus":9},
-    {"file":"phase3b_06_ninja_katana_shuriken_plus12.png","kind":"hero","class":"ninja","label":"NINJA — KATANA + SHURIKEN","level":130,"plus":12},
-    {"file":"phase3b_07_oga_dragon_daylight.png","kind":"model","asset":"oga_monsters/cethiel_dragon_dragon.glb","target_extent":2.4},
-    {"file":"phase3b_08_quaternius_dragon_daylight.png","kind":"model","asset":"monsters/dragon_dragon.glb","target_extent":2.4},
-    {"file":"phase3b_09_quaternius_demon_daylight.png","kind":"model","asset":"monsters/demon_demon.glb","target_extent":2.2},
-    {"file":"phase3b_10_weapon_collection.png","kind":"weapons"}
+    {"file":"phase3b_hero_01_archer_male.png","kind":"hero","class":"archer","gender":"male","label":"ARCHER — MALE","level":30,"plus":1},
+    {"file":"phase3b_hero_02_archer_female.png","kind":"hero","class":"archer","gender":"female","label":"ARCHER — FEMALE","level":30,"plus":1},
+    {"file":"phase3b_hero_03_assassin_male_plus12.png","kind":"hero","class":"oriental_assassin","gender":"male","label":"EASTERN ASSASSIN — MALE — +12","level":40,"plus":12,"shadow":true},
+    {"file":"phase3b_hero_04_assassin_female.png","kind":"hero","class":"oriental_assassin","gender":"female","label":"EASTERN ASSASSIN — FEMALE","level":40,"plus":3},
+    {"file":"phase3b_hero_05_trojan_male.png","kind":"hero","class":"trojan","gender":"male","label":"TROJAN — MALE","level":60,"plus":5},
+    {"file":"phase3b_hero_06_trojan_female.png","kind":"hero","class":"trojan","gender":"female","label":"TROJAN — FEMALE","level":60,"plus":5},
+    {"file":"phase3b_hero_07_warrior_male.png","kind":"hero","class":"warrior","gender":"male","label":"WARRIOR — MALE","level":90,"plus":7},
+    {"file":"phase3b_hero_08_warrior_female.png","kind":"hero","class":"warrior","gender":"female","label":"WARRIOR — FEMALE","level":90,"plus":7},
+    {"file":"phase3b_hero_09_taoist_male.png","kind":"hero","class":"taoist","gender":"male","label":"TAOIST — MALE","level":100,"plus":9},
+    {"file":"phase3b_hero_10_taoist_female.png","kind":"hero","class":"taoist","gender":"female","label":"TAOIST — FEMALE","level":100,"plus":9},
+    {"file":"phase3b_11_oga_dragon_daylight.png","kind":"model","asset":"oga_monsters/cethiel_dragon_dragon.glb","target_extent":2.4},
+    {"file":"phase3b_12_quaternius_dragon_daylight.png","kind":"model","asset":"monsters/dragon_dragon.glb","target_extent":2.4},
+    {"file":"phase3b_13_quaternius_demon_daylight.png","kind":"model","asset":"monsters/demon_demon.glb","target_extent":2.2},
+    {"file":"phase3b_14_weapon_collection.png","kind":"weapons"}
 ]
 
 func _ready() -> void:
@@ -65,7 +69,7 @@ func _capture_all() -> void:
         if kind == "hero":
             var hero = CharacterController.new()
             add_child(hero)
-            hero.build_character(str(spec["class"]), int(spec["level"]))
+            hero.build_character(str(spec["class"]), int(spec["level"]), str(spec.get("gender", "male")))
             if not hero.assets_ready:
                 _fail("PHASE3B_HERO_ASSET_OR_WEAPON_SOCKET_FAILED: " + str(spec["file"]))
                 return
