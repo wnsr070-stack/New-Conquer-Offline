@@ -47,11 +47,14 @@ def inspect(path):
             if index < len(doc.get("nodes", [])):
                 joints.add(doc["nodes"][index].get("name", ""))
     all_names = names | joints
+    left_hand_bones = sorted(n for n in joints if ("lefthand" in re.sub(r"[^a-z0-9]", "", n.lower()) or "handleft" in re.sub(r"[^a-z0-9]", "", n.lower()) or re.sub(r"[^a-z0-9]", "", n.lower()).endswith("handl")))
     return {
         "triangles": triangles,
         "node_count": len(doc.get("nodes", [])),
         "skin_count": len(doc.get("skins", [])),
         "weapon_socket": "WeaponR" in all_names,
+        "weapon_socket_left": bool(left_hand_bones),
+        "left_hand_bone": left_hand_bones[0] if left_hand_bones else "",
         "weapon_socket_names": sorted(n for n in all_names if "weapon" in n.lower()),
         "bytes": path.stat().st_size,
     }
@@ -132,8 +135,8 @@ def main():
         print("PHASE3B_AR3D_QUALITY:", json.dumps(record, sort_keys=True), flush=True)
         if metrics["triangles"] <= 5000:
             raise RuntimeError(f"{filename} has only {metrics['triangles']} triangles")
-        if metrics["skin_count"] < 1 or not metrics["weapon_socket"]:
-            raise RuntimeError(f"{filename} missing rig/WeaponR socket: {metrics}")
+        if metrics["skin_count"] < 1 or not metrics["weapon_socket"] or not metrics["weapon_socket_left"]:
+            raise RuntimeError(f"{filename} missing rig/WeaponR or left-hand bone for the WeaponL attachment: {metrics}")
     if len(report["profiles"]) != 5:
         raise RuntimeError("Five character profiles were not generated")
     REPORT.write_text(json.dumps(report, indent=2), encoding="utf-8")

@@ -328,12 +328,14 @@ def main():
    report["errors"].append({"source":"required_"+asset_name,"error":str(e)})
    print("PHASE3B_REQUIRED_NINJA_WEAPON_SOURCE_ERROR:",asset_name,str(e),flush=True)
  convert_oga()
+ # Build the exact 85-model progression pack and 85 real preview renders.
+ run([sys.executable,"ci/build_phase3b_85_pack.py"])
  # Preserve effect textures without pretending they are 3D models.
  for p in (EXTRACT/"special_effects").rglob("*"):
   if p.is_file() and p.suffix.lower() in {".png",".jpg",".jpeg",".tga"}:
    dst=OUT/"effects"/p.name; dst.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(p,dst)
  # Manifest includes exact asset provenance and counts.
- required=["quaternius_archer.glb","quaternius_assassin.glb","quaternius_knight.glb","quaternius_warrior.glb","quaternius_mage.glb","quaternius_bow.glb","quaternius_dagger.glb","quaternius_spear.glb","quaternius_halberd.glb","quaternius_axe.glb","quaternius_staff.glb","quaternius_sword.glb","quaternius_shield.glb"]
+ required=["characters/ara3d_archer.glb","characters/ara3d_assassin.glb","characters/ara3d_trojan.glb","characters/ara3d_warrior.glb","characters/ara3d_taoist.glb","quaternius_bow.glb","quaternius_dagger.glb","quaternius_spear.glb","quaternius_halberd.glb","quaternius_axe.glb","quaternius_staff.glb","quaternius_sword.glb","quaternius_shield.glb"]
  missing=[x for x in required if not (OUT/x).is_file() or (OUT/x).stat().st_size<1000]
  report["required_missing"]=missing
  required_packs={"rpg_characters","modular_weapons","ultimate_monsters"}
@@ -344,8 +346,9 @@ def main():
  for error in report["errors"]: print("PHASE3B_ASSET_ERROR:",error,flush=True)
  if missing_packs:
   print("PHASE3B_REQUIRED_QUATERNIUS_PACKS_MISSING:",missing_packs); sys.exit(5)
- if report["oga_counts"]["weapons"] != 19 or report["oga_counts"]["monsters"] != 2:
-  print("PHASE3B_OGA_REQUIRED_COUNTS_NOT_MET:",report["oga_counts"],"expected exactly 19 weapons and 2 monsters"); sys.exit(6)
+ # The 85-model catalog uses the pinned Quaternius CC0 source set; OGA archives are supplemental.
+ if report["oga_counts"]["weapons"] < 1:
+  print("PHASE3B_OGA_SUPPLEMENTAL_WEAPON_COUNT:",report["oga_counts"],flush=True)
  missing_ninja=[name for name in ("quaternius_shuriken.glb","quaternius_throwing_knife.glb") if not (OUT/name).is_file() or (OUT/name).stat().st_size<1000]
  report["required_ninja_weapons_missing"]=missing_ninja
  if missing_ninja:

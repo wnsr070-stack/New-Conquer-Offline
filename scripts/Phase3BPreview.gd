@@ -169,7 +169,17 @@ func _normalize_model(root: Node3D, target_extent: float) -> bool:
                 fallback.albedo_color = Color(0.42, 0.58, 0.68, 1.0)
                 fallback.roughness = 0.72
                 fallback.cull_mode = BaseMaterial3D.CULL_DISABLED
+                fallback.vertex_color_use_as_albedo = true
                 mesh_instance.material_override = fallback
+            for surface in range(mesh_instance.mesh.get_surface_count()):
+                var source = mesh_instance.get_active_material(surface)
+                var pbr := StandardMaterial3D.new()
+                if source is StandardMaterial3D:
+                    pbr = (source as StandardMaterial3D).duplicate() as StandardMaterial3D
+                pbr.vertex_color_use_as_albedo = true
+                pbr.metallic = maxf(pbr.metallic, 0.22)
+                pbr.roughness = clampf(pbr.roughness, 0.16, 0.82)
+                mesh_instance.set_surface_override_material(surface, pbr)
         for child in node.get_children():
             stack.append(child)
     return true

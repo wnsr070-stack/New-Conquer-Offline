@@ -21,10 +21,10 @@ env:
   CI_CAPTURE: "1"
 jobs:
   prepare-assets:
-    if: github.event_name == 'workflow_dispatch' && inputs.rebuild_assets == true
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.rebuild_assets == true)
     name: Download CC0 assets, Assimp-convert and cache
     runs-on: ubuntu-22.04
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Cache Phase 3B source archives and pinned CC0 downloads
@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
-          python3 -m py_compile ci/prepare_phase3b_assets.py
+          python3 -m py_compile ci/prepare_phase3b_assets.py ci/build_phase3b_85_pack.py ci/generate_phase3b_characters.py
       - name: Fetch pinned Quaternius CC0 packs from GitHub and approved OGA archives
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -107,6 +107,9 @@ jobs:
           path: |
             assets/phase3b/**
             artifacts/phase3b_asset_report.json
+            artifacts/phase3b_85_asset_report.json
+            assets/phase3b/phase3b_manifest.json
+            assets/phase3b/previews/**
             assets/phase3b/characters/character_quality_report.json
             artifacts/phase3b_character_generation.log
             artifacts/ara3d_presets.log
@@ -115,11 +118,11 @@ jobs:
             artifacts/ara3d_presets.log
           retention-days: 14
   render-previews:
-    name: Import Godot and render ten Phase 3B previews
+    name: Import Godot and render Phase 3B previews and 85-model catalog
     needs: prepare-assets
     if: always() && (needs.prepare-assets.result == 'success' || needs.prepare-assets.result == 'skipped')
     runs-on: ubuntu-22.04
-    timeout-minutes: 18
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Install rendering dependencies
@@ -183,6 +186,19 @@ jobs:
           find assets/phase3b -name '*.glb' -type f -size +10k
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/phase3b_import.log
           test -s assets/phase3b/characters/character_quality_report.json
+          test -s assets/phase3b/phase3b_manifest.json
+          python3 - <<'PY'
+          import json, pathlib
+          root=pathlib.Path('assets/phase3b')
+          m=json.loads((root/'phase3b_manifest.json').read_text())
+          assert m['actual_total']==85 and len(m['assets'])==85, '85-model manifest count mismatch'
+          assert len({x['file'] for x in m['assets']})==85, 'duplicate asset paths'
+          for x in m['assets']:
+              p=root/x['file']; q=root/x['preview']
+              assert p.is_file() and p.stat().st_size>1000, f"missing GLB: {p}"
+              assert q.is_file() and q.stat().st_size>3000, f"missing preview: {q}"
+          print('PHASE3B_85_MANIFEST_AND_PREVIEWS_VALIDATED')
+          PY
       - name: Render ten hero, monster and weapon previews
         run: |
           set -euo pipefail
@@ -197,7 +213,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: phase3b-ten-previews-${{ github.run_number }}
+          name: phase3b-85-model-catalog-and-previews-${{ github.run_number }}
           path: |
             artifacts/phase3b_01_archer_bow.png
             artifacts/phase3b_02_oriental_assassin_dual_knives.png
