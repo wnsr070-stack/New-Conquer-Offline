@@ -361,26 +361,36 @@ def add_quaternius_head_hair(source_path, gender):
     if not source_armatures:
         raise RuntimeError("Quaternius " + gender + " head source has no source Armature")
     head_terms = ("head", "face", "hair", "eyes", "eyebrows", "beard", "ears")
+    excluded_terms = ("backpack", "bag", "quiver", "cape", "shield", "weapon")
     head_meshes = []
     for obj in imported_head_objects:
         if obj.type != "MESH":
             continue
-        name_match = any(term in obj.name.casefold() for term in head_terms)
+        object_name = obj.name.casefold()
+        excluded_match = any(term in object_name for term in excluded_terms)
+        name_match = any(term in object_name for term in head_terms)
         world_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
         bbox_center_z = (min(v.z for v in world_corners) + max(v.z for v in world_corners)) * 0.5 if world_corners else float("-inf")
-        if name_match or bbox_center_z > 1.3:
+        if not excluded_match and (name_match or bbox_center_z > 1.3):
             head_meshes.append(obj)
             print("PHASE3B_QUATERNIUS_HEAD_MESH_DETECTED:",
                   "gender=", gender, "name=", obj.name,
-                  "name_match=", name_match, "bbox_center_z=", round(bbox_center_z, 4),
+                  "name_match=", name_match, "excluded_match=", excluded_match,
+                  "bbox_center_z=", round(bbox_center_z, 4),
                   "materials=", [mat.name for mat in obj.data.materials if mat],
                   flush=True)
+        elif excluded_match:
+            print("PHASE3B_QUATERNIUS_HEAD_MESH_EXCLUDED:",
+                  "gender=", gender, "name=", obj.name,
+                  "excluded_terms=", excluded_terms, flush=True)
     if len(head_meshes) < 1:
         imported_mesh_names = [obj.name for obj in imported_head_objects if obj.type == "MESH"]
         raise RuntimeError("Quaternius " + gender + " head source produced no head meshes; imported meshes=" + repr(imported_mesh_names))
+    head_parts = head_meshes
+    material_names = {m.name for obj in head_parts for m in obj.data.materials if m}
     print("PHASE3B_QUATERNIUS_HEAD_MESHES_SELECTED:",
-          "gender=", gender, "count=", len(head_meshes),
-          "names=", [obj.name for obj in head_meshes], flush=True)
+          "gender=", gender, "count=", len(head_parts),
+          "names=", [obj.name for obj in head_parts], flush=True)
     source_armature = source_armatures[0]
     source_head = _head_bone(source_armature)
     source_head_world = source_armature.matrix_world @ source_head.matrix_local
