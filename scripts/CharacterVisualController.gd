@@ -183,7 +183,7 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
         root.rotation.y += PI
     # Trojan blades and Eastern Assassin knives point toward the character's forward (-Z) direction.
     if family in ["dual_knives", "dual_blades"]:
-        root.rotation.x += PI * 0.5 if axis != 1 else -PI * 0.5
+        root.rotation.x += (PI * 0.5 if axis != 1 else -PI * 0.5)
     # Keep both paired blades facing forward; other off-hand items retain mirrored orientation.
     if left_hand and family not in ["dual_knives", "dual_blades"]:
         root.rotation.y += PI
