@@ -79,10 +79,20 @@ func _capture_all() -> void:
                 camera.position = Vector3(0.0, maxf(1.2, bounds.size.y * 0.65), 4.5)
                 camera.look_at(Vector3(0.0, bounds.position.y + bounds.size.y * 0.5, 0.0), Vector3.UP)
         elif kind == "weapons":
-            var names := ["bow", "dagger", "spear", "halberd", "sword"]
-            var x_positions := [-1.55, -0.78, 0.0, 0.78, 1.55]
-            for i in range(names.size()):
-                var path: String = ASSET_ROOT + "quaternius_" + str(names[i]) + ".glb"
+            # Nine real Phase 3B assets, arranged on a consistent 0.6 m grid.
+            var weapon_paths := [
+                "quaternius_sword.glb",
+                "quaternius_axe.glb",
+                "quaternius_spear.glb",
+                "quaternius_library/katana_katana_katana.glb",
+                "quaternius_bow.glb",
+                "quaternius_staff.glb",
+                "quaternius_dagger.glb",
+                "quaternius_shuriken.glb",
+                "quaternius_shield.glb"
+            ]
+            for i in range(weapon_paths.size()):
+                var path: String = ASSET_ROOT + str(weapon_paths[i])
                 if not ResourceLoader.exists(path):
                     _fail("PHASE3B_WEAPON_COLLECTION_ASSET_MISSING: " + path)
                     return
@@ -96,13 +106,15 @@ func _capture_all() -> void:
                     return
                 add_child(model)
                 await get_tree().process_frame
-                if not _normalize_model(model, 0.95):
+                if not _normalize_model(model, 1.1):
                     _fail("PHASE3B_WEAPON_NORMALIZATION_FAILED: " + path)
                     return
-                model.position.x += float(x_positions[i])
-                model.position.y += 0.8
-            camera.position = Vector3(0.0, 1.15, 4.8)
-            camera.look_at(Vector3(0.0, 0.8, 0.0), Vector3.UP)
+                model.rotation_degrees.y = 35.0
+                model.position.x = -2.4 + float(i) * 0.6
+                model.position.y = 0.9
+            camera.fov = 42.0
+            camera.position = Vector3(0.0, 1.2, 4.8)
+            camera.look_at(Vector3(0.0, 0.9, 0.0), Vector3.UP)
         else:
             _fail("PHASE3B_UNKNOWN_CAPTURE_KIND: " + kind)
             return
@@ -189,12 +201,12 @@ func _build_stage() -> void:
     var world := WorldEnvironment.new()
     var env := Environment.new()
     env.background_mode = Environment.BG_COLOR
-    env.background_color = Color(0.60, 0.72, 0.84)
+    env.background_color = Color("#1E242B")
     env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
     env.ambient_light_color = Color(1.0, 0.97, 0.90)
-    env.ambient_light_energy = 1.15
+    env.ambient_light_energy = 0.35
     env.glow_enabled = true
-    env.glow_intensity = 0.35
+    env.glow_intensity = 0.25
     env.glow_bloom = 0.08
     world.environment = env
     add_child(world)
@@ -204,7 +216,7 @@ func _build_stage() -> void:
     plane.size = Vector2(16.0, 16.0)
     floor.mesh = plane
     var floor_material := StandardMaterial3D.new()
-    floor_material.albedo_color = Color(0.72, 0.70, 0.64)
+    floor_material.albedo_color = Color("#39332C")
     floor_material.roughness = 0.9
     floor.material_override = floor_material
     add_child(floor)
@@ -212,11 +224,12 @@ func _build_stage() -> void:
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48.0, -28.0, 0.0)
     sun.light_color = Color(1.0, 0.96, 0.86)
-    sun.light_energy = 2.0
+    sun.light_energy = 1.4
+    sun.shadow_enabled = true
     add_child(sun)
 
     var fill := DirectionalLight3D.new()
     fill.rotation_degrees = Vector3(-22.0, 145.0, 0.0)
     fill.light_color = Color(0.78, 0.86, 1.0)
-    fill.light_energy = 0.75
+    fill.light_energy = 0.45
     add_child(fill)
