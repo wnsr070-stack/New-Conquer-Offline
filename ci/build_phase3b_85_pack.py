@@ -285,22 +285,22 @@ def render_preview(job, index):
     maximum = Vector((max(p.x for p in points), max(p.y for p in points), max(p.z for p in points)))
     center = (minimum + maximum) * 0.5
     extent = max((maximum - minimum).x, (maximum - minimum).y, (maximum - minimum).z, 0.25)
-    bpy.ops.object.camera_add(location=center + Vector((extent * 2.7, extent * 1.8, extent * 3.4)))
+    bpy.ops.object.camera_add(location=center + Vector((extent * 2.1, extent * 1.4, extent * 2.6)))
     camera = bpy.context.object
     direction = center - camera.location
     camera.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
     camera.data.type = "ORTHO"
-    camera.data.ortho_scale = extent * 2.5
+    camera.data.ortho_scale = extent * 2.0
     scene.camera = camera
     bpy.ops.object.light_add(type="AREA", location=center + Vector((extent * 1.8, extent * 2.4, extent * 1.5)))
     key = bpy.context.object
-    key.data.energy = 1300
+    key.data.energy = 780
     key.data.shape = "DISK"
     key.data.size = extent * 2.2
     key.rotation_euler = (center - key.location).to_track_quat("-Z", "Y").to_euler()
     bpy.ops.object.light_add(type="AREA", location=center + Vector((-extent * 1.8, extent * 0.5, extent)))
     fill = bpy.context.object
-    fill.data.energy = 650
+    fill.data.energy = 390
     fill.data.size = extent * 2.5
     fill.rotation_euler = (center - fill.location).to_track_quat("-Z", "Y").to_euler()
     engine_ids = [item.identifier for item in scene.render.bl_rna.properties["engine"].enum_items]
