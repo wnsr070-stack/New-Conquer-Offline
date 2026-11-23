@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends assimp-utils p7zip-full curl unzip python3-pip npm
+          sudo apt-get install -y --no-install-recommends assimp-utils blender p7zip-full curl unzip python3-pip npm
           mkdir -p .cache/godot .cache/tools .cache/phase3b assets/phase3b artifacts
           assimp version
       - name: Install Godot 4.3 and gltfpack

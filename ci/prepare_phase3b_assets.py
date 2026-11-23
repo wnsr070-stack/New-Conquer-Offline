@@ -131,9 +131,23 @@ def optimize_to_glb(source,dest):
  elif source.suffix.lower()==".gltf":
   run(["gltfpack","-noq","-i",str(source),"-o",str(dest)])
  else:
-  # Assimp selects the GLB exporter from the output extension; OBJ MTL/textures remain beside source.
-  run(["assimp","export",str(source),str(tmp)])
-  if not tmp.is_file() or tmp.stat().st_size<1000: raise RuntimeError("Assimp did not create a valid GLB")
+  # Prefer Assimp; COLLADA files can trigger native Assimp crashes on some OGA assets.
+  # For a real .dae source only, retry through Blender's COLLADA importer/exporter.
+  try:
+   run(["assimp","export",str(source),str(tmp)])
+  except Exception as assimp_error:
+   if source.suffix.lower() != ".dae":
+    raise
+   tmp.unlink(missing_ok=True)
+   blender_expr=(
+    "import bpy; "
+    "bpy.ops.wm.read_factory_settings(use_empty=True); "
+    "bpy.ops.wm.collada_import(filepath=" + repr(str(source.resolve())) + "); "
+    "bpy.ops.export_scene.gltf(filepath=" + repr(str(tmp.resolve())) + ", export_format='GLB')"
+   )
+   print("PHASE3B_DAE_BLENDER_FALLBACK:",source, "assimp_error=",str(assimp_error),flush=True)
+   run(["blender","-b","--factory-startup","--python-expr",blender_expr],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+  if not tmp.is_file() or tmp.stat().st_size<1000: raise RuntimeError("Assimp/Blender did not create a valid GLB")
   run(["gltfpack","-noq","-i",str(tmp),"-o",str(dest)])
   tmp.unlink(missing_ok=True)
  data=dest.read_bytes()[:4]
