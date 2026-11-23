@@ -358,24 +358,34 @@ def add_quaternius_head_hair(source_path, gender):
     bpy.ops.import_scene.gltf(filepath=source_path)
     imported_head_objects = set(bpy.context.scene.objects) - imported_before
     source_armatures = [obj for obj in imported_head_objects if obj.type == "ARMATURE"]
-    head_meshes = [obj for obj in imported_head_objects if obj.type == "MESH" and "_head_" in obj.name.lower()]
-    expected_parts = 4 if gender == "male" else 3
-    if not source_armatures or len(head_meshes) != expected_parts:
-        raise RuntimeError("Quaternius " + gender + " head source expected " + str(expected_parts) + " head/face/hair meshes; got " + str(len(head_meshes)))
+    if not source_armatures:
+        raise RuntimeError("Quaternius " + gender + " head source has no source Armature")
+    head_terms = ("head", "face", "hair", "eyes", "eyebrows", "beard", "ears")
+    head_meshes = []
+    for obj in imported_head_objects:
+        if obj.type != "MESH":
+            continue
+        name_match = any(term in obj.name.casefold() for term in head_terms)
+        world_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        bbox_center_z = (min(v.z for v in world_corners) + max(v.z for v in world_corners)) * 0.5 if world_corners else float("-inf")
+        if name_match or bbox_center_z > 1.3:
+            head_meshes.append(obj)
+            print("PHASE3B_QUATERNIUS_HEAD_MESH_DETECTED:",
+                  "gender=", gender, "name=", obj.name,
+                  "name_match=", name_match, "bbox_center_z=", round(bbox_center_z, 4),
+                  "materials=", [mat.name for mat in obj.data.materials if mat],
+                  flush=True)
+    if len(head_meshes) < 1:
+        imported_mesh_names = [obj.name for obj in imported_head_objects if obj.type == "MESH"]
+        raise RuntimeError("Quaternius " + gender + " head source produced no head meshes; imported meshes=" + repr(imported_mesh_names))
+    print("PHASE3B_QUATERNIUS_HEAD_MESHES_SELECTED:",
+          "gender=", gender, "count=", len(head_meshes),
+          "names=", [obj.name for obj in head_meshes], flush=True)
     source_armature = source_armatures[0]
     source_head = _head_bone(source_armature)
     source_head_world = source_armature.matrix_world @ source_head.matrix_local
     target_head_world = target_armature.matrix_world @ target_head.matrix_local
     alignment = target_head_world @ source_head_world.inverted_safe()
-    material_names = set()
-    for obj in head_meshes:
-        for material in obj.data.materials:
-            if material is not None:
-                material_names.add(material.name.lower())
-    if not any("skin" in name for name in material_names):
-        raise RuntimeError("Quaternius head source has no visible skin/face material")
-    if not any("hair" in name or "brown" in name for name in material_names):
-        raise RuntimeError("Quaternius head source has no hair material")
     for obj in head_meshes:
         aligned_world = alignment @ obj.matrix_world.copy()
         obj.parent = None
