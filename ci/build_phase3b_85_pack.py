@@ -93,7 +93,6 @@ def fetch_modular_parts():
         "Male_Ranger_Acc_Pauldron.gltf",
         "Male_Ranger_Head_Hood.gltf", "Female_Ranger_Head_Hood.gltf",
         "Male_Ranger_Feet_Boots.gltf",
-        "Outfits/Male_Ranger.gltf", "Outfits/Female_Ranger.gltf",
     ]
     downloaded = set()
     raw_base = f"https://raw.githubusercontent.com/{MODULAR_REPO}/{MODULAR_REV}/"
@@ -443,16 +442,16 @@ def build():
     # Quaternius CC0 pack. Their 65-joint Humanoid skeletons provide real male/female
     # source meshes; class identity is expressed by the weapon loadout in-game.
     hero_specs = [
-        ("Trojan", "trojan", "male", "Outfits/Male_Ranger.gltf"),
-        ("Trojan", "trojan", "female", "Outfits/Female_Ranger.gltf"),
-        ("Warrior", "warrior", "male", "Outfits/Male_Ranger.gltf"),
-        ("Warrior", "warrior", "female", "Outfits/Female_Ranger.gltf"),
-        ("Archer", "archer", "male", "Outfits/Male_Ranger.gltf"),
-        ("Archer", "archer", "female", "Outfits/Female_Ranger.gltf"),
-        ("Assassin", "assassin", "male", "Outfits/Male_Ranger.gltf"),
-        ("Assassin", "assassin", "female", "Outfits/Female_Ranger.gltf"),
-        ("Taoist", "taoist", "male", "Outfits/Male_Ranger.gltf"),
-        ("Taoist", "taoist", "female", "Outfits/Female_Ranger.gltf"),
+        ("Trojan", "trojan", "male", "Male_Ranger_Body.gltf"),
+        ("Trojan", "trojan", "female", "Female_Ranger_Body.gltf"),
+        ("Warrior", "warrior", "male", "Male_Ranger_Body.gltf"),
+        ("Warrior", "warrior", "female", "Female_Ranger_Body.gltf"),
+        ("Archer", "archer", "male", "Male_Ranger_Body.gltf"),
+        ("Archer", "archer", "female", "Female_Ranger_Body.gltf"),
+        ("Assassin", "assassin", "male", "Male_Ranger_Body.gltf"),
+        ("Assassin", "assassin", "female", "Female_Ranger_Body.gltf"),
+        ("Taoist", "taoist", "male", "Male_Ranger_Body.gltf"),
+        ("Taoist", "taoist", "female", "Female_Ranger_Body.gltf"),
     ]
     character_report = {
         "generator": "Quaternius Modular Character Outfits - Fantasy",
