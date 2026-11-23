@@ -1,0 +1,122 @@
+name: Phase 3B Characters and Weapons Preview
+on:
+  push:
+    branches: ['test/phase3b-characters-weapons']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: phase3b-preview-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GODOT_VERSION: "4.3"
+  GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
+  LIBGL_ALWAYS_SOFTWARE: "1"
+  CI_CAPTURE: "1"
+jobs:
+  prepare-assets:
+    name: Download approved CC0 assets, convert and cache
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender, 7z and preparation tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender p7zip-full curl unzip python3-pip npm
+          mkdir -p .cache/godot .cache/tools .cache/phase3b assets/phase3b artifacts
+      - name: Install Godot 4.3 and gltfpack
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 4 "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
+          unzip -o .cache/godot/godot.zip -d .cache/godot
+          chmod +x "$GODOT_BIN"
+          npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack
+          export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
+          echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
+          "$GODOT_BIN" --version
+          gltfpack -v >/dev/null 2>&1 || test $? -eq 0
+      - name: Fetch exact allow-listed CC0 sources and convert models
+        run: |
+          set -euo pipefail
+          python3 ci/prepare_phase3b_assets.py 2>&1 | tee artifacts/phase3b_asset_prepare.log
+          test -s artifacts/phase3b_asset_report.json
+          find assets/phase3b -name '*.glb' -type f -size +10k | grep -q .
+      - name: Upload approved asset cache to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          python3 - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api=HfApi(token=os.environ["HF_TOKEN"])
+          api.create_repo("Zzwahwahz/clash-of-legends-terrain-assets",repo_type="dataset",private=True,exist_ok=True)
+          api.upload_folder(repo_id="Zzwahwahz/clash-of-legends-terrain-assets",repo_type="dataset",folder_path="assets/phase3b",path_in_repo="phase3b",commit_message="cache(phase3b): add verified CC0 character and weapon assets")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase3b-prepared-assets-${{ github.run_number }}
+          path: |
+            assets/phase3b/**
+            artifacts/phase3b_asset_report.json
+            artifacts/phase3b_asset_prepare.log
+          retention-days: 14
+  render-previews:
+    name: Import Godot and render six Phase 3B hero close-ups
+    needs: prepare-assets
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rendering dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0
+          mkdir -p .cache/godot assets/phase3b artifacts
+      - name: Restore Godot 4.3
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 4 "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
+          unzip -o .cache/godot/godot.zip -d .cache/godot
+          chmod +x "$GODOT_BIN"
+      - uses: actions/download-artifact@v4
+        with:
+          name: phase3b-prepared-assets-${{ github.run_number }}
+          path: .
+      - name: Validate model files and import project
+        run: |
+          set -euo pipefail
+          find assets/phase3b -name '*.glb' -type f -size +10k
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/phase3b_import.log
+      - name: Render six character and weapon close-ups
+        run: |
+          set -euo pipefail
+          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
+          for image in char_archer_bow.png char_assassin_lv40.png char_path_of_shadow.png weapon_tier_plus5.png weapon_tier_plus9.png weapon_lv130_plus12_super.png; do
+            test -s "artifacts/$image"
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small"; exit 1; }
+          done
+          grep -q "PHASE3B_ALL_SIX_CAPTURES_COMPLETE" artifacts/phase3b_render.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3B_CAPTURE_FAILED" artifacts/phase3b_render.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase3b-six-previews-${{ github.run_number }}
+          path: |
+            artifacts/char_archer_bow.png
+            artifacts/char_assassin_lv40.png
+            artifacts/char_path_of_shadow.png
+            artifacts/weapon_tier_plus5.png
+            artifacts/weapon_tier_plus9.png
+            artifacts/weapon_lv130_plus12_super.png
+            artifacts/phase3b_asset_report.json
+            artifacts/phase3b_asset_prepare.log
+            artifacts/phase3b_import.log
+            artifacts/phase3b_render.log
+          retention-days: 14
