@@ -28,8 +28,8 @@ jobs:
           sudo apt-get update
           # Ubuntu's Blender GLTF importer imports numpy from the system Python.
           # Install it explicitly; otherwise GLB import fails before thumbnails render.
-          sudo apt-get install -y --no-install-recommends blender python3-numpy python3-pil fonts-dejavu-core
-          blender --background --python-expr "import numpy; print('BLENDER_NUMPY_OK', numpy.__version__)"
+          sudo apt-get install -y --no-install-recommends blender python3-numpy python3-pil fonts-dejavu-core xvfb xauth libgl1-mesa-dri
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 blender --background --python-expr "import numpy; print('BLENDER_NUMPY_OK', numpy.__version__)"
           mkdir -p artifacts .cache/ara3d-catalog
       - name: Cache Ara3D character data
         uses: actions/cache@v4

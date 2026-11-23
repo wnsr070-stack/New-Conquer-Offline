@@ -22,18 +22,18 @@ for src in raw.splitlines():
     line = re.sub(r"^(?:[-*•]\s*|\d+[.)]\s*)", "", line)
     if not line or line.lower().startswith(("available presets", "presets:", "usage:", "name")):
         continue
-    m = re.match(r"^(The .+?)(?:\s{2,}|\s+[|—–]\s+|$)", line)
-    if m:
-        name = m.group(1).strip()
+    # Ara3D 0.9.0 emits both "The ..." presets and unprefixed names
+    # (e.g. "Athletic man", "Detective"). Keep every actual listed preset.
+    name = re.split(r"\s{2,}|\s+[|—–]\s+", line, maxsplit=1)[0].strip()
+    if name and name.lower() not in {"available presets", "presets:", "usage:", "name"}:
         if name not in names: names.append(name)
 if not names:
     raise SystemExit("Could not parse actual Ara preset names; refusing to invent a catalogue")
 
 (OUT / "ara3d_presets_full.txt").write_text("\n".join(names) + "\n", encoding="utf-8")
-keywords = re.compile(r"adventur|warrior|soldier|priest|guard|knight|monk|hero|fighter|ranger|assassin|archer|wizard|mage|sorcer|paladin|viking|samurai|ninja|barbarian|hunter|scout|druid|shaman|cleric|mystic|warlock|templar", re.I)
-candidates = [n for n in names if keywords.search(n)]
-if not candidates:
-    raise SystemExit("No warrior/fantasy candidate names matched the actual preset catalogue")
+# The director asked to inspect every preset, not a keyword-filtered subset.
+candidates = list(names)
+print("PHASE3B_CATALOG_ALL_PRESETS_SELECTED:", len(candidates), flush=True)
 records = []
 for i, name in enumerate(candidates, 1):
     outdir = MODELS / f"{i:02d}"
@@ -104,7 +104,14 @@ for rec in records:
     scene.render.filepath=rec["thumbnail"]
     bpy.ops.render.render(write_still=True)
 ''', encoding="utf-8")
-subprocess.run(["blender", "--background", "--python", str(blender_py), "--", str(manifest)], check=True)
+# EEVEE needs a working OpenGL context even in background mode on Ubuntu.
+# Run it under Xvfb with Mesa software rendering to avoid SIGABRT / display errors.
+env = os.environ.copy()
+env["LIBGL_ALWAYS_SOFTWARE"] = "1"
+subprocess.run(["xvfb-run", "-a", "-s", "-screen 0 1280x1024x24",
+                "env", "LIBGL_ALWAYS_SOFTWARE=1", "blender", "--background",
+                "--python", str(blender_py), "--", str(manifest)],
+               check=True, env=env)
 
 from PIL import Image, ImageDraw, ImageFont
 cols=4
@@ -124,4 +131,4 @@ for i,rec in enumerate(records):
     draw.rectangle((x,y+cell_h-60,x+cell_w,y+cell_h),fill=(28,36,48))
     draw.text((x+14,y+cell_h-48),f"{i+1:02d}. {label}",font=bold,fill=(245,240,226))
 sheet.save(OUT/"phase3b_hero_catalog.png", optimize=True)
-print("PHASE3B_HERO_CATALOG_COMPLETE:", len(records), "fantasy_candidate_presets", "of", len(names), "total_presets")
+print("PHASE3B_HERO_CATALOG_COMPLETE:", len(records), "all_available_presets")
