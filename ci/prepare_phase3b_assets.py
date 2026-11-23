@@ -123,36 +123,68 @@ def fetch_sources():
   except Exception as e:
    report["errors"].append({"source":item["id"],"error":str(e)})
    print("PHASE3B_OGA_SOURCE_ERROR:",item["id"],str(e),flush=True)
+def validate_glb(path, label):
+ path=pathlib.Path(path)
+ if not path.is_file(): raise RuntimeError(f"{label} was not created: {path}")
+ size=path.stat().st_size
+ with path.open("rb") as stream: magic=stream.read(4)
+ if size<=10*1024 or magic!=b"glTF":
+  raise RuntimeError(f"{label} failed GLB validation: size={size}, magic={magic!r}, expected >10240 bytes and b'glTF'")
+ return size
 def optimize_to_glb(source,dest):
  dest.parent.mkdir(parents=True,exist_ok=True)
  tmp=dest.with_name(dest.stem+"_assimp.glb")
- if source.suffix.lower()==".glb":
+ is_target_dragon=(source.suffix.lower()==".dae" and source.name.lower()=="dragon.dae"
+                   and source.parent.name.lower()=="cethiel_dragon")
+ if source.suffix.lower() in {".glb",".gltf"}:
   run(["gltfpack","-noq","-i",str(source),"-o",str(dest)])
- elif source.suffix.lower()==".gltf":
-  run(["gltfpack","-noq","-i",str(source),"-o",str(dest)])
+ elif is_target_dragon:
+  raw_glb=dest.with_name(dest.stem+"_blender_raw.glb")
+  raw_glb.unlink(missing_ok=True)
+  blender_script=dest.with_name(dest.stem+"_blender_import.py")
+  blender_script.write_text(
+   "import bpy\\n"
+   "dae_path = "+repr(str(source.resolve()))+"\\n"
+   "raw_glb = "+repr(str(raw_glb.resolve()))+"\\n"
+   "bpy.ops.wm.read_factory_settings(use_empty=True)\\n"
+   "bpy.ops.wm.collada_import(filepath=dae_path, import_units=True)\\n"
+   "meshes = [o for o in bpy.data.objects if o.type == 'MESH']\\n"
+   "if not meshes: raise RuntimeError('COLLADA import produced no MESH objects')\\n"
+   "print('PHASE3B_DRAGON_BLENDER_MESH_COUNT:', len(meshes), flush=True)\\n"
+   "bpy.ops.export_scene.gltf(filepath=raw_glb, export_format='GLB', export_apply=True)\\n",
+   encoding="utf-8")
+  print("PHASE3B_DAE_BLENDER_DIRECT:",source,"assimp=SKIPPED",flush=True)
+  proc=subprocess.run(["blender","--background","--factory-startup","--python-exit-code","1","--python",str(blender_script)],
+                      stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+  print("PHASE3B_BLENDER_STDOUT_BEGIN\\n"+(proc.stdout or "")+"\\nPHASE3B_BLENDER_STDOUT_END",flush=True)
+  print("PHASE3B_BLENDER_STDERR_BEGIN\\n"+(proc.stderr or "")+"\\nPHASE3B_BLENDER_STDERR_END",flush=True)
+  if proc.returncode!=0: raise RuntimeError(f"Blender dragon conversion exited {proc.returncode}")
+  raw_size=validate_glb(raw_glb,"raw Blender dragon GLB")
+  print("PHASE3B_DRAGON_RAW_GLB_VALID:",raw_glb,"bytes=",raw_size,flush=True)
+  run(["gltfpack","-noq","-i",str(raw_glb),"-o",str(dest)])
+  final_size=validate_glb(dest,"optimized dragon GLB")
+  print("PHASE3B_DRAGON_FINAL_GLB_VALID:",dest,"bytes=",final_size,flush=True)
+  raw_glb.unlink(missing_ok=True)
+  blender_script.unlink(missing_ok=True)
  else:
-  # Prefer Assimp; COLLADA files can trigger native Assimp crashes on some OGA assets.
-  # For a real .dae source only, retry through Blender's COLLADA importer/exporter.
   try:
    run(["assimp","export",str(source),str(tmp)])
   except Exception as assimp_error:
-   if source.suffix.lower() != ".dae":
-    raise
+   if source.suffix.lower() != ".dae": raise
    tmp.unlink(missing_ok=True)
-   blender_expr=(
-    "import bpy; "
-    "bpy.ops.wm.read_factory_settings(use_empty=True); "
-    "bpy.ops.wm.collada_import(filepath=" + repr(str(source.resolve())) + "); "
-    "bpy.ops.export_scene.gltf(filepath=" + repr(str(tmp.resolve())) + ", export_format='GLB')"
-   )
-   print("PHASE3B_DAE_BLENDER_FALLBACK:",source, "assimp_error=",str(assimp_error),flush=True)
-   run(["blender","-b","--factory-startup","--python-expr",blender_expr],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-  if not tmp.is_file() or tmp.stat().st_size<1000: raise RuntimeError("Assimp/Blender did not create a valid GLB")
+   blender_expr=("import bpy; bpy.ops.wm.read_factory_settings(use_empty=True); "
+    "bpy.ops.wm.collada_import(filepath="+repr(str(source.resolve()))+"); "
+    "bpy.ops.export_scene.gltf(filepath="+repr(str(tmp.resolve()))+", export_format='GLB')")
+   print("PHASE3B_DAE_BLENDER_FALLBACK:",source,"assimp_error=",str(assimp_error),flush=True)
+   proc=subprocess.run(["blender","--background","--factory-startup","--python-exit-code","1","--python-expr",blender_expr],
+                       stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+   print("PHASE3B_BLENDER_STDOUT_BEGIN\\n"+(proc.stdout or "")+"\\nPHASE3B_BLENDER_STDOUT_END",flush=True)
+   print("PHASE3B_BLENDER_STDERR_BEGIN\\n"+(proc.stderr or "")+"\\nPHASE3B_BLENDER_STDERR_END",flush=True)
+   if proc.returncode!=0: raise RuntimeError(f"Blender fallback exited {proc.returncode}")
+  validate_glb(tmp,"Assimp/Blender intermediate GLB")
   run(["gltfpack","-noq","-i",str(tmp),"-o",str(dest)])
   tmp.unlink(missing_ok=True)
- data=dest.read_bytes()[:4]
- if data!=b"glTF" or dest.stat().st_size<1000:
-  dest.unlink(missing_ok=True); raise RuntimeError("output failed GLB magic/size validation")
+ validate_glb(dest,"final GLB")
  return dest
 def models_under(root):
  return [p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in MODEL_EXT]
@@ -280,6 +312,14 @@ def main():
  if missing_ninja:
   print("PHASE3B_REQUIRED_NINJA_WEAPONS_MISSING:",missing_ninja); sys.exit(7)
  REPORT.write_text(json.dumps(report,indent=2),encoding="utf-8")
+ # Actual on-disk inventory for each requested asset family.
+ inventory={
+  "characters":sum(1 for p in OUT.rglob("*.glb") if p.is_file() and p.name.lower().startswith("quaternius_") and any(k in p.name.lower() for k in ("archer","assassin","knight","warrior","mage"))),
+  "weapons":sum(1 for p in OUT.rglob("*.glb") if p.is_file() and (p.parent.name=="oga_weapons" or p.name.lower().startswith("quaternius_") and any(k in p.name.lower() for k in ("bow","dagger","spear","halberd","axe","staff","sword","shield","shuriken","throwing_knife")))),
+  "ultimate_monsters":sum(1 for x in report["converted"] if x.get("origin")=="Quaternius CC0" and x.get("category")=="monster" and (ROOT/x["output"]).is_file()),
+  "oga_monsters":sum(1 for x in report["converted"] if x.get("origin")=="OpenGameArt CC0" and x.get("category")=="monster" and (ROOT/x["output"]).is_file())}
+ report["inventory_by_category"]=inventory
+ print("PHASE3B_ACTUAL_CATEGORY_INVENTORY:",json.dumps(inventory,sort_keys=True),flush=True)
  print("PHASE3B_ASSET_REPORT:",REPORT)
  print("PHASE3B_OGA_DOWNLOADED:",len(report["oga"]),"QUATERNIUS_PACKS:",len(report["quaternius_packs"]),"CONVERTED:",len(report["converted"]),"COUNTS:",report["counts"],"OGA_COUNTS:",report["oga_counts"])
  if report["errors"]:
