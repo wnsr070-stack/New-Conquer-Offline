@@ -364,8 +364,10 @@ def main():
  # The pinned Base Mesh inventory contains 3_point_shuriken.glb and 4_point_shuriken.glb;
  # other source archives may use Shuriken_1, ninja_star, or throwing_star names.
  convert_oga()
- # Build the exact 85-model progression pack and 85 real preview renders.
+ # Build the exact 90-model progression pack and 90 real preview renders.
  run([sys.executable,"ci/build_phase3b_85_pack.py"])
+ report["counts"]["characters"]=10
+ report["generated_heroes"]={"count":10,"source":"Quaternius Modular Character Outfits - Fantasy","license":"CC0-1.0"}
  # Reuse the now-restored HF seed for Ninja weapons before declaring a missing source.
  for asset_name,tokens in [("shuriken",["shuriken","ninja_star","throwing_star"]),("throwing_knife",["throwing_knife","throwing_knife_","kunai"])]:
   try: export_ninja_weapon(asset_name,tokens)
@@ -388,7 +390,7 @@ def main():
  for error in report["errors"]: print("PHASE3B_ASSET_ERROR:",error,flush=True)
  if missing_packs:
   print("PHASE3B_SOURCE_PACKS_PARTIAL_FALLBACK_ALLOWED:",missing_packs,
-        "The exact 85-model manifest below remains the authoritative completeness gate.",flush=True)
+        "The exact 90-model manifest below remains the authoritative completeness gate.",flush=True)
  # The 85-model catalog uses the pinned Quaternius CC0 source set; OGA archives are supplemental.
  if report["oga_counts"]["weapons"] < 1:
   print("PHASE3B_OGA_SUPPLEMENTAL_WEAPON_COUNT:",report["oga_counts"],flush=True)
@@ -402,7 +404,7 @@ def main():
  REPORT.write_text(json.dumps(report,indent=2),encoding="utf-8")
  # Actual on-disk inventory for each requested asset family.
  inventory={
-  "characters":sum(1 for p in OUT.rglob("*.glb") if p.is_file() and p.name.lower().startswith("quaternius_") and any(k in p.name.lower() for k in ("archer","assassin","knight","warrior","mage"))),
+  "characters":sum(1 for p in (OUT/"characters").glob("*_*.glb") if p.is_file() and p.stem.rsplit("_",1)[-1] in {"male","female"}),
   "weapons":sum(1 for p in OUT.rglob("*.glb") if p.is_file() and (p.parent.name=="oga_weapons" or p.name.lower().startswith("quaternius_") and any(k in p.name.lower() for k in ("bow","dagger","spear","halberd","axe","staff","sword","shield","shuriken","throwing_knife")))),
   "ultimate_monsters":sum(1 for x in report["converted"] if x.get("origin")=="Quaternius CC0" and x.get("category")=="monster" and (ROOT/x["output"]).is_file()),
   "oga_monsters":sum(1 for x in report["converted"] if x.get("origin")=="OpenGameArt CC0" and x.get("category")=="monster" and (ROOT/x["output"]).is_file())}
@@ -418,9 +420,11 @@ def main():
  if not catalog_path.is_file():
   print("PHASE3B_85_CATALOG_MANIFEST_MISSING"); sys.exit(4)
  catalog=json.loads(catalog_path.read_text(encoding="utf-8"))
- if catalog.get("actual_total")!=85 or len(catalog.get("assets",[]))!=85:
-  print("PHASE3B_85_CATALOG_NOT_COMPLETE:",catalog.get("actual_total"),"records=",len(catalog.get("assets",[]))); sys.exit(4)
- print("PHASE3B_85_CATALOG_COMPLETENESS_GATE_PASSED:",catalog.get("counts"),flush=True)
+ if catalog.get("actual_total")!=90 or len(catalog.get("assets",[]))!=90:
+  print("PHASE3B_90_CATALOG_NOT_COMPLETE:",catalog.get("actual_total"),"records=",len(catalog.get("assets",[]))); sys.exit(4)
+ if catalog.get("counts",{}).get("character")!=10:
+  print("PHASE3B_TEN_HERO_GATE_FAILED:",catalog.get("counts")); sys.exit(4)
+ print("PHASE3B_90_CATALOG_COMPLETENESS_GATE_PASSED:",catalog.get("counts"),flush=True)
  # Publish the complete, validated package and an auditable inventory to the private HF dataset.
  token=os.environ.get("HF_TOKEN","").strip()
  if not token:
