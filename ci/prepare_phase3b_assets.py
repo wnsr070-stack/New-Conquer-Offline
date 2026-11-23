@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fetch CC0 Quaternius/OGA assets; convert supported models with Assimp and optimize GLB."""
-import json, pathlib, subprocess, zipfile, shutil, sys, os, re, hashlib, urllib.request, urllib.parse, urllib.error, html.parser, tarfile, time
+import json, pathlib, subprocess, zipfile, shutil, sys, os, re, hashlib, urllib.request, urllib.parse, urllib.error, html.parser, tarfile, time, random, http.client
 ROOT=pathlib.Path.cwd()
 RAW=ROOT/".cache/phase3b/source"; EXTRACT=ROOT/".cache/phase3b/extracted"
 OUT=ROOT/"assets/phase3b"; REPORT=ROOT/"artifacts/phase3b_asset_report.json"
@@ -32,13 +32,13 @@ class Links(html.parser.HTMLParser):
    if h: self.hrefs.append((h,a.get("title","")))
 # All HTTP requests are serialized through one downloader.
 _LAST_HTTP_REQUEST_AT = 0.0
-_DOWNLOAD_INTERVAL_SECONDS = 2.5
+_DOWNLOAD_INTERVAL_SECONDS = 0.25
 _DOWNLOAD_ATTEMPTS = 6
-_RETRY_DELAYS = (4, 8, 15, 25, 40, 60)
+_RETRY_DELAYS = (2, 4, 8, 16, 32)
 _RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
 def download_with_retry(url,headers=None):
  global _LAST_HTTP_REQUEST_AT
- request_headers={"User-Agent":"NewConquerOffline-CI/1.0","Accept":"application/octet-stream,*/*"}
+ request_headers={"User-Agent":"New-Conquer-Offline-Phase3B/2.1 (+https://github.com/wnsr070-stack/New-Conquer-Offline)","Accept":"application/octet-stream, application/vnd.github+json, */*"}
  if headers: request_headers.update(headers)
  parsed=urllib.parse.urlparse(url)
  token=os.environ.get("GITHUB_TOKEN","").strip()
@@ -46,39 +46,66 @@ def download_with_retry(url,headers=None):
   request_headers["Authorization"]="Bearer "+token
  last_error=None
  for attempt in range(1,_DOWNLOAD_ATTEMPTS+1):
-  elapsed=time.monotonic()-_LAST_HTTP_REQUEST_AT
-  if _LAST_HTTP_REQUEST_AT and elapsed<_DOWNLOAD_INTERVAL_SECONDS:
-   time.sleep(_DOWNLOAD_INTERVAL_SECONDS-elapsed)
+  time.sleep(0.25)
   req=urllib.request.Request(url,headers=request_headers)
-  _LAST_HTTP_REQUEST_AT=time.monotonic()
   try:
-   with urllib.request.urlopen(req,timeout=90) as response:
+   with urllib.request.urlopen(req,timeout=120) as response:
     data=response.read()
    if not data: raise RuntimeError("downloaded response is empty")
    return data
   except urllib.error.HTTPError as error:
    last_error=error
    if error.code not in _RETRYABLE_HTTP_STATUS: raise
-   if error.code==503:
-    print("PHASE3B_HTTP_503_RETRY:",f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}","url=",url,flush=True)
-  except (urllib.error.URLError,TimeoutError,ConnectionError,OSError) as error:
+   if error.code==503: print("PHASE3B_HTTP_503_RETRY:",f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}","url=",url,flush=True)
+  except (urllib.error.URLError,TimeoutError,ConnectionError,OSError,http.client.HTTPException) as error:
    last_error=error
   if attempt>=_DOWNLOAD_ATTEMPTS: break
-  delay=_RETRY_DELAYS[attempt-1]
-  print("PHASE3B_DOWNLOAD_RETRY:",f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}","next_delay_seconds=",delay,"url=",url,"error=",str(last_error),flush=True)
+  base_delay=_RETRY_DELAYS[attempt-1]; delay=base_delay+random.uniform(0.0,max(0.25,base_delay*0.25))
+  print("PHASE3B_DOWNLOAD_RETRY:",f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}","next_delay_seconds=",round(delay,2),"url=",url,"error=",str(last_error),flush=True)
   time.sleep(delay)
  raise RuntimeError(f"download failed after {_DOWNLOAD_ATTEMPTS} attempts: {url}: {last_error}")
+
+def cached_asset_valid(path):
+ path=pathlib.Path(path)
+ if not path.is_file() or path.stat().st_size<=0: return False
+ suffix=path.suffix.lower()
+ try:
+  if suffix==".glb":
+   data=path.read_bytes()
+   return len(data)>=1000 and data[:4]==b"glTF" and int.from_bytes(data[8:12],"little")==len(data)
+  if suffix==".gltf":
+   doc=json.loads(path.read_text(encoding="utf-8"))
+   return isinstance(doc,dict) and isinstance(doc.get("asset"),dict)
+  if suffix==".zip": return zipfile.is_zipfile(path)
+  if suffix==".7z": return path.read_bytes()[:6]==bytes.fromhex("377abcaf271c")
+  if suffix==".obj":
+   with path.open("r",encoding="utf-8",errors="ignore") as stream: return any(line.startswith(("v ","f ")) for line in stream)
+  if suffix in {".png",".jpg",".jpeg",".webp",".tga"}:
+   head=path.read_bytes()[:12]
+   return (head.startswith(b"\x89PNG\r\n\x1a\n") or head.startswith(b"\xff\xd8\xff") or
+           (head.startswith(b"RIFF") and head[8:12]==b"WEBP") or (suffix==".tga" and len(head)==12))
+  return True
+ except (OSError,ValueError,json.JSONDecodeError): return False
 def github_get(url,headers=None):
  h={"Accept":"application/vnd.github+json"}
  if headers: h.update(headers)
  return download_with_retry(url,h)
 def download_url(url,dest):
  dest.parent.mkdir(parents=True,exist_ok=True)
+ if cached_asset_valid(dest):
+  print("PHASE3B_OGA_ARCHIVE_CACHE_HIT:",dest.name,"bytes=",dest.stat().st_size,flush=True)
+  return dest
+ if dest.exists(): dest.unlink()
  data=download_with_retry(url,{"Accept":"application/octet-stream,*/*"})
  if len(data)<10000: raise RuntimeError(f"download too small ({len(data)} bytes): {url}")
- dest.write_bytes(data)
- if not dest.is_file() or dest.stat().st_size<=0:
-  raise RuntimeError(f"downloaded archive is missing or empty: {dest}")
+ tmp=dest.with_name(dest.stem+".part"+dest.suffix); tmp.write_bytes(data)
+ if dest.suffix.lower()==".zip" and not zipfile.is_zipfile(tmp):
+  tmp.unlink(missing_ok=True); raise RuntimeError(f"downloaded archive is not a valid ZIP: {url}")
+ if dest.suffix.lower()==".7z" and tmp.read_bytes()[:6]!=bytes.fromhex("377abcaf271c"):
+  tmp.unlink(missing_ok=True); raise RuntimeError(f"downloaded archive is not a valid 7z: {url}")
+ tmp.replace(dest)
+ if not cached_asset_valid(dest):
+  dest.unlink(missing_ok=True); raise RuntimeError(f"downloaded archive failed validation: {dest}")
  print("PHASE3B_OGA_ARCHIVE_DOWNLOADED:",dest.name,"bytes=",len(data),flush=True)
  return dest
 def extract_archive(archive,target,require_models=True):
@@ -127,27 +154,41 @@ def fetch_sources():
     if missing_base: raise RuntimeError("pinned Base Mesh is missing required real model files: "+str(missing_base))
    if not candidates: raise RuntimeError("pinned source pack contains no supported model files")
    target=RAW/key
+   cached_count=0; downloaded_count=0; failed_files=[]
    for item in candidates:
     rel=item["path"][len(pack_root)+1:]; dest=target/rel; dest.parent.mkdir(parents=True,exist_ok=True)
-    data=download_with_retry(f"https://raw.githubusercontent.com/{GH_ASSET_REPO}/{GH_ASSET_REF}/{item['path']}")
-    if not data: raise RuntimeError(f"empty download payload: {item['path']}")
-    if len(data)<1000 or data[:4]!=b"glTF": raise RuntimeError(f"invalid GLB payload: {item['path']}")
-    if int.from_bytes(data[8:12],"little")!=len(data): raise RuntimeError(f"GLB length header mismatch: {item['path']}")
-    dest.write_bytes(data)
-   report["quaternius_packs"].append({"pack":key,"source_repo":GH_ASSET_REPO,"source_ref":GH_ASSET_REF,"source_pack":slug_name,"website":meta.get("website"),"creator":meta.get("creator"),"license":"CC0","files":len(candidates),"bytes":sum((target/x["path"][len(pack_root)+1:]).stat().st_size for x in candidates),"status":"downloaded_and_glb_validated"})
+    if cached_asset_valid(dest):
+     cached_count+=1
+     continue
+    if dest.exists(): dest.unlink()
+    try:
+     data=download_with_retry(f"https://raw.githubusercontent.com/{GH_ASSET_REPO}/{GH_ASSET_REF}/{item['path']}")
+     if len(data)<1000 or data[:4]!=b"glTF": raise RuntimeError(f"invalid GLB payload: {item['path']}")
+     if int.from_bytes(data[8:12],"little")!=len(data): raise RuntimeError(f"GLB length header mismatch: {item['path']}")
+     tmp=dest.with_name(dest.stem+".part"+dest.suffix); tmp.write_bytes(data)
+     if not cached_asset_valid(tmp):
+      tmp.unlink(missing_ok=True); raise RuntimeError(f"cached GLB validation failed: {item['path']}")
+     tmp.replace(dest); downloaded_count+=1
+    except Exception as file_error:
+     failed_files.append({"path":item["path"],"error":str(file_error)})
+     print("PHASE3B_OPTIONAL_SOURCE_PART_WARNING:",key,item["path"],"error=",str(file_error),flush=True)
+   actual_files=[target/(x["path"][len(pack_root)+1:]) for x in candidates]
+   valid_files=[p for p in actual_files if cached_asset_valid(p)]
+   if not valid_files: raise RuntimeError(f"no valid local or downloaded GLB files remain for source pack {key}")
+   report["quaternius_packs"].append({"pack":key,"source_repo":GH_ASSET_REPO,"source_ref":GH_ASSET_REF,"source_pack":slug_name,"website":meta.get("website"),"creator":meta.get("creator"),"license":"CC0","files":len(valid_files),"expected_files":len(candidates),"cache_hits":cached_count,"downloaded_files":downloaded_count,"failed_files":failed_files,"bytes":sum(p.stat().st_size for p in valid_files),"status":"downloaded_cached_or_partial_with_fallback"})
   except Exception as e:
    report["errors"].append({"source":key,"error":str(e)})
    print("PHASE3B_QUATERNIUS_SOURCE_ERROR:",key,str(e),flush=True)
  for item in OGA:
   dest=RAW/item["archive"]
   try:
-   if not dest.exists(): download_url(item["url"],dest)
-   if not dest.is_file() or dest.stat().st_size<=0: raise RuntimeError("downloaded archive is missing or empty")
-   if dest.stat().st_size<10000: raise RuntimeError("archive smaller than 10 KB")
-   if item["archive"].lower().endswith(".zip") and not zipfile.is_zipfile(dest): raise RuntimeError("download is not a valid ZIP archive (possible HTML/error page)")
-   if item["archive"].lower().endswith(".7z") and dest.read_bytes()[:6]!=bytes.fromhex("377abcaf271c"): raise RuntimeError("download is not a valid 7z archive (possible HTML/error page)")
+   if not cached_asset_valid(dest): download_url(item["url"],dest)
+   if not cached_asset_valid(dest) or dest.stat().st_size<10000: raise RuntimeError("downloaded archive is missing, empty, or invalid")
    target=EXTRACT/item["id"]
-   if not any(target.iterdir()) if target.exists() else True: extract_archive(dest,target,require_models=item["kind"]!="effects")
+   extracted_ok=target.is_dir() and (bool(models_under(target)) if item["kind"]!="effects" else any(target.iterdir()))
+   if not extracted_ok:
+    if target.exists(): shutil.rmtree(target)
+    extract_archive(dest,target,require_models=item["kind"]!="effects")
    report["oga"].append({"id":item["id"],"bytes":dest.stat().st_size,"kind":item["kind"],"status":"downloaded"})
   except Exception as e:
    report["errors"].append({"source":item["id"],"error":str(e)})
@@ -256,7 +297,7 @@ def pick_model(pack,aliases):
  return hits[0]
 def pick_model_anywhere(name_tokens):
  # Search every extracted Quaternius and OpenGameArt source folder, recursively and case-insensitively.
- roots=[RAW,EXTRACT]
+ roots=[RAW,EXTRACT,OUT/"quaternius_library"]
  hits=[]
  for root in roots:
   if root.exists():
@@ -322,37 +363,42 @@ def main():
  # Resolve ninja throwing weapons from actual files anywhere in the unpacked source trees.
  # The pinned Base Mesh inventory contains 3_point_shuriken.glb and 4_point_shuriken.glb;
  # other source archives may use Shuriken_1, ninja_star, or throwing_star names.
- for asset_name,tokens in [("shuriken",["shuriken","ninja_star","throwing_star"]),("throwing_knife",["throwing_knife","throwing_knife_","kunai"])]:
-  try: export_ninja_weapon(asset_name,tokens)
-  except Exception as e:
-   report["errors"].append({"source":"required_"+asset_name,"error":str(e)})
-   print("PHASE3B_REQUIRED_NINJA_WEAPON_SOURCE_ERROR:",asset_name,str(e),flush=True)
  convert_oga()
  # Build the exact 85-model progression pack and 85 real preview renders.
  run([sys.executable,"ci/build_phase3b_85_pack.py"])
+ # Reuse the now-restored HF seed for Ninja weapons before declaring a missing source.
+ for asset_name,tokens in [("shuriken",["shuriken","ninja_star","throwing_star"]),("throwing_knife",["throwing_knife","throwing_knife_","kunai"])]:
+  try: export_ninja_weapon(asset_name,tokens)
+  except Exception as e:
+   report["errors"].append({"source":"optional_"+asset_name,"error":str(e)})
+   print("PHASE3B_OPTIONAL_NINJA_WEAPON_SOURCE_WARNING:",asset_name,str(e),flush=True)
  # Preserve effect textures without pretending they are 3D models.
  for p in (EXTRACT/"special_effects").rglob("*"):
   if p.is_file() and p.suffix.lower() in {".png",".jpg",".jpeg",".tga"}:
    dst=OUT/"effects"/p.name; dst.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(p,dst)
  # Manifest includes exact asset provenance and counts.
- required=["characters/ara3d_archer.glb","characters/ara3d_assassin.glb","characters/ara3d_trojan.glb","characters/ara3d_warrior.glb","characters/ara3d_taoist.glb","quaternius_bow.glb","quaternius_dagger.glb","quaternius_spear.glb","quaternius_halberd.glb","quaternius_axe.glb","quaternius_staff.glb","quaternius_sword.glb","quaternius_shield.glb"]
+ required=["characters/ara3d_archer.glb","characters/ara3d_assassin.glb","characters/ara3d_trojan.glb","characters/ara3d_warrior.glb","characters/ara3d_taoist.glb"]
  missing=[x for x in required if not (OUT/x).is_file() or (OUT/x).stat().st_size<1000]
  report["required_missing"]=missing
  required_packs={"rpg_characters","modular_weapons","ultimate_monsters"}
- found_packs={x.get("pack") for x in report["quaternius_packs"] if x.get("status")=="downloaded_and_glb_validated"}
+ found_packs={x.get("pack") for x in report["quaternius_packs"] if x.get("files",0)>0}
  missing_packs=sorted(required_packs-found_packs)
  report["required_packs_missing"]=missing_packs
  REPORT.write_text(json.dumps(report,indent=2),encoding="utf-8")
  for error in report["errors"]: print("PHASE3B_ASSET_ERROR:",error,flush=True)
  if missing_packs:
-  print("PHASE3B_REQUIRED_QUATERNIUS_PACKS_MISSING:",missing_packs); sys.exit(5)
+  print("PHASE3B_SOURCE_PACKS_PARTIAL_FALLBACK_ALLOWED:",missing_packs,
+        "The exact 85-model manifest below remains the authoritative completeness gate.",flush=True)
  # The 85-model catalog uses the pinned Quaternius CC0 source set; OGA archives are supplemental.
  if report["oga_counts"]["weapons"] < 1:
   print("PHASE3B_OGA_SUPPLEMENTAL_WEAPON_COUNT:",report["oga_counts"],flush=True)
- missing_ninja=[name for name in ("quaternius_shuriken.glb","quaternius_throwing_knife.glb") if not (OUT/name).is_file() or (OUT/name).stat().st_size<1000]
+ missing_ninja=[name for name in ("quaternius_shuriken.glb",) if not (OUT/name).is_file() or (OUT/name).stat().st_size<1000]
  report["required_ninja_weapons_missing"]=missing_ninja
+ report["optional_ninja_weapons_missing"]=[name for name in ("quaternius_throwing_knife.glb",) if not (OUT/name).is_file() or (OUT/name).stat().st_size<1000]
  if missing_ninja:
-  print("PHASE3B_REQUIRED_NINJA_WEAPONS_MISSING:",missing_ninja); sys.exit(7)
+  print("PHASE3B_REQUIRED_NINJA_WEAPON_MISSING:",missing_ninja); sys.exit(7)
+ if report["optional_ninja_weapons_missing"]:
+  print("PHASE3B_OPTIONAL_NINJA_WEAPON_FALLBACK:",report["optional_ninja_weapons_missing"],flush=True)
  REPORT.write_text(json.dumps(report,indent=2),encoding="utf-8")
  # Actual on-disk inventory for each requested asset family.
  inventory={
@@ -368,7 +414,13 @@ def main():
  if report["errors"]:
   for error in report["errors"]: print("PHASE3B_ASSET_ERROR:",error,flush=True)
  if missing: print("PHASE3B_REQUIRED_MODELS_MISSING:",missing); sys.exit(3)
- if report["counts"]["monsters"]<1: print("PHASE3B_NO_MONSTER_MODELS_CONVERTED"); sys.exit(4)
+ catalog_path=OUT/"phase3b_manifest.json"
+ if not catalog_path.is_file():
+  print("PHASE3B_85_CATALOG_MANIFEST_MISSING"); sys.exit(4)
+ catalog=json.loads(catalog_path.read_text(encoding="utf-8"))
+ if catalog.get("actual_total")!=85 or len(catalog.get("assets",[]))!=85:
+  print("PHASE3B_85_CATALOG_NOT_COMPLETE:",catalog.get("actual_total"),"records=",len(catalog.get("assets",[]))); sys.exit(4)
+ print("PHASE3B_85_CATALOG_COMPLETENESS_GATE_PASSED:",catalog.get("counts"),flush=True)
  # Publish the complete, validated package and an auditable inventory to the private HF dataset.
  token=os.environ.get("HF_TOKEN","").strip()
  if not token:

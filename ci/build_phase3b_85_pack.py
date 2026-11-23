@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build, validate and render the exact 85-model Phase 3B progression pack."""
-import hashlib, json, os, pathlib, shutil, subprocess, urllib.parse, urllib.request, posixpath
+import hashlib, json, os, pathlib, shutil, subprocess, urllib.parse, urllib.request, urllib.error, posixpath, random, time, http.client
 
 ROOT = pathlib.Path.cwd()
 OUT = ROOT / "assets/phase3b"
@@ -14,18 +14,63 @@ TIERS = [
     ("royal", "Royal Legendary", 60, 110),
 ]
 
+_DOWNLOAD_ATTEMPTS = 6
+_RETRY_DELAYS = (2, 4, 8, 16, 32)
+_RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+def _valid_cached_file(path):
+    path = pathlib.Path(path)
+    if not path.is_file() or path.stat().st_size <= 0: return False
+    suffix = path.suffix.lower()
+    try:
+        if suffix == ".glb":
+            data = path.read_bytes()
+            return len(data) >= 1000 and data[:4] == b"glTF" and int.from_bytes(data[8:12], "little") == len(data)
+        if suffix == ".gltf":
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            return isinstance(doc, dict) and isinstance(doc.get("asset"), dict)
+        if suffix == ".zip":
+            import zipfile
+            return zipfile.is_zipfile(path)
+        if suffix == ".obj":
+            with path.open("r", encoding="utf-8", errors="ignore") as stream:
+                return any(line.startswith(("v ", "f ")) for line in stream)
+        if suffix in {".png", ".jpg", ".jpeg", ".webp", ".tga"}:
+            head = path.read_bytes()[:12]
+            return (head.startswith(b"\x89PNG\r\n\x1a\n") or head.startswith(b"\xff\xd8\xff") or
+                    (head.startswith(b"RIFF") and head[8:12] == b"WEBP") or (suffix == ".tga" and len(head) == 12))
+        return True
+    except (OSError, ValueError, json.JSONDecodeError): return False
+
 def download(url):
-    headers = {"User-Agent": "New-Conquer-Offline-Phase3B/2.0"}
+    headers = {"User-Agent": "New-Conquer-Offline-Phase3B/2.1 (+https://github.com/wnsr070-stack/New-Conquer-Offline)",
+               "Accept": "application/octet-stream, application/vnd.github+json, */*"}
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     host = urllib.parse.urlparse(url).netloc.lower()
     if token and host in {"api.github.com", "raw.githubusercontent.com", "github.com"}:
         headers["Authorization"] = "Bearer " + token
-    request = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(request, timeout=120) as response:
-        data = response.read()
-    if not data:
-        raise RuntimeError("Empty response: " + url)
-    return data
+    last_error = None
+    for attempt in range(1, _DOWNLOAD_ATTEMPTS + 1):
+        time.sleep(0.25)
+        request = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                data = response.read()
+            if not data: raise RuntimeError("Empty response: " + url)
+            return data
+        except urllib.error.HTTPError as error:
+            last_error = error
+            if error.code not in _RETRYABLE_HTTP_STATUS: raise
+            if error.code == 503:
+                print("PHASE3B_HTTP_503_RETRY:", f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}", "url=", url, flush=True)
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, http.client.HTTPException) as error:
+            last_error = error
+        if attempt == _DOWNLOAD_ATTEMPTS: break
+        base_delay = _RETRY_DELAYS[attempt - 1]
+        delay = base_delay + random.uniform(0.0, max(0.25, base_delay * 0.25))
+        print("PHASE3B_DOWNLOAD_RETRY:", f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}",
+              "next_delay_seconds=", round(delay, 2), "url=", url, "error=", str(last_error), flush=True)
+        time.sleep(delay)
+    raise RuntimeError(f"download failed after {_DOWNLOAD_ATTEMPTS} attempts: {url}: {last_error}")
 
 def valid_glb(path):
     path = pathlib.Path(path)
@@ -58,28 +103,63 @@ def fetch_modular_parts():
             raise RuntimeError("Missing pinned modular source dependency: " + path)
         dest = target / pathlib.PurePosixPath(path).relative_to(MODULAR_PREFIX)
         dest.parent.mkdir(parents=True, exist_ok=True)
+        if _valid_cached_file(dest):
+            print("PHASE3B_MODULAR_CACHE_HIT:", path, "bytes=", dest.stat().st_size, flush=True)
+            downloaded.add(path)
+            return dest
+        if dest.exists(): dest.unlink()
         dest.write_bytes(download(raw_base + urllib.parse.quote(path, safe="/")))
+        if not _valid_cached_file(dest):
+            dest.unlink(missing_ok=True)
+            raise RuntimeError("Downloaded modular dependency failed local validation: " + path)
         downloaded.add(path)
         return dest
-    result = {}
+    usable = {}
+    failed = {}
     for name in wanted:
         full = MODULAR_PREFIX + name
-        source = fetch_path(full)
-        doc = json.loads(source.read_text(encoding="utf-8"))
-        result[name] = source
-        refs = []
-        for section in ("buffers", "images"):
-            for item in doc.get(section, []):
-                uri = item.get("uri", "")
-                if uri and not uri.startswith("data:"):
-                    refs.append(uri)
-        for uri in refs:
-            dependency = pathlib.PurePosixPath(
-                posixpath.normpath(posixpath.join(posixpath.dirname(full), urllib.parse.unquote(uri)))
-            ).as_posix()
-            fetch_path(dependency)
-    print("PHASE3B_MODULAR_CC0_READY:", len(result), "models;", len(downloaded), "files;",
-          "repo=", MODULAR_REPO, "revision=", MODULAR_REV, flush=True)
+        try:
+            source = fetch_path(full)
+            doc = json.loads(source.read_text(encoding="utf-8"))
+            refs = []
+            for section in ("buffers", "images"):
+                for item in doc.get(section, []):
+                    uri = item.get("uri", "")
+                    if uri and not uri.startswith("data:"): refs.append((section, uri))
+            for section, uri in refs:
+                dependency = pathlib.PurePosixPath(posixpath.normpath(posixpath.join(posixpath.dirname(full), urllib.parse.unquote(uri)))).as_posix()
+                try: fetch_path(dependency)
+                except Exception as dependency_error:
+                    suffix = pathlib.PurePosixPath(uri).suffix.lower()
+                    if section == "images" or suffix in {".png", ".jpg", ".jpeg", ".webp", ".tga"}:
+                        print("PHASE3B_OPTIONAL_TEXTURE_FALLBACK:", name, "texture=", uri, "warning=", str(dependency_error), flush=True)
+                        continue
+                    raise
+            usable[name] = source
+        except Exception as source_error:
+            failed[name] = str(source_error)
+            print("PHASE3B_MODULAR_PART_DOWNLOAD_WARNING:", name, "error=", str(source_error), flush=True)
+    fallback_preferences = {
+        "Male_Ranger_Body.gltf": ["Female_Ranger_Body.gltf", "Male_Peasant_Body.gltf", "Female_Peasant_Body.gltf"],
+        "Female_Ranger_Body.gltf": ["Male_Ranger_Body.gltf", "Female_Peasant_Body.gltf", "Male_Peasant_Body.gltf"],
+        "Male_Peasant_Body.gltf": ["Male_Ranger_Body.gltf", "Female_Peasant_Body.gltf", "Female_Ranger_Body.gltf"],
+        "Female_Peasant_Body.gltf": ["Female_Ranger_Body.gltf", "Male_Peasant_Body.gltf", "Male_Ranger_Body.gltf"],
+        "Male_Ranger_Acc_Pauldron.gltf": ["Male_Ranger_Body.gltf", "Male_Peasant_Body.gltf"],
+        "Male_Ranger_Head_Hood.gltf": ["Female_Ranger_Head_Hood.gltf", "Male_Ranger_Body.gltf"],
+        "Female_Ranger_Head_Hood.gltf": ["Male_Ranger_Head_Hood.gltf", "Female_Ranger_Body.gltf"],
+        "Male_Ranger_Feet_Boots.gltf": ["Male_Ranger_Body.gltf", "Male_Peasant_Body.gltf"],
+    }
+    result = dict(usable)
+    for name in wanted:
+        if name in result: continue
+        fallback = next((candidate for candidate in fallback_preferences.get(name, []) if candidate in usable), None)
+        if fallback is None and usable: fallback = sorted(usable)[0]
+        if fallback is None:
+            raise RuntimeError("No valid cached/downloaded modular part can replace " + name + "; " + failed.get(name, "unknown source error"))
+        result[name] = usable[fallback]
+        print("PHASE3B_MODULAR_PART_FALLBACK:", "requested=", name, "using_real_model=", fallback, flush=True)
+    print("PHASE3B_MODULAR_CC0_READY:", len(result), "model slots;", len(downloaded), "files;",
+          "downloaded=", len(usable), "fallbacks=", len(failed), "repo=", MODULAR_REPO, "revision=", MODULAR_REV, flush=True)
     return result
 
 def restore_hf_seed():

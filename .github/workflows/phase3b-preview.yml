@@ -31,8 +31,10 @@ jobs:
         id: phase3b-assets
         uses: actions/cache@v4
         with:
-          path: .cache/phase3b/source
-          key: phase3b-source-v1-${{ hashFiles('ci/prepare_phase3b_assets.py') }}-phase3b-v2
+          path: .cache/phase3b
+          key: phase3b-source-v2-${{ hashFiles('ci/prepare_phase3b_assets.py', 'ci/build_phase3b_85_pack.py') }}-pinned-cc0-v3
+          restore-keys: |
+            phase3b-source-v2-
       - name: Install Assimp, 7z and preparation tools
         run: |
           set -euo pipefail
@@ -95,11 +97,18 @@ jobs:
           print("PHASE3B_HF_CHARACTERS_UPLOAD_COMPLETE:", oid)
           PY
           test -s artifacts/phase3b_asset_report.json
-          test -s assets/phase3b/quaternius_archer.glb
-          test -s assets/phase3b/quaternius_assassin.glb
-          test -s assets/phase3b/quaternius_bow.glb
-          test -s assets/phase3b/quaternius_dagger.glb
-          find assets/phase3b/monsters -name '*.glb' -type f -size +10k | grep -q .
+          test -s assets/phase3b/phase3b_manifest.json
+          test -s assets/phase3b/quaternius_library/katana_katana.glb
+          grep -q 'vertex_color_use_as_albedo = true' scripts/AssetLoader.gd
+          preview_count=$(find assets/phase3b/previews -maxdepth 1 -type f -name '*.png' | wc -l)
+          [ "$preview_count" -eq 85 ] || { echo "::error::Expected 85 real Blender previews, got $preview_count"; exit 1; }
+          python3 - <<'PY'
+          import json, pathlib
+          manifest=json.loads(pathlib.Path("assets/phase3b/phase3b_manifest.json").read_text())
+          assert manifest.get("actual_total")==85 and len(manifest.get("assets",[]))==85
+          assert manifest.get("counts")=={"character":5,"weapon":27,"armor":33,"normal_mob":15,"boss":5}
+          print("PHASE3B_85_ASSETS_AND_85_PREVIEWS_READY")
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -233,4 +242,7 @@ jobs:
             artifacts/phase3b_asset_prepare.log
             artifacts/phase3b_import.log
             artifacts/phase3b_render.log
+            assets/phase3b/previews/**
+            assets/phase3b/phase3b_manifest.json
+            artifacts/phase3b_85_asset_report.json
           retention-days: 14
