@@ -133,6 +133,7 @@ def fetch_quaternius_modular_heads():
     """Fetch only verified Adventurer head/face/hair meshes from the independent CC0 Men/Women packs.
 
     Source allowlist is limited to the two pinned public/glb/modular_{men,women}/Adventurer.glb files.
+    This source remains independent of the forbidden Modular Parts/ directory.
     """
     target = CACHE / "quaternius_modular_heads"
     target.mkdir(parents=True, exist_ok=True)

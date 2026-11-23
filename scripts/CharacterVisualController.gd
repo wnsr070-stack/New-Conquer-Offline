@@ -165,8 +165,10 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
     if extent <= 0.001:
         push_error("PHASE3B_WEAPON_EMPTY_BOUNDS: " + family)
         return
-    var target_extent := 0.65 if family == "dual_knives" else 0.82
-    root.scale = Vector3.ONE * (target_extent / extent)
+    var fit_scale := 0.82 / extent
+    if family == "dual_knives":
+        fit_scale *= 0.65
+    root.scale = Vector3.ONE * fit_scale
     # First align each source's longest axis vertically.
     var axis := 0
     if bounds.size.y >= bounds.size.x and bounds.size.y >= bounds.size.z:
@@ -203,7 +205,7 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
     root.position = -grip
 
     print("PHASE3B_WEAPON_GRIP_FITTED: ", family, " hand=", "L" if left_hand else "R",
-        " scale=", target_extent / extent, " forward_axis=", "Z" if family in ["dual_knives", "dual_blades"] else "source",
+        " scale=", fit_scale, " forward_axis=", "Z" if family in ["dual_knives", "dual_blades"] else "source",
         " bounds=", fitted, " local_grip=", grip)
 
 func normalize_character() -> bool:
