@@ -30,26 +30,27 @@ func build():
         K.place_scaled(self,"mountainside",island.p,island.s,0,island.tint,0.96,island.texture)
 
     # Sand-island structures: every footprint is well inside x=-145..-40, z=-45..47.
-    K.place(self,"innerscene-buddhist-temple-pagoda-c5ebacdc",Vector3(-120,4.6,-20),22.2)
+    K.place(self,"innerscene-buddhist-temple-pagoda-c5ebacdc",Vector3(-110,4.6,-12),22.2)
     K.place(self,"obj_chinese_house",Vector3(-78,4.6,-20),16.65,PI,Color(0.58,0.38,0.22))
     K.place(self,"obj_chinese_house",Vector3(-120,4.6,22),16.65,PI,Color(0.58,0.38,0.22))
     for p in [Vector3(-133,4.6,-32),Vector3(-62,4.6,-32),Vector3(-133,4.6,32),Vector3(-62,4.6,32)]:
         K.place(self,"flora_mangrove",p,10,0.4,Color(0.22,0.58,0.30))
 
     # Ice-island structures: every footprint is well inside x=-4..108, z=-45..50.
-    K.place(self,"innerscene-buddhist-temple-pagoda-c5ebacdc",Vector3(22,4.6,-20),22.2)
+    K.place(self,"innerscene-buddhist-temple-pagoda-c5ebacdc",Vector3(32,4.6,-12),22.2)
     K.place(self,"obj_chinese_house",Vector3(65,4.6,-20),16.65,PI,Color(0.58,0.38,0.22))
     K.place(self,"obj_chinese_house",Vector3(22,4.6,22),16.65,PI,Color(0.58,0.38,0.22))
     for p in [Vector3(10,4.6,-32),Vector3(82,4.6,-32),Vector3(10,4.6,32),Vector3(82,4.6,32)]:
-        K.place(self,"flora_birch_grove",p,10,-0.3,Color(0.78,0.86,0.92))
+        K.place(self,"flora_birch_grove",p,10,-0.3,Color(0.28,0.42,0.48))
 
-    # Three exactly abutting 15.34m wooden bridge sections, overlapping each shore by 5m.
+    # Three exactly abutting wooden bridge sections; the 56m span overlaps sand by 5m and ice by 15m.
+    # Mesh and collision boxes share identical segment dimensions and centers.
     var bridge_start=-45.0
-    var bridge_length=46.0/3.0
+    var bridge_length=56.0/3.0
     for i in range(3):
         _bridge_segment(Vector3(bridge_start+float(i)*bridge_length,4.6,1),bridge_length,i)
 
     # Portals (and their attached pagodas) remain on safe interior land positions.
     K.portal(self,"DesertCity",Vector3(-95,4.6,30))
     K.portal(self,"TwinCity",Vector3(48,4.6,30))
-    print("BIRD_ISLAND_LAND_PLACEMENT_OK: 2 islands, 36m water gap, 3 connected collidable bridge sections")
+    print("BIRD_ISLAND_LAND_PLACEMENT_OK: 2 islands, 56m bridge span with 5m sand / 15m ice overlap, 3 connected collidable sections")
