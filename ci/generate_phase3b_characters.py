@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generate five rigged, high-detail CC0 MakeHuman characters with Ara 3D Gen."""
-import json, pathlib, struct, subprocess, tempfile
+import json, pathlib, re, struct, subprocess, tempfile
 
 ROOT = pathlib.Path.cwd()
 OUT = ROOT / "assets/phase3b/characters"
@@ -11,7 +11,6 @@ PROFILES = [
     ("ara3d_assassin.glb", "The Yoruba Warrior", "Oriental assassin / dual blades"),
     ("ara3d_trojan.glb", "The Dahomey Warrior", "Trojan / heavy dual weapons"),
     ("ara3d_warrior.glb", "The Soldier", "Warrior / spear and shield"),
-    ("ara3d_taoist.glb", "The Explorer", "Taoist / staff bearer"),
 ]
 
 def read_glb(path):
@@ -57,8 +56,47 @@ def inspect(path):
         "bytes": path.stat().st_size,
     }
 
+def discover_taoist_preset():
+    # Read the installed CLI's real catalogue; never guess a preset name.
+    raw = subprocess.check_output(["ara3d", "presets"], text=True)
+    print("PHASE3B_AR3D_ACTUAL_PRESETS_BEGIN", flush=True)
+    print(raw, end="" if raw.endswith("\n") else "\n", flush=True)
+    print("PHASE3B_AR3D_ACTUAL_PRESETS_END", flush=True)
+
+    candidates = []
+    for source_line in raw.splitlines():
+        line = re.sub(r"\x1b\[[0-9;]*m", "", source_line).strip()
+        line = re.sub(r"^(?:[-*•]\s*|\d+[.)]\s*)", "", line)
+        if not line:
+            continue
+        line = re.split(r"\s{2,}|\s+[|—–]\s+", line, maxsplit=1)[0].strip()
+        if line.lower().startswith(("available presets", "presets:", "usage:", "name")):
+            continue
+        if line.startswith("The "):
+            candidates.append(line)
+
+    candidates = list(dict.fromkeys(candidates))
+    if len(candidates) < 5:
+        raise RuntimeError(
+            "Could not parse at least five actual Ara presets from ara3d presets; "
+            f"parsed={candidates!r}; raw output follows in the log"
+        )
+
+    keywords = ("mage", "wizard", "monk", "sage", "priest", "scholar", "mystic", "sorcerer")
+    for keyword in keywords:
+        for preset_name in candidates:
+            if keyword in preset_name.lower():
+                print("PHASE3B_TAOIST_PRESET_SELECTED:", preset_name, "keyword=", keyword, flush=True)
+                return preset_name
+    fallback = candidates[4]
+    print("PHASE3B_TAOIST_PRESET_SELECTED:", fallback, "fallback=fifth_actual_preset", flush=True)
+    return fallback
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    taoist_preset = discover_taoist_preset()
+    profiles = PROFILES + [("ara3d_taoist.glb", taoist_preset, "Taoist / staff bearer")]
     report = {
         "generator": "Ara 3D Gen CLI",
         "generator_version": ARA_VERSION,
@@ -70,13 +108,14 @@ def main():
         "detail": "high",
         "rig": "game",
         "profiles": [],
+        "taoist_preset": taoist_preset,
         "errors": [],
     }
-    for filename, preset, role in PROFILES:
+    for filename, preset, role in profiles:
         with tempfile.TemporaryDirectory(prefix="ara3d-phase3b-") as temp:
             tempdir = pathlib.Path(temp)
             command = [
-                "npx", "--yes", f"ara3d@{ARA_VERSION}", "export",
+                "ara3d", "export",
                 "--preset", preset, "--formats", "glb", "--detail", "high",
                 "--no-animations", "--out", str(tempdir),
             ]

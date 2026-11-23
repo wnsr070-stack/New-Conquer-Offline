@@ -50,6 +50,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Install pinned Ara 3D Gen CLI and print its actual preset catalogue
+        run: |
+          set -euo pipefail
+          npm install --global "ara3d@0.9.0"
+          command -v ara3d
+          ara3d presets | tee artifacts/ara3d_presets.log
       - name: Generate five high-detail CC0 humanoids and audit topology
         run: |
           set -euo pipefail
@@ -94,8 +100,12 @@ jobs:
           path: |
             assets/phase3b/**
             artifacts/phase3b_asset_report.json
+            assets/phase3b/characters/character_quality_report.json
+            artifacts/phase3b_character_generation.log
+            artifacts/ara3d_presets.log
             artifacts/phase3b_asset_prepare.log
             artifacts/phase3b_character_generation.log
+            artifacts/ara3d_presets.log
           retention-days: 14
   render-previews:
     name: Import Godot and render ten Phase 3B previews
@@ -129,7 +139,7 @@ jobs:
       - name: Render ten hero, monster and weapon previews
         run: |
           set -euo pipefail
-          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
+          LIBGL_ALWAYS_SOFTWARE=1 CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
           for image in phase3b_01_archer_bow.png phase3b_02_oriental_assassin_dual_knives.png phase3b_03_dual_blades_axes.png phase3b_04_spear_halberd_greatsword_shield.png phase3b_05_mage_magic_staff.png phase3b_06_ninja_katana_shuriken_plus12.png phase3b_07_oga_dragon_daylight.png phase3b_08_quaternius_dragon_daylight.png phase3b_09_quaternius_demon_daylight.png phase3b_10_weapon_collection.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
@@ -140,7 +150,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: phase3b-six-previews-${{ github.run_number }}
+          name: phase3b-ten-previews-${{ github.run_number }}
           path: |
             artifacts/phase3b_01_archer_bow.png
             artifacts/phase3b_02_oriental_assassin_dual_knives.png
