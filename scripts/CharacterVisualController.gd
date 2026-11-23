@@ -24,9 +24,13 @@ var character_root: Node3D
 var weapon_root: Node3D
 var left_weapon_root: Node3D
 var active_weapon_tier := "beginner"
+var active_class_id := ""
+var active_character_level := 1
 
 func build_character(class_id: String, level: int, gender: String = "male") -> void:
     assets_ready = false
+    active_class_id = class_id
+    active_character_level = level
     character_root = Node3D.new()
     var normalized_gender := "female" if gender.to_lower() == "female" else "male"
     character_root.name = "Phase3B_%s_%s" % [class_id, normalized_gender]
@@ -74,6 +78,35 @@ func build_character(class_id: String, level: int, gender: String = "male") -> v
         " right_bone=", right_bone_name, " right=", right_path,
         " left_bone=", _find_left_hand_bone(skeleton) if class_id in DUAL_CLASSES else "none",
         " left=", is_instance_valid(left_weapon_root))
+
+func set_archer_weapon_mode(use_dual_knives: bool) -> bool:
+    """Switch one Archer rig between its bow and Eastern Assassin-style dual knives."""
+    if active_class_id != "archer" or not is_instance_valid(character_root):
+        push_warning("PHASE3B_ARCHER_WEAPON_SWITCH_REQUIRES_ARCHER")
+        return false
+    var skeleton := _find_skeleton(character_root)
+    if skeleton == null:
+        push_error("PHASE3B_ARCHER_WEAPON_SWITCH_SKELETON_MISSING")
+        return false
+    _clear_weapon_attachments(skeleton)
+    var family := "dual_knives" if use_dual_knives else "bow"
+    var right_bone := _find_right_hand_bone(skeleton)
+    if right_bone.is_empty() or not _attach_weapon(skeleton, right_bone, _weapon_path(family, active_weapon_tier), family, false):
+        return false
+    if use_dual_knives:
+        var left_bone := _find_left_hand_bone(skeleton)
+        if left_bone.is_empty() or not _attach_weapon(skeleton, left_bone, _weapon_path(family, active_weapon_tier), family, true):
+            _clear_weapon_attachments(skeleton)
+            return false
+    print("PHASE3B_ARCHER_WEAPON_MODE_CHANGED: ", family, " tier=", active_weapon_tier)
+    return true
+
+func _clear_weapon_attachments(skeleton: Skeleton3D) -> void:
+    for child in skeleton.get_children():
+        if child is BoneAttachment3D and child.name in ["WeaponR_Attachment", "WeaponL_Attachment"]:
+            child.free()
+    weapon_root = null
+    left_weapon_root = null
 
 func _tier_for_level(level: int) -> String:
     if level <= 29:
@@ -132,8 +165,9 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
     if extent <= 0.001:
         push_error("PHASE3B_WEAPON_EMPTY_BOUNDS: " + family)
         return
-    root.scale = Vector3.ONE * (0.82 / extent)
-    # Rotate the longest source axis into the hand-to-tip direction.
+    var target_extent := 0.65 if family == "dual_knives" else 0.82
+    root.scale = Vector3.ONE * (target_extent / extent)
+    # First align each source's longest axis vertically.
     var axis := 0
     if bounds.size.y >= bounds.size.x and bounds.size.y >= bounds.size.z:
         axis = 1
@@ -143,10 +177,23 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
         root.rotation.z = -PI * 0.5
     elif axis == 2:
         root.rotation.x = PI * 0.5
+
+    # Bow: turn it 180 degrees so the wooden grip sits in the palm and the string faces outward.
+    if family == "bow":
+        root.rotation.y += PI
+    # Trojan blades and Eastern Assassin knives point toward the character's forward (-Z) direction.
+    if family in ["dual_knives", "dual_blades"]:
+        root.rotation.x += PI * 0.5 if axis != 1 else -PI * 0.5
+    # Keep both paired blades facing forward; other off-hand items retain mirrored orientation.
+    if left_hand and family not in ["dual_knives", "dual_blades"]:
+        root.rotation.y += PI
+
     var fitted := _parent_mesh_bounds(root)
     var grip := fitted.get_center()
-    if family not in ["bow", "shield", "shuriken"]:
-        # Put the lower end of the blade/staff/spear at the palm, not its centre.
+    if family in ["dual_knives", "dual_blades"]:
+        # The blade tip points toward -Z, so the positive-Z end is the palm/grip.
+        grip.z = fitted.position.z + fitted.size.z * 0.88
+    elif family not in ["bow", "shield", "shuriken"]:
         if fitted.size.y >= fitted.size.x and fitted.size.y >= fitted.size.z:
             grip.y = fitted.position.y + fitted.size.y * 0.12
         elif fitted.size.x >= fitted.size.z:
@@ -154,10 +201,9 @@ func _fit_weapon_grip(root: Node3D, family: String, left_hand: bool) -> void:
         else:
             grip.z = fitted.position.z + fitted.size.z * 0.12
     root.position = -grip
-    if left_hand:
-        root.rotation.y += PI
 
     print("PHASE3B_WEAPON_GRIP_FITTED: ", family, " hand=", "L" if left_hand else "R",
+        " scale=", target_extent / extent, " forward_axis=", "Z" if family in ["dual_knives", "dual_blades"] else "source",
         " bounds=", fitted, " local_grip=", grip)
 
 func normalize_character() -> bool:

@@ -7,6 +7,8 @@ OUT = ROOT / "assets/phase3b"
 CACHE = ROOT / ".cache/phase3b"
 MODULAR_REPO = "agentkaerf/FreeModels"
 MODULAR_REV = "db3df04d1e4714298a09510b26fb6de6645138a2"
+QUATERNIUS_HEAD_REPO = "trebeljahr/quaternius-showcase"
+QUATERNIUS_HEAD_REV = "0128ca510d653bb04d6d1e4885bd8890b5050b4f"
 OUTFITS_PREFIX = "Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/"
 TIERS = [
     ("beginner", "Beginner", 1, 29),
@@ -125,6 +127,38 @@ def fetch_complete_outfits():
         result[name] = source
         print("PHASE3B_COMPLETE_CC0_OUTFIT_VALIDATED:", name, "meshes=", len(doc["meshes"]), "joints=", len(joints), "right_hand=", right, "left_hand=", left, flush=True)
     print("PHASE3B_COMPLETE_CC0_OUTFITS_READY:", len(result), "models;", len(downloaded), "files; source=", MODULAR_REPO, "revision=", MODULAR_REV, flush=True)
+    return result
+
+def fetch_quaternius_modular_heads():
+    """Fetch only verified Adventurer head/face/hair meshes from the independent CC0 Men/Women packs."""
+    target = CACHE / "quaternius_modular_heads"
+    target.mkdir(parents=True, exist_ok=True)
+    specs = {
+        "male": {"path": "public/glb/modular_men/Adventurer.glb", "size": 1272560, "blob_sha": "14456cd24345ad437840365396b60e82af653507", "license_url": "https://quaternius.com/packs/ultimatemodularcharacters.html"},
+        "female": {"path": "public/glb/modular_women/Adventurer.glb", "size": 894392, "blob_sha": "1f7208c84d68a66527c12a1c541fcecb6d0e8953", "license_url": "https://quaternius.com/packs/ultimatemodularwomen.html"},
+    }
+    result = {}
+    for gender, spec in specs.items():
+        path = spec["path"]
+        if "Modular Parts/" in path:
+            raise RuntimeError("Forbidden Modular Parts source path was requested: " + path)
+        dest = target / (gender + "_Adventurer.glb")
+        def verify(data):
+            if len(data) != spec["size"] or data[:4] != b"glTF" or int.from_bytes(data[8:12], "little") != len(data):
+                return False
+            git_sha = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\\0" + data).hexdigest()
+            return git_sha == spec["blob_sha"]
+        if not _valid_cached_file(dest) or not verify(dest.read_bytes()):
+            dest.unlink(missing_ok=True)
+            url = f"https://raw.githubusercontent.com/{QUATERNIUS_HEAD_REPO}/{QUATERNIUS_HEAD_REV}/{path}"
+            data = download(url)
+            if not verify(data):
+                raise RuntimeError("Pinned Quaternius " + gender + " head/hair GLB failed size, GLB-header or Git blob SHA validation")
+            tmp = dest.with_suffix(".part.glb")
+            tmp.write_bytes(data)
+            tmp.replace(dest)
+        result[gender] = dest
+        print("PHASE3B_QUATERNIUS_CC0_HEAD_SOURCE_VERIFIED:", gender, "bytes=", dest.stat().st_size, "git_blob=", spec["blob_sha"], flush=True)
     return result
 
 def restore_hf_seed():
@@ -299,6 +333,74 @@ def add_secondary(path):
         if obj.parent is None:
             obj.location.x += 0.22
 
+def _head_bone(armature):
+    def normalized(name):
+        return "".join(ch.lower() for ch in name if ch.isalnum())
+    matches = [bone for bone in armature.data.bones if normalized(bone.name) in {"head", "headjoint"}]
+    if not matches:
+        matches = [bone for bone in armature.data.bones if normalized(bone.name).endswith("head")]
+    if not matches:
+        raise RuntimeError("Quaternius head integration requires a real Head bone on armature " + armature.name)
+    return matches[0]
+
+def add_quaternius_head_hair(source_path, gender):
+    scene_objects_before = set(bpy.context.scene.objects)
+    # The body model was imported before this function; retain its actual rig explicitly.
+    target_armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
+    if not target_armatures:
+        raise RuntimeError("Target hero GLB has no Armature object for head attachment")
+    target_armature = target_armatures[0]
+    target_head = _head_bone(target_armature)
+    imported_before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=source_path)
+    imported_head_objects = set(bpy.context.scene.objects) - imported_before
+    source_armatures = [obj for obj in imported_head_objects if obj.type == "ARMATURE"]
+    head_meshes = [obj for obj in imported_head_objects if obj.type == "MESH" and "_head_" in obj.name.lower()]
+    expected_parts = 4 if gender == "male" else 3
+    if not source_armatures or len(head_meshes) != expected_parts:
+        raise RuntimeError("Quaternius " + gender + " head source expected " + str(expected_parts) + " head/face/hair meshes; got " + str(len(head_meshes)))
+    source_armature = source_armatures[0]
+    source_head = _head_bone(source_armature)
+    source_head_world = source_armature.matrix_world @ source_head.matrix_local
+    target_head_world = target_armature.matrix_world @ target_head.matrix_local
+    alignment = target_head_world @ source_head_world.inverted_safe()
+    material_names = set()
+    for obj in head_meshes:
+        for material in obj.data.materials:
+            if material is not None:
+                material_names.add(material.name.lower())
+    if not any("skin" in name for name in material_names):
+        raise RuntimeError("Quaternius head source has no visible skin/face material")
+    if not any("hair" in name or "brown" in name for name in material_names):
+        raise RuntimeError("Quaternius head source has no hair material")
+    for obj in head_meshes:
+        aligned_world = alignment @ obj.matrix_world.copy()
+        obj.parent = None
+        obj.matrix_world = aligned_world
+        for modifier in list(obj.modifiers):
+            if modifier.type == "ARMATURE":
+                obj.modifiers.remove(modifier)
+        for group in list(obj.vertex_groups):
+            obj.vertex_groups.remove(group)
+        head_group = obj.vertex_groups.new(name=target_head.name)
+        if len(obj.data.vertices) == 0:
+            raise RuntimeError("Quaternius head mesh is empty: " + obj.name)
+        head_group.add(list(range(len(obj.data.vertices))), 1.0, "REPLACE")
+        obj.parent = target_armature
+        obj.matrix_world = aligned_world
+        armature_modifier = obj.modifiers.new(name="Phase3B_HeadBoneSkin", type="ARMATURE")
+        armature_modifier.object = target_armature
+        armature_modifier.use_vertex_groups = True
+        armature_modifier.use_bone_envelopes = False
+    for obj in list(imported_head_objects):
+        if obj not in head_meshes and obj.name in bpy.data.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+    for obj in list(bpy.context.scene.objects):
+        if obj.type == "MESH" and "head_hood" in obj.name.lower():
+            bpy.data.objects.remove(obj, do_unlink=True)
+    print("PHASE3B_HEAD_HAIR_ATTACHED:", gender, "parts=", len(head_meshes), "bone=", target_head.name,
+          "materials=", sorted(material_names), "source=", source_path, flush=True)
+
 def render_preview(job, index):
     scene = bpy.context.scene
     meshes = [o for o in scene.objects if o.type == "MESH"]
@@ -321,13 +423,13 @@ def render_preview(job, index):
     scene.camera = camera
     bpy.ops.object.light_add(type="AREA", location=center + Vector((extent * 1.8, extent * 2.4, extent * 1.5)))
     key = bpy.context.object
-    key.data.energy = 780
+    key.data.energy = 360
     key.data.shape = "DISK"
     key.data.size = extent * 2.2
     key.rotation_euler = (center - key.location).to_track_quat("-Z", "Y").to_euler()
     bpy.ops.object.light_add(type="AREA", location=center + Vector((-extent * 1.8, extent * 0.5, extent)))
     fill = bpy.context.object
-    fill.data.energy = 390
+    fill.data.energy = 150
     fill.data.size = extent * 2.5
     fill.rotation_euler = (center - fill.location).to_track_quat("-Z", "Y").to_euler()
     engine_ids = [item.identifier for item in scene.render.bl_rna.properties["engine"].enum_items]
@@ -339,14 +441,16 @@ def render_preview(job, index):
     scene.render.film_transparent = False
     if scene.world is None:
         scene.world = bpy.data.worlds.new("Phase3BPreviewWorld")
-    scene.world.color = (0.055, 0.065, 0.08)
+    scene.world.color = (0.11, 0.12, 0.14)
     scene.world.use_nodes = True
     background = scene.world.node_tree.nodes.get("Background")
     if background is not None:
-        background.inputs["Color"].default_value = (0.055, 0.065, 0.08, 1.0)
+        background.inputs["Color"].default_value = (0.11, 0.12, 0.14, 1.0)
     scene.view_settings.view_transform = "Standard"
     available_looks = [item.identifier for item in scene.view_settings.bl_rna.properties["look"].enum_items]
-    scene.view_settings.look = "Medium High Contrast" if "Medium High Contrast" in available_looks else "None"
+    scene.view_settings.look = "None" if "None" in available_looks else available_looks[0]
+    scene.view_settings.exposure = 0.0
+    scene.view_settings.gamma = 1.0
     scene.render.filepath = os.path.join(preview_dir, job["id"] + ".png")
     bpy.ops.render.render(write_still=True)
     output = scene.render.filepath
@@ -356,6 +460,8 @@ def render_preview(job, index):
 for index, job in enumerate(jobs, 1):
     clear_scene()
     import_model(job["source"])
+    if job.get("head_source"):
+        add_quaternius_head_hair(job["head_source"], job.get("gender", "male"))
     if job.get("secondary"):
         add_secondary(job["secondary"])
     if job.get("dual"):
@@ -445,6 +551,7 @@ def build():
             })
 
     outfits = fetch_complete_outfits()
+    modular_head_sources = fetch_quaternius_modular_heads()
     outfit_glbs = {}
     for filename, source in outfits.items():
         dest = CACHE / "complete_outfit_glb" / (pathlib.Path(filename).stem + ".glb")
@@ -493,6 +600,7 @@ def build():
         "source_license": "CC0-1.0",
         "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
         "source_pack_url": "https://quaternius.itch.io/modular-character-outfits-fantasy",
+        "head_hair_source": {"pack": "Ultimate Modular Men / Ultimate Modular Women", "repository": QUATERNIUS_HEAD_REPO, "revision": QUATERNIUS_HEAD_REV, "license": "CC0-1.0", "male_source": "public/glb/modular_men/Adventurer.glb", "female_source": "public/glb/modular_women/Adventurer.glb", "male_license_url": "https://quaternius.com/packs/ultimatemodularcharacters.html", "female_license_url": "https://quaternius.com/packs/ultimatemodularwomen.html"},
         "forbidden_source_paths": ["Modular Parts/"],
         "rig": "Humanoid",
         "profiles": []
@@ -514,8 +622,8 @@ def build():
         asset_id = f"hero_{key}_{gender}"
         preview = f"previews/{asset_id}.png"
         tint = class_tints[key]
-        hero_jobs.append({"id": asset_id, "source": str(outfit_glbs[source_key]), "tier": "natural",
-                          "dest": str(destination), "class_tint": tint})
+        hero_jobs.append({"id": asset_id, "source": str(outfit_glbs[source_key]), "head_source": str(modular_head_sources[gender]),
+                          "gender": gender, "tier": "natural", "dest": str(destination), "class_tint": tint})
         records.append({
             "id": asset_id, "name": f"{display} — {'Male' if gender == 'male' else 'Female'}",
             "category": "character", "class": key, "gender": gender,
@@ -530,7 +638,10 @@ def build():
             "file": relative, "class": key, "gender": gender, "source_model": source_key,
             "skin_count": len(skins), "humanoid_joint_count": len(skins[0]["joints"]),
             "right_hand_bone": right_hand, "left_hand_bone": left_hand,
-            "clothing_albedo_tint": list(tint), "bytes": 0, "status": "validated"
+            "clothing_albedo_tint": list(tint), "head_source_pack": "Quaternius Ultimate Modular Men/Women",
+            "head_source_model": "Adventurer.glb", "head_attachment_bone": "Head",
+            "expected_head_face_hair_mesh_parts": 4 if gender == "male" else 3,
+            "bytes": 0, "status": "validated"
         })
     if len(character_report["profiles"]) != 10:
         raise RuntimeError("Expected ten real male/female complete CC0 outfit hero assets")
