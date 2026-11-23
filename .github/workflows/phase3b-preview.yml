@@ -39,12 +39,13 @@ jobs:
           command -v gltfpack
           gltfpack -h >/dev/null 2>&1 || true
           "$GODOT_BIN" --version
-      - name: Install gdown and syntax-check asset preparation script
+      - name: Syntax-check asset preparation script (no Google Drive dependencies)
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check -q "gdown>=5.2,<6"
           python3 -m py_compile ci/prepare_phase3b_assets.py
-      - name: Fetch official Quaternius packs and approved OGA archives
+      - name: Fetch pinned Quaternius CC0 packs from GitHub and approved OGA archives
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python3 ci/prepare_phase3b_assets.py 2>&1 | tee artifacts/phase3b_asset_prepare.log
