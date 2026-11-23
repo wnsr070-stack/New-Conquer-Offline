@@ -292,6 +292,8 @@ def apply_creature_fallback(job):
             )
             if not has_image_texture or flat_white:
                 color = palette[(mesh_index + slot_index) % len(palette)]
+                for existing_link in list(base.links):
+                    links.remove(existing_link)
                 base.default_value = color
                 bsdf.inputs["Metallic"].default_value = 0.18 if len(palette) > 1 else 0.05
                 bsdf.inputs["Roughness"].default_value = 0.58
