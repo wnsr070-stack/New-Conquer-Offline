@@ -84,7 +84,7 @@ func _capture_all() -> void:
                 "quaternius_sword.glb",
                 "quaternius_axe.glb",
                 "quaternius_spear.glb",
-                "quaternius_library/katana_katana_katana.glb",
+                "quaternius_library/katana_katana.glb",
                 "quaternius_bow.glb",
                 "quaternius_staff.glb",
                 "quaternius_dagger.glb",
