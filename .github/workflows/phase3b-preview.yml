@@ -3,6 +3,12 @@ on:
   push:
     branches: ['test/phase3b-characters-weapons']
   workflow_dispatch:
+    inputs:
+      rebuild_assets:
+        description: "Force regeneration and re-upload of Phase 3B assets"
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -15,6 +21,7 @@ env:
   CI_CAPTURE: "1"
 jobs:
   prepare-assets:
+    if: github.event_name == 'workflow_dispatch' && inputs.rebuild_assets == true
     name: Download CC0 assets, Assimp-convert and cache
     runs-on: ubuntu-22.04
     timeout-minutes: 35
@@ -110,6 +117,7 @@ jobs:
   render-previews:
     name: Import Godot and render ten Phase 3B previews
     needs: prepare-assets
+    if: always() && (needs.prepare-assets.result == 'success' || needs.prepare-assets.result == 'skipped')
     runs-on: ubuntu-22.04
     timeout-minutes: 18
     steps:
@@ -126,7 +134,46 @@ jobs:
           curl -L --fail --retry 4 "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
           unzip -o .cache/godot/godot.zip -d .cache/godot
           chmod +x "$GODOT_BIN"
+      - name: Restore ready Phase 3B assets from cache
+        if: needs.prepare-assets.result == 'skipped'
+        id: ready-assets-cache
+        uses: actions/cache@v4
+        with:
+          path: assets/phase3b
+          key: phase3b-ready-assets-v1
+      - name: Download ready assets from Hugging Face when cache is cold
+        if: needs.prepare-assets.result == 'skipped' && steps.ready-assets-cache.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          python3 - <<'PY'
+          import os, pathlib, shutil
+          from huggingface_hub import snapshot_download
+          root = pathlib.Path(snapshot_download(repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets", repo_type="dataset", token=os.environ["HF_TOKEN"], allow_patterns=["phase3b/**", "characters/**"]))
+          source = root / "phase3b"
+          if not source.is_dir(): raise SystemExit("HF snapshot is missing phase3b/ assets")
+          target = pathlib.Path("assets/phase3b")
+          if target.exists(): shutil.rmtree(target)
+          shutil.copytree(source, target)
+          chars = root / "characters"
+          if chars.is_dir():
+              (target / "characters").mkdir(parents=True, exist_ok=True)
+              for item in chars.iterdir():
+                  dest = target / "characters" / item.name
+                  if item.is_dir(): shutil.copytree(item, dest, dirs_exist_ok=True)
+                  else: shutil.copy2(item, dest)
+          print("PHASE3B_HF_ASSET_RESTORE_OK:", sum(1 for p in target.rglob("*") if p.is_file()), "files")
+          PY
+      - name: Cache restored ready assets for subsequent fast previews
+        if: needs.prepare-assets.result == 'skipped' && steps.ready-assets-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: assets/phase3b
+          key: phase3b-ready-assets-v1
       - uses: actions/download-artifact@v4
+        if: needs.prepare-assets.result == 'success'
         with:
           name: phase3b-prepared-assets-${{ github.run_number }}
           path: .

@@ -72,8 +72,12 @@ func _capture_all() -> void:
                 _fail("PHASE3B_PREVIEW_MODEL_NORMALIZATION_FAILED: " + path)
                 return
             var bounds := _global_mesh_bounds(model)
-            camera.position = Vector3(0.0, maxf(1.2, bounds.size.y * 0.65), 4.5)
-            camera.look_at(Vector3(0.0, bounds.position.y + bounds.size.y * 0.5, 0.0), Vector3.UP)
+            if str(spec.get("asset", "")).begins_with("oga_monsters/"):
+                camera.position = Vector3(0.0, 2.1, 4.8)
+                camera.look_at(Vector3(0.0, 1.3, 0.0), Vector3.UP)
+            else:
+                camera.position = Vector3(0.0, maxf(1.2, bounds.size.y * 0.65), 4.5)
+                camera.look_at(Vector3(0.0, bounds.position.y + bounds.size.y * 0.5, 0.0), Vector3.UP)
         elif kind == "weapons":
             var names := ["bow", "dagger", "spear", "halberd", "sword"]
             var x_positions := [-1.55, -0.78, 0.0, 0.78, 1.55]
@@ -128,6 +132,7 @@ func _capture_all() -> void:
     get_tree().quit(0)
 
 func _normalize_model(root: Node3D, target_extent: float) -> bool:
+    # Combined world-space AABB across every mesh, independent of source units.
     var bounds := _global_mesh_bounds(root)
     var extent: float = maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
     if extent <= 0.001:
@@ -137,6 +142,24 @@ func _normalize_model(root: Node3D, target_extent: float) -> bool:
     root.global_position.x -= bounds.position.x + bounds.size.x * 0.5
     root.global_position.y -= bounds.position.y
     root.global_position.z -= bounds.position.z + bounds.size.z * 0.5
+    # Repair missing or fully transparent source materials so the model remains visible.
+    var stack: Array[Node] = [root]
+    while not stack.is_empty():
+        var node: Node = stack.pop_back()
+        if node is MeshInstance3D:
+            var mesh_instance := node as MeshInstance3D
+            var needs_fallback := mesh_instance.material_override == null
+            if mesh_instance.material_override is StandardMaterial3D:
+                var current := mesh_instance.material_override as StandardMaterial3D
+                needs_fallback = current.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or current.albedo_color.a < 0.95
+            if needs_fallback:
+                var fallback := StandardMaterial3D.new()
+                fallback.albedo_color = Color(0.42, 0.58, 0.68, 1.0)
+                fallback.roughness = 0.72
+                fallback.cull_mode = BaseMaterial3D.CULL_DISABLED
+                mesh_instance.material_override = fallback
+        for child in node.get_children():
+            stack.append(child)
     return true
 
 func _global_mesh_bounds(root: Node) -> AABB:
