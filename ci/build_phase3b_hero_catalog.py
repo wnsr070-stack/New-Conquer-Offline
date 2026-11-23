@@ -94,7 +94,11 @@ for rec in records:
     area((-height*1.8,-height*0.7,height*1.0),900,height*1.8,(0.45,0.65,1.0))
     area((0,height*1.5,height*1.6),1100,height*1.2,(1.0,1.0,1.0))
     scene.view_settings.view_transform="Standard"
-    scene.view_settings.look="Medium High Contrast"
+    # Blender 3.0 (Ubuntu 22.04 package) exposes no contrast-look presets.
+    # Keep its supported default rather than assigning an unavailable enum.
+    available_looks = {item.identifier for item in scene.view_settings.bl_rna.properties["look"].enum_items}
+    if "Medium High Contrast" in available_looks:
+        scene.view_settings.look = "Medium High Contrast"
     scene.view_settings.exposure=0
     scene.view_settings.gamma=1
     scene.render.filepath=rec["thumbnail"]
