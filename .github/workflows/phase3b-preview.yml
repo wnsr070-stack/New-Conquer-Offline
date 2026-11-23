@@ -224,6 +224,47 @@ jobs:
           [ "$creature_count" -eq 20 ] || { echo "::error::Expected 20 mob/boss catalog images, got $creature_count"; exit 1; }
           grep -q "PHASE3B_ALL_CATALOG_CAPTURES_COMPLETE: 34" artifacts/phase3b_render.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3B_CAPTURE_FAILED" artifacts/phase3b_render.log
+      - name: Assemble the ten-hero visual review catalog
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-pil
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+          from pathlib import Path
+          names = [
+              ("ARCHER — MALE", "phase3b_hero_01_archer_male.png"),
+              ("ARCHER — FEMALE", "phase3b_hero_02_archer_female.png"),
+              ("EASTERN ASSASSIN — MALE +12", "phase3b_hero_03_assassin_male_plus12.png"),
+              ("EASTERN ASSASSIN — FEMALE", "phase3b_hero_04_assassin_female.png"),
+              ("TROJAN — MALE", "phase3b_hero_05_trojan_male.png"),
+              ("TROJAN — FEMALE", "phase3b_hero_06_trojan_female.png"),
+              ("WARRIOR — MALE", "phase3b_hero_07_warrior_male.png"),
+              ("WARRIOR — FEMALE", "phase3b_hero_08_warrior_female.png"),
+              ("TAOIST — MALE", "phase3b_hero_09_taoist_male.png"),
+              ("TAOIST — FEMALE", "phase3b_hero_10_taoist_female.png"),
+          ]
+          root = Path("artifacts")
+          cell_w, cell_h, label_h, margin = 360, 230, 30, 18
+          canvas = Image.new("RGB", (5*cell_w+6*margin, 2*(cell_h+label_h)+3*margin), (25, 31, 39))
+          draw = ImageDraw.Draw(canvas)
+          font = ImageFont.load_default()
+          for i, (label, filename) in enumerate(names):
+              path = root / filename
+              if not path.is_file() or path.stat().st_size < 15000:
+                  raise SystemExit(f"Missing/invalid hero preview: {path}")
+              image = Image.open(path).convert("RGB")
+              image.thumbnail((cell_w, cell_h))
+              x = margin + (i % 5) * (cell_w + margin)
+              y = margin + (i // 5) * (cell_h + label_h + margin)
+              canvas.paste(image, (x + (cell_w-image.width)//2, y))
+              draw.text((x, y + cell_h + 6), label, fill=(245, 230, 190), font=font)
+          output = root / "phase3b_hero_catalog.png"
+          canvas.save(output, format="PNG", optimize=True)
+          if output.stat().st_size < 30000:
+              raise SystemExit("Hero catalog output is unexpectedly small")
+          print("PHASE3B_TEN_HERO_CATALOG_CREATED:", output, output.stat().st_size)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -239,6 +280,7 @@ jobs:
             artifacts/phase3b_hero_08_warrior_female.png
             artifacts/phase3b_hero_09_taoist_male.png
             artifacts/phase3b_hero_10_taoist_female.png
+            artifacts/phase3b_hero_catalog.png
             artifacts/phase3b_11_oga_dragon_daylight.png
             artifacts/phase3b_12_quaternius_dragon_daylight.png
             artifacts/phase3b_13_quaternius_demon_daylight.png
