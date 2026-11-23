@@ -146,7 +146,7 @@ def fetch_quaternius_modular_heads():
         def verify(data):
             if len(data) != spec["size"] or data[:4] != b"glTF" or int.from_bytes(data[8:12], "little") != len(data):
                 return False
-            git_sha = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\\0" + data).hexdigest()
+            git_sha = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
             return git_sha == spec["blob_sha"]
         if not _valid_cached_file(dest) or not verify(dest.read_bytes()):
             dest.unlink(missing_ok=True)
@@ -344,7 +344,6 @@ def _head_bone(armature):
     return matches[0]
 
 def add_quaternius_head_hair(source_path, gender):
-    scene_objects_before = set(bpy.context.scene.objects)
     # The body model was imported before this function; retain its actual rig explicitly.
     target_armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
     if not target_armatures:
