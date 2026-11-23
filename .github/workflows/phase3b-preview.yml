@@ -46,6 +46,19 @@ jobs:
           command -v gltfpack
           gltfpack -h >/dev/null 2>&1 || true
           "$GODOT_BIN" --version
+      - name: Set up Node for Ara 3D Gen
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Generate five high-detail CC0 humanoids and audit topology
+        run: |
+          set -euo pipefail
+          python3 ci/generate_phase3b_characters.py 2>&1 | tee artifacts/phase3b_character_generation.log
+          test -s assets/phase3b/characters/ara3d_archer.glb
+          test -s assets/phase3b/characters/ara3d_assassin.glb
+          test -s assets/phase3b/characters/ara3d_trojan.glb
+          test -s assets/phase3b/characters/ara3d_warrior.glb
+          test -s assets/phase3b/characters/ara3d_taoist.glb
       - name: Syntax-check asset preparation script (no Google Drive dependencies)
         run: |
           set -euo pipefail
@@ -58,6 +71,16 @@ jobs:
         run: |
           set -euo pipefail
           python3 ci/prepare_phase3b_assets.py 2>&1 | tee artifacts/phase3b_asset_prepare.log
+          python3 - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          result = api.upload_folder(repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets", repo_type="dataset", folder_path="assets/phase3b/characters", path_in_repo="characters", commit_message="add(phase3b): publish five audited high-detail CC0 humanoids")
+          oid = getattr(result, "oid", None)
+          if not oid:
+              raise RuntimeError("Hugging Face character upload did not return a commit OID")
+          print("PHASE3B_HF_CHARACTERS_UPLOAD_COMPLETE:", oid)
+          PY
           test -s artifacts/phase3b_asset_report.json
           test -s assets/phase3b/quaternius_archer.glb
           test -s assets/phase3b/quaternius_assassin.glb
@@ -72,9 +95,10 @@ jobs:
             assets/phase3b/**
             artifacts/phase3b_asset_report.json
             artifacts/phase3b_asset_prepare.log
+            artifacts/phase3b_character_generation.log
           retention-days: 14
   render-previews:
-    name: Import Godot and render six Phase 3B previews
+    name: Import Godot and render ten Phase 3B previews
     needs: prepare-assets
     runs-on: ubuntu-22.04
     timeout-minutes: 18
@@ -101,16 +125,17 @@ jobs:
           set -euo pipefail
           find assets/phase3b -name '*.glb' -type f -size +10k
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/phase3b_import.log
-      - name: Render six hero and weapon close-ups
+          test -s assets/phase3b/characters/character_quality_report.json
+      - name: Render ten hero, monster and weapon previews
         run: |
           set -euo pipefail
           CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
-          for image in phase3b_01_archer_bow.png phase3b_02_oriental_assassin_dual_knives.png phase3b_03_dual_blades_axes.png phase3b_04_spear_halberd_greatsword_shield.png phase3b_05_mage_magic_staff.png phase3b_06_ninja_katana_shuriken_plus12.png; do
+          for image in phase3b_01_archer_bow.png phase3b_02_oriental_assassin_dual_knives.png phase3b_03_dual_blades_axes.png phase3b_04_spear_halberd_greatsword_shield.png phase3b_05_mage_magic_staff.png phase3b_06_ninja_katana_shuriken_plus12.png phase3b_07_oga_dragon_daylight.png phase3b_08_quaternius_dragon_daylight.png phase3b_09_quaternius_demon_daylight.png phase3b_10_weapon_collection.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
             [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small"; exit 1; }
           done
-          grep -q "PHASE3B_ALL_SIX_CAPTURES_COMPLETE" artifacts/phase3b_render.log
+          grep -q "PHASE3B_ALL_TEN_CAPTURES_COMPLETE" artifacts/phase3b_render.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3B_CAPTURE_FAILED" artifacts/phase3b_render.log
       - uses: actions/upload-artifact@v4
         if: always()
@@ -123,6 +148,10 @@ jobs:
             artifacts/phase3b_04_spear_halberd_greatsword_shield.png
             artifacts/phase3b_05_mage_magic_staff.png
             artifacts/phase3b_06_ninja_katana_shuriken_plus12.png
+            artifacts/phase3b_07_oga_dragon_daylight.png
+            artifacts/phase3b_08_quaternius_dragon_daylight.png
+            artifacts/phase3b_09_quaternius_demon_daylight.png
+            artifacts/phase3b_10_weapon_collection.png
             artifacts/phase3b_asset_report.json
             artifacts/phase3b_asset_prepare.log
             artifacts/phase3b_import.log
