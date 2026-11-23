@@ -1,12 +1,12 @@
 extends Node3D
 const CharacterController = preload("res://scripts/CharacterVisualController.gd")
 var captures := [
- {"file":"char_archer_bow.png","class":"archer","level":30,"plus":5,"shadow":false,"pos":Vector3(2.0,1.9,2.7),"target":Vector3(0,1.05,0)},
- {"file":"char_assassin_lv40.png","class":"oriental_assassin","level":40,"plus":5,"shadow":false,"pos":Vector3(2.0,1.9,2.7),"target":Vector3(0,1.05,0)},
- {"file":"char_path_of_shadow.png","class":"oriental_assassin","level":40,"plus":5,"shadow":true,"pos":Vector3(2.0,1.9,2.7),"target":Vector3(0,1.05,0)},
- {"file":"specialized_weapons_showcase.png","kind":"showcase","pos":Vector3(0,2.7,7.2),"target":Vector3(0,0.8,0)},
- {"file":"weapon_tier_plus9.png","class":"oriental_assassin","level":90,"plus":9,"shadow":false,"pos":Vector3(1.9,1.55,2.45),"target":Vector3(0,1.1,0)},
- {"file":"weapon_lv130_plus12_super.png","class":"oriental_assassin","level":130,"plus":12,"shadow":false,"pos":Vector3(1.9,1.55,2.45),"target":Vector3(0,1.1,0)}
+ {"file":"phase3b_01_archer_bow.png","class":"archer","level":30,"plus":1,"shadow":false,"extra":[],"pos":Vector3(1.8,1.8,2.35),"target":Vector3(0,1.05,0)},
+ {"file":"phase3b_02_oriental_assassin_dual_knives.png","class":"oriental_assassin","level":40,"plus":3,"shadow":true,"extra":[],"pos":Vector3(1.8,1.8,2.35),"target":Vector3(0,1.05,0)},
+ {"file":"phase3b_03_dual_blades_axes.png","class":"trojan","level":60,"plus":5,"shadow":false,"extra":[{"asset":"axe","pos":Vector3(-0.95,1.0,0.08)}],"pos":Vector3(2.0,1.9,2.65),"target":Vector3(0,1.05,0)},
+ {"file":"phase3b_04_spear_halberd_greatsword_shield.png","class":"warrior","level":90,"plus":7,"shadow":false,"extra":[{"asset":"spear","pos":Vector3(-1.0,0.8,0.1)},{"asset":"halberd","pos":Vector3(1.0,0.8,0.1)},{"asset":"shield","pos":Vector3(0.0,0.65,-0.55)}],"pos":Vector3(2.3,2.0,3.1),"target":Vector3(0,1.0,0)},
+ {"file":"phase3b_05_mage_magic_staff.png","class":"taoist","level":100,"plus":9,"shadow":false,"extra":[],"pos":Vector3(1.8,1.8,2.35),"target":Vector3(0,1.05,0)},
+ {"file":"phase3b_06_ninja_katana_shuriken_plus12.png","class":"ninja","level":130,"plus":12,"shadow":false,"extra":[{"asset":"shuriken","pos":Vector3(-0.8,1.55,-0.15)}],"pos":Vector3(1.8,1.8,2.35),"target":Vector3(0,1.05,0)}
 ]
 func _ready() -> void:
  if OS.get_environment("CI_CAPTURE") == "1": _capture_all.call_deferred()
@@ -32,6 +32,11 @@ func _capture_all() -> void:
     return
    hero.set_weapon_upgrade(spec.plus,"Super",spec.level)
    if spec.shadow: hero.activate_path_of_shadow(true)
+   for extra in spec.get("extra",[]):
+    if not _add_weapon_prop(extra.asset,extra.pos):
+     push_error("PHASE3B_CAPTURE_FAILED_EXTRA_WEAPON: "+str(extra.asset))
+     get_tree().quit(2)
+     return
   var camera := Camera3D.new()
   camera.position = spec.pos
   camera.look_at(spec.target,Vector3.UP)
@@ -48,18 +53,19 @@ func _capture_all() -> void:
   await get_tree().process_frame
  print("PHASE3B_ALL_SIX_CAPTURES_COMPLETE")
  get_tree().quit()
-func _build_weapon_showcase() -> bool:
- var names := ["bow","dagger","spear","axe","staff"]
- for i in range(names.size()):
-  var path := "res://assets/phase3b/quaternius_"+names[i]+".glb"
-  if not ResourceLoader.exists(path): push_error("PHASE3B_SHOWCASE_WEAPON_MISSING: "+path); return false
-  var packed := load(path) as PackedScene
-  if packed == null: return false
-  var model := packed.instantiate() as Node3D
-  if model == null: return false
-  model.position = Vector3((i-2)*1.55,0.15,0)
-  model.scale = Vector3.ONE * 0.8
-  add_child(model)
+func _add_weapon_prop(asset_name: String, prop_position: Vector3) -> bool:
+ var filename := "quaternius_shuriken.glb" if asset_name == "shuriken" else "quaternius_" + asset_name + ".glb"
+ var path := "res://assets/phase3b/" + filename
+ if not ResourceLoader.exists(path):
+  push_error("PHASE3B_EXTRA_WEAPON_MISSING: " + path)
+  return false
+ var packed := load(path) as PackedScene
+ if packed == null: return false
+ var model := packed.instantiate() as Node3D
+ if model == null: return false
+ model.position = prop_position
+ model.scale = Vector3.ONE * 0.48
+ add_child(model)
  return true
 func _build_stage() -> void:
  var world := WorldEnvironment.new()

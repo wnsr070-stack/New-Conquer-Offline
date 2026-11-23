@@ -20,6 +20,12 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - name: Cache Phase 3B source archives and pinned CC0 downloads
+        id: phase3b-assets
+        uses: actions/cache@v4
+        with:
+          path: .cache/phase3b/source
+          key: phase3b-source-v1-${{ hashFiles('ci/prepare_phase3b_assets.py') }}-phase3b-v2
       - name: Install Assimp, 7z and preparation tools
         run: |
           set -euo pipefail
@@ -42,10 +48,12 @@ jobs:
       - name: Syntax-check asset preparation script (no Google Drive dependencies)
         run: |
           set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
           python3 -m py_compile ci/prepare_phase3b_assets.py
       - name: Fetch pinned Quaternius CC0 packs from GitHub and approved OGA archives
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
           python3 ci/prepare_phase3b_assets.py 2>&1 | tee artifacts/phase3b_asset_prepare.log
@@ -55,22 +63,8 @@ jobs:
           test -s assets/phase3b/quaternius_bow.glb
           test -s assets/phase3b/quaternius_dagger.glb
           find assets/phase3b/monsters -name '*.glb' -type f -size +10k | grep -q .
-      - name: Upload prepared assets to private Hugging Face cache
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          set -euo pipefail
-          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
-          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
-          python3 - <<'PY'
-          import os
-          from huggingface_hub import HfApi
-          api=HfApi(token=os.environ["HF_TOKEN"])
-          repo="Zzwahwahz/clash-of-legends-terrain-assets"
-          api.create_repo(repo,repo_type="dataset",private=True,exist_ok=True)
-          api.upload_folder(repo_id=repo,repo_type="dataset",folder_path="assets/phase3b",path_in_repo="phase3b",commit_message="cache(phase3b): Assimp-converted CC0 models and Quaternius monsters")
-          PY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: phase3b-prepared-assets-${{ github.run_number }}
           path: |
@@ -110,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
-          for image in char_archer_bow.png char_assassin_lv40.png char_path_of_shadow.png specialized_weapons_showcase.png weapon_tier_plus9.png weapon_lv130_plus12_super.png; do
+          for image in phase3b_01_archer_bow.png phase3b_02_oriental_assassin_dual_knives.png phase3b_03_dual_blades_axes.png phase3b_04_spear_halberd_greatsword_shield.png phase3b_05_mage_magic_staff.png phase3b_06_ninja_katana_shuriken_plus12.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
             [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small"; exit 1; }
@@ -122,12 +116,12 @@ jobs:
         with:
           name: phase3b-six-previews-${{ github.run_number }}
           path: |
-            artifacts/char_archer_bow.png
-            artifacts/char_assassin_lv40.png
-            artifacts/char_path_of_shadow.png
-            artifacts/specialized_weapons_showcase.png
-            artifacts/weapon_tier_plus9.png
-            artifacts/weapon_lv130_plus12_super.png
+            artifacts/phase3b_01_archer_bow.png
+            artifacts/phase3b_02_oriental_assassin_dual_knives.png
+            artifacts/phase3b_03_dual_blades_axes.png
+            artifacts/phase3b_04_spear_halberd_greatsword_shield.png
+            artifacts/phase3b_05_mage_magic_staff.png
+            artifacts/phase3b_06_ninja_katana_shuriken_plus12.png
             artifacts/phase3b_asset_report.json
             artifacts/phase3b_asset_prepare.log
             artifacts/phase3b_import.log

@@ -12,7 +12,7 @@ const CHARACTER_ASSETS := {
 }
 const WEAPON_ASSETS := {
  "bow": "quaternius_bow.glb",
- "dual_daggers": "quaternius_dagger.glb",
+ "dual_daggers": "quaternius_throwing_knife.glb",
  "dual_blades": "quaternius_sword.glb",
  "dual_axes": "quaternius_axe.glb",
  "spear": "quaternius_spear.glb",
@@ -21,7 +21,7 @@ const WEAPON_ASSETS := {
  "shield": "quaternius_shield.glb",
  "magic_staff": "quaternius_staff.glb",
  "katana": "quaternius_sword.glb",
- "shuriken": "shuriken.glb",
+ "shuriken": "quaternius_shuriken.glb",
  "staff": "quaternius_staff.glb"
 }
 var active_class := "archer"
