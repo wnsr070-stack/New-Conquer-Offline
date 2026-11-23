@@ -101,13 +101,14 @@ jobs:
           test -s assets/phase3b/quaternius_library/katana_katana.glb
           grep -q 'vertex_color_use_as_albedo = true' scripts/AssetLoader.gd
           preview_count=$(find assets/phase3b/previews -maxdepth 1 -type f -name '*.png' | wc -l)
-          [ "$preview_count" -eq 85 ] || { echo "::error::Expected 85 real Blender previews, got $preview_count"; exit 1; }
+          [ "$preview_count" -eq 90 ] || { echo "::error::Expected 90 real Blender previews, got $preview_count"; exit 1; }
           python3 - <<'PY'
           import json, pathlib
           manifest=json.loads(pathlib.Path("assets/phase3b/phase3b_manifest.json").read_text())
-          assert manifest.get("actual_total")==85 and len(manifest.get("assets",[]))==85
-          assert manifest.get("counts")=={"character":5,"weapon":27,"armor":33,"normal_mob":15,"boss":5}
-          print("PHASE3B_85_ASSETS_AND_85_PREVIEWS_READY")
+          assert manifest.get("actual_total")==90 and len(manifest.get("assets",[]))==90
+          assert manifest.get("counts")=={"character":10,"weapon":27,"armor":33,"normal_mob":15,"boss":5}
+          assert sum(1 for x in manifest["assets"] if x.get("category")=="character" and x.get("gender") in {"male","female"})==10
+          print("PHASE3B_90_ASSETS_AND_TEN_HUMANOID_HEROES_READY")
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -127,7 +128,7 @@ jobs:
             artifacts/ara3d_presets.log
           retention-days: 14
   render-previews:
-    name: Import Godot and render Phase 3B previews and 85-model catalog
+    name: Import Godot and render Phase 3B previews and 90-model catalog
     needs: prepare-assets
     if: always() && (needs.prepare-assets.result == 'success' || needs.prepare-assets.result == 'skipped')
     runs-on: ubuntu-22.04
@@ -200,8 +201,9 @@ jobs:
           import json, pathlib
           root=pathlib.Path('assets/phase3b')
           m=json.loads((root/'phase3b_manifest.json').read_text())
-          assert m['actual_total']==85 and len(m['assets'])==85, '85-model manifest count mismatch'
-          assert len({x['file'] for x in m['assets']})==85, 'duplicate asset paths'
+          assert m['actual_total']==90 and len(m['assets'])==90, '90-model manifest count mismatch'
+          assert len({x['file'] for x in m['assets']})==90, 'duplicate asset paths'
+          assert sum(1 for x in m['assets'] if x.get('category')=='character' and x.get('gender') in {'male','female'})==10, 'ten male/female hero assets missing'
           for x in m['assets']:
               p=root/x['file']; q=root/x['preview']
               assert p.is_file() and p.stat().st_size>1000, f"missing GLB: {p}"
@@ -213,30 +215,34 @@ jobs:
           set -euo pipefail
           LIBGL_ALWAYS_SOFTWARE=1 CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
           test -s assets/phase3b/quaternius_library/katana_katana.glb
-          for image in phase3b_01_archer_bow.png phase3b_02_oriental_assassin_dual_knives.png phase3b_03_dual_blades_axes.png phase3b_04_spear_halberd_greatsword_shield.png phase3b_05_mage_magic_staff.png phase3b_06_ninja_katana_shuriken_plus12.png phase3b_07_oga_dragon_daylight.png phase3b_08_quaternius_dragon_daylight.png phase3b_09_quaternius_demon_daylight.png phase3b_10_weapon_collection.png; do
+          for image in phase3b_hero_01_archer_male.png phase3b_hero_02_archer_female.png phase3b_hero_03_assassin_male_plus12.png phase3b_hero_04_assassin_female.png phase3b_hero_05_trojan_male.png phase3b_hero_06_trojan_female.png phase3b_hero_07_warrior_male.png phase3b_hero_08_warrior_female.png phase3b_hero_09_taoist_male.png phase3b_hero_10_taoist_female.png phase3b_11_oga_dragon_daylight.png phase3b_12_quaternius_dragon_daylight.png phase3b_13_quaternius_demon_daylight.png phase3b_14_weapon_collection.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
             [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small"; exit 1; }
           done
           creature_count=$(find artifacts -maxdepth 1 -type f -name 'phase3b_catalog_*.png' | wc -l)
           [ "$creature_count" -eq 20 ] || { echo "::error::Expected 20 mob/boss catalog images, got $creature_count"; exit 1; }
-          grep -q "PHASE3B_ALL_CATALOG_CAPTURES_COMPLETE: 30" artifacts/phase3b_render.log
+          grep -q "PHASE3B_ALL_CATALOG_CAPTURES_COMPLETE: 34" artifacts/phase3b_render.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3B_CAPTURE_FAILED" artifacts/phase3b_render.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: phase3b-85-model-catalog-and-previews-${{ github.run_number }}
+          name: phase3b-90-model-catalog-and-previews-${{ github.run_number }}
           path: |
-            artifacts/phase3b_01_archer_bow.png
-            artifacts/phase3b_02_oriental_assassin_dual_knives.png
-            artifacts/phase3b_03_dual_blades_axes.png
-            artifacts/phase3b_04_spear_halberd_greatsword_shield.png
-            artifacts/phase3b_05_mage_magic_staff.png
-            artifacts/phase3b_06_ninja_katana_shuriken_plus12.png
-            artifacts/phase3b_07_oga_dragon_daylight.png
-            artifacts/phase3b_08_quaternius_dragon_daylight.png
-            artifacts/phase3b_09_quaternius_demon_daylight.png
-            artifacts/phase3b_10_weapon_collection.png
+            artifacts/phase3b_hero_01_archer_male.png
+            artifacts/phase3b_hero_02_archer_female.png
+            artifacts/phase3b_hero_03_assassin_male_plus12.png
+            artifacts/phase3b_hero_04_assassin_female.png
+            artifacts/phase3b_hero_05_trojan_male.png
+            artifacts/phase3b_hero_06_trojan_female.png
+            artifacts/phase3b_hero_07_warrior_male.png
+            artifacts/phase3b_hero_08_warrior_female.png
+            artifacts/phase3b_hero_09_taoist_male.png
+            artifacts/phase3b_hero_10_taoist_female.png
+            artifacts/phase3b_11_oga_dragon_daylight.png
+            artifacts/phase3b_12_quaternius_dragon_daylight.png
+            artifacts/phase3b_13_quaternius_demon_daylight.png
+            artifacts/phase3b_14_weapon_collection.png
             artifacts/phase3b_catalog_*.png
             artifacts/phase3b_asset_report.json
             artifacts/phase3b_asset_prepare.log
