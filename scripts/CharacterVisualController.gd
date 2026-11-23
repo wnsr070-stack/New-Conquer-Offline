@@ -1,13 +1,13 @@
 extends Node3D
 const ROOT := "res://assets/phase3b/"
-const CHARS := {
-    "archer":"characters/ara3d_archer.glb",
-    "oriental_assassin":"characters/ara3d_assassin.glb",
-    "trojan":"characters/ara3d_trojan.glb",
-    "warrior":"characters/ara3d_warrior.glb",
-    "taoist":"characters/ara3d_taoist.glb",
-    "ninja":"characters/ara3d_assassin.glb",
-    "monk":"characters/ara3d_warrior.glb"
+const CHARACTER_FILE_IDS := {
+    "archer":"archer",
+    "oriental_assassin":"assassin",
+    "trojan":"trojan",
+    "warrior":"warrior",
+    "taoist":"taoist",
+    "ninja":"assassin",
+    "monk":"warrior"
 }
 const WEAPONS := {
     "archer":"bow",
@@ -25,12 +25,14 @@ var weapon_root: Node3D
 var left_weapon_root: Node3D
 var active_weapon_tier := "beginner"
 
-func build_character(class_id: String, level: int) -> void:
+func build_character(class_id: String, level: int, gender: String = "male") -> void:
     assets_ready = false
     character_root = Node3D.new()
-    character_root.name = "HighDetailAra3DCharacter"
+    var normalized_gender := "female" if gender.to_lower() == "female" else "male"
+    character_root.name = "Phase3B_%s_%s" % [class_id, normalized_gender]
     add_child(character_root)
-    var character_path: String = ROOT + str(CHARS.get(class_id, ""))
+    var file_id := str(CHARACTER_FILE_IDS.get(class_id, class_id))
+    var character_path: String = ROOT + "characters/" + file_id + "_" + normalized_gender + ".glb"
     if not ResourceLoader.exists(character_path):
         push_error("PHASE3B_HIGH_DETAIL_CHARACTER_MISSING: " + character_path)
         return
