@@ -1,4 +1,4 @@
-name: Phase 3B Characters and Weapons Preview
+name: Phase 3B Characters, Weapons and Monster Cache
 on:
   push:
     branches: ['test/phase3b-characters-weapons']
@@ -15,17 +15,18 @@ env:
   CI_CAPTURE: "1"
 jobs:
   prepare-assets:
-    name: Download approved CC0 assets, convert and cache
+    name: Download CC0 assets, Assimp-convert and cache
     runs-on: ubuntu-22.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Install Blender, 7z and preparation tools
+      - name: Install Assimp, 7z and preparation tools
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends blender p7zip-full curl unzip python3-pip npm
+          sudo apt-get install -y --no-install-recommends assimp-utils p7zip-full curl unzip python3-pip npm
           mkdir -p .cache/godot .cache/tools .cache/phase3b assets/phase3b artifacts
+          assimp version
       - name: Install Godot 4.3 and gltfpack
         run: |
           set -euo pipefail
@@ -33,17 +34,22 @@ jobs:
           unzip -o .cache/godot/godot.zip -d .cache/godot
           chmod +x "$GODOT_BIN"
           npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack
-          export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
           echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
+          export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
+          command -v gltfpack
+          gltfpack -h >/dev/null 2>&1 || true
           "$GODOT_BIN" --version
-          gltfpack -v >/dev/null 2>&1 || test $? -eq 0
-      - name: Fetch exact allow-listed CC0 sources and convert models
+      - name: Fetch official Quaternius packs and approved OGA archives
         run: |
           set -euo pipefail
           python3 ci/prepare_phase3b_assets.py 2>&1 | tee artifacts/phase3b_asset_prepare.log
           test -s artifacts/phase3b_asset_report.json
-          find assets/phase3b -name '*.glb' -type f -size +10k | grep -q .
-      - name: Upload approved asset cache to Hugging Face
+          test -s assets/phase3b/quaternius_archer.glb
+          test -s assets/phase3b/quaternius_assassin.glb
+          test -s assets/phase3b/quaternius_bow.glb
+          test -s assets/phase3b/quaternius_dagger.glb
+          find assets/phase3b/monsters -name '*.glb' -type f -size +10k | grep -q .
+      - name: Upload prepared assets to private Hugging Face cache
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -54,8 +60,9 @@ jobs:
           import os
           from huggingface_hub import HfApi
           api=HfApi(token=os.environ["HF_TOKEN"])
-          api.create_repo("Zzwahwahz/clash-of-legends-terrain-assets",repo_type="dataset",private=True,exist_ok=True)
-          api.upload_folder(repo_id="Zzwahwahz/clash-of-legends-terrain-assets",repo_type="dataset",folder_path="assets/phase3b",path_in_repo="phase3b",commit_message="cache(phase3b): add verified CC0 character and weapon assets")
+          repo="Zzwahwahz/clash-of-legends-terrain-assets"
+          api.create_repo(repo,repo_type="dataset",private=True,exist_ok=True)
+          api.upload_folder(repo_id=repo,repo_type="dataset",folder_path="assets/phase3b",path_in_repo="phase3b",commit_message="cache(phase3b): Assimp-converted CC0 models and Quaternius monsters")
           PY
       - uses: actions/upload-artifact@v4
         with:
@@ -66,7 +73,7 @@ jobs:
             artifacts/phase3b_asset_prepare.log
           retention-days: 14
   render-previews:
-    name: Import Godot and render six Phase 3B hero close-ups
+    name: Import Godot and render six Phase 3B previews
     needs: prepare-assets
     runs-on: ubuntu-22.04
     timeout-minutes: 18
@@ -88,16 +95,16 @@ jobs:
         with:
           name: phase3b-prepared-assets-${{ github.run_number }}
           path: .
-      - name: Validate model files and import project
+      - name: Validate models and import project
         run: |
           set -euo pipefail
           find assets/phase3b -name '*.glb' -type f -size +10k
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/phase3b_import.log
-      - name: Render six character and weapon close-ups
+      - name: Render six hero and weapon close-ups
         run: |
           set -euo pipefail
           CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
-          for image in char_archer_bow.png char_assassin_lv40.png char_path_of_shadow.png weapon_tier_plus5.png weapon_tier_plus9.png weapon_lv130_plus12_super.png; do
+          for image in char_archer_bow.png char_assassin_lv40.png char_path_of_shadow.png specialized_weapons_showcase.png weapon_tier_plus9.png weapon_lv130_plus12_super.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
             [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small"; exit 1; }
@@ -112,7 +119,7 @@ jobs:
             artifacts/char_archer_bow.png
             artifacts/char_assassin_lv40.png
             artifacts/char_path_of_shadow.png
-            artifacts/weapon_tier_plus5.png
+            artifacts/specialized_weapons_showcase.png
             artifacts/weapon_tier_plus9.png
             artifacts/weapon_lv130_plus12_super.png
             artifacts/phase3b_asset_report.json
