@@ -123,12 +123,12 @@ def fetch_sources():
   except Exception as e:
    report["errors"].append({"source":item["id"],"error":str(e)})
    print("PHASE3B_OGA_SOURCE_ERROR:",item["id"],str(e),flush=True)
-def validate_glb(path, label):
+def validate_glb(path, label, min_size=10*1024):
  path=pathlib.Path(path)
  if not path.is_file(): raise RuntimeError(f"{label} was not created: {path}")
  size=path.stat().st_size
  with path.open("rb") as stream: magic=stream.read(4)
- if size<=10*1024 or magic!=b"glTF":
+ if size<min_size or magic!=b"glTF":
   raise RuntimeError(f"{label} failed GLB validation: size={size}, magic={magic!r}, expected >10240 bytes and b'glTF'")
  return size
 def optimize_to_glb(source,dest):
@@ -143,21 +143,21 @@ def optimize_to_glb(source,dest):
   raw_glb.unlink(missing_ok=True)
   blender_script=dest.with_name(dest.stem+"_blender_import.py")
   blender_script.write_text(
-   "import bpy\\n"
-   "dae_path = "+repr(str(source.resolve()))+"\\n"
-   "raw_glb = "+repr(str(raw_glb.resolve()))+"\\n"
-   "bpy.ops.wm.read_factory_settings(use_empty=True)\\n"
-   "bpy.ops.wm.collada_import(filepath=dae_path, import_units=True)\\n"
-   "meshes = [o for o in bpy.data.objects if o.type == 'MESH']\\n"
-   "if not meshes: raise RuntimeError('COLLADA import produced no MESH objects')\\n"
-   "print('PHASE3B_DRAGON_BLENDER_MESH_COUNT:', len(meshes), flush=True)\\n"
-   "bpy.ops.export_scene.gltf(filepath=raw_glb, export_format='GLB', export_apply=True)\\n",
+   "import bpy\n"
+   "dae_path = "+repr(str(source.resolve()))+"\n"
+   "raw_glb = "+repr(str(raw_glb.resolve()))+"\n"
+   "bpy.ops.wm.read_factory_settings(use_empty=True)\n"
+   "bpy.ops.wm.collada_import(filepath=dae_path, import_units=True)\n"
+   "meshes = [o for o in bpy.data.objects if o.type == 'MESH']\n"
+   "if not meshes: raise RuntimeError('COLLADA import produced no MESH objects')\n"
+   "print('PHASE3B_DRAGON_BLENDER_MESH_COUNT:', len(meshes), flush=True)\n"
+   "bpy.ops.export_scene.gltf(filepath=raw_glb, export_format='GLB', export_apply=True)\n",
    encoding="utf-8")
   print("PHASE3B_DAE_BLENDER_DIRECT:",source,"assimp=SKIPPED",flush=True)
   proc=subprocess.run(["blender","--background","--factory-startup","--python-exit-code","1","--python",str(blender_script)],
                       stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-  print("PHASE3B_BLENDER_STDOUT_BEGIN\\n"+(proc.stdout or "")+"\\nPHASE3B_BLENDER_STDOUT_END",flush=True)
-  print("PHASE3B_BLENDER_STDERR_BEGIN\\n"+(proc.stderr or "")+"\\nPHASE3B_BLENDER_STDERR_END",flush=True)
+  print("PHASE3B_BLENDER_STDOUT_BEGIN\n"+(proc.stdout or "")+"\nPHASE3B_BLENDER_STDOUT_END",flush=True)
+  print("PHASE3B_BLENDER_STDERR_BEGIN\n"+(proc.stderr or "")+"\nPHASE3B_BLENDER_STDERR_END",flush=True)
   if proc.returncode!=0: raise RuntimeError(f"Blender dragon conversion exited {proc.returncode}")
   raw_size=validate_glb(raw_glb,"raw Blender dragon GLB")
   print("PHASE3B_DRAGON_RAW_GLB_VALID:",raw_glb,"bytes=",raw_size,flush=True)
@@ -178,13 +178,13 @@ def optimize_to_glb(source,dest):
    print("PHASE3B_DAE_BLENDER_FALLBACK:",source,"assimp_error=",str(assimp_error),flush=True)
    proc=subprocess.run(["blender","--background","--factory-startup","--python-exit-code","1","--python-expr",blender_expr],
                        stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-   print("PHASE3B_BLENDER_STDOUT_BEGIN\\n"+(proc.stdout or "")+"\\nPHASE3B_BLENDER_STDOUT_END",flush=True)
-   print("PHASE3B_BLENDER_STDERR_BEGIN\\n"+(proc.stderr or "")+"\\nPHASE3B_BLENDER_STDERR_END",flush=True)
+   print("PHASE3B_BLENDER_STDOUT_BEGIN\n"+(proc.stdout or "")+"\nPHASE3B_BLENDER_STDOUT_END",flush=True)
+   print("PHASE3B_BLENDER_STDERR_BEGIN\n"+(proc.stderr or "")+"\nPHASE3B_BLENDER_STDERR_END",flush=True)
    if proc.returncode!=0: raise RuntimeError(f"Blender fallback exited {proc.returncode}")
-  validate_glb(tmp,"Assimp/Blender intermediate GLB")
+  validate_glb(tmp,"Assimp/Blender intermediate GLB",min_size=1000)
   run(["gltfpack","-noq","-i",str(tmp),"-o",str(dest)])
   tmp.unlink(missing_ok=True)
- validate_glb(dest,"final GLB")
+ validate_glb(dest,"final GLB",min_size=1000)
  return dest
 def models_under(root):
  return [p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in MODEL_EXT]
@@ -319,6 +319,7 @@ def main():
   "ultimate_monsters":sum(1 for x in report["converted"] if x.get("origin")=="Quaternius CC0" and x.get("category")=="monster" and (ROOT/x["output"]).is_file()),
   "oga_monsters":sum(1 for x in report["converted"] if x.get("origin")=="OpenGameArt CC0" and x.get("category")=="monster" and (ROOT/x["output"]).is_file())}
  report["inventory_by_category"]=inventory
+ REPORT.write_text(json.dumps(report,indent=2),encoding="utf-8")
  print("PHASE3B_ACTUAL_CATEGORY_INVENTORY:",json.dumps(inventory,sort_keys=True),flush=True)
  print("PHASE3B_ASSET_REPORT:",REPORT)
  print("PHASE3B_OGA_DOWNLOADED:",len(report["oga"]),"QUATERNIUS_PACKS:",len(report["quaternius_packs"]),"CONVERTED:",len(report["converted"]),"COUNTS:",report["counts"],"OGA_COUNTS:",report["oga_counts"])
