@@ -236,16 +236,16 @@ jobs:
           from PIL import Image, ImageDraw, ImageFont
           from pathlib import Path
           names = [
-              ("ARCHER — MALE", "phase3b_hero_01_archer_male.png"),
-              ("ARCHER — FEMALE", "phase3b_hero_02_archer_female.png"),
-              ("EASTERN ASSASSIN — MALE +12", "phase3b_hero_03_assassin_male_plus12.png"),
-              ("EASTERN ASSASSIN — FEMALE", "phase3b_hero_04_assassin_female.png"),
-              ("TROJAN — MALE", "phase3b_hero_05_trojan_male.png"),
-              ("TROJAN — FEMALE", "phase3b_hero_06_trojan_female.png"),
-              ("WARRIOR — MALE", "phase3b_hero_07_warrior_male.png"),
-              ("WARRIOR — FEMALE", "phase3b_hero_08_warrior_female.png"),
-              ("TAOIST — MALE", "phase3b_hero_09_taoist_male.png"),
-              ("TAOIST — FEMALE", "phase3b_hero_10_taoist_female.png"),
+              ("ARCHER - MALE", "phase3b_hero_01_archer_male.png"),
+              ("ARCHER - FEMALE", "phase3b_hero_02_archer_female.png"),
+              ("EASTERN ASSASSIN - MALE +12", "phase3b_hero_03_assassin_male_plus12.png"),
+              ("EASTERN ASSASSIN - FEMALE", "phase3b_hero_04_assassin_female.png"),
+              ("TROJAN - MALE", "phase3b_hero_05_trojan_male.png"),
+              ("TROJAN - FEMALE", "phase3b_hero_06_trojan_female.png"),
+              ("WARRIOR - MALE", "phase3b_hero_07_warrior_male.png"),
+              ("WARRIOR - FEMALE", "phase3b_hero_08_warrior_female.png"),
+              ("TAOIST - MALE", "phase3b_hero_09_taoist_male.png"),
+              ("TAOIST - FEMALE", "phase3b_hero_10_taoist_female.png"),
           ]
           root = Path("artifacts")
           cell_w, cell_h, label_h, margin = 360, 230, 30, 18
