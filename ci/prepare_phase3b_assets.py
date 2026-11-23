@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fetch CC0 Quaternius/OGA assets; convert supported models with Assimp and optimize GLB."""
-import json, pathlib, subprocess, zipfile, shutil, sys, os, re, hashlib, urllib.request, urllib.parse, html.parser, tarfile
+import json, pathlib, subprocess, zipfile, shutil, sys, os, re, hashlib, urllib.request, urllib.parse, urllib.error, html.parser, tarfile, time
 ROOT=pathlib.Path.cwd()
 RAW=ROOT/".cache/phase3b/source"; EXTRACT=ROOT/".cache/phase3b/extracted"
 OUT=ROOT/"assets/phase3b"; REPORT=ROOT/"artifacts/phase3b_asset_report.json"
@@ -30,30 +30,57 @@ class Links(html.parser.HTMLParser):
   if tag=="a":
    a=dict(attrs); h=a.get("href","")
    if h: self.hrefs.append((h,a.get("title","")))
-def github_get(url,headers=None):
- h={"User-Agent":"Phase3B-CC0-AssetBot/2.0","Accept":"application/vnd.github+json"}
- if headers: h.update(headers)
+# All HTTP requests are serialized through one downloader.
+_LAST_HTTP_REQUEST_AT = 0.0
+_DOWNLOAD_INTERVAL_SECONDS = 2.5
+_DOWNLOAD_ATTEMPTS = 6
+_RETRY_DELAYS = (4, 8, 15, 25, 40, 60)
+_RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+def download_with_retry(url,headers=None):
+ global _LAST_HTTP_REQUEST_AT
+ request_headers={"User-Agent":"NewConquerOffline-CI/1.0","Accept":"application/octet-stream,*/*"}
+ if headers: request_headers.update(headers)
+ parsed=urllib.parse.urlparse(url)
  token=os.environ.get("GITHUB_TOKEN","").strip()
- if token and "api.github.com" in urllib.parse.urlparse(url).netloc: h["Authorization"]="Bearer "+token
- req=urllib.request.Request(url,headers=h)
- with urllib.request.urlopen(req,timeout=90) as r: return r.read()
+ if token and parsed.netloc.lower() in {"github.com","api.github.com","raw.githubusercontent.com"}:
+  request_headers["Authorization"]="Bearer "+token
+ last_error=None
+ for attempt in range(1,_DOWNLOAD_ATTEMPTS+1):
+  elapsed=time.monotonic()-_LAST_HTTP_REQUEST_AT
+  if _LAST_HTTP_REQUEST_AT and elapsed<_DOWNLOAD_INTERVAL_SECONDS:
+   time.sleep(_DOWNLOAD_INTERVAL_SECONDS-elapsed)
+  req=urllib.request.Request(url,headers=request_headers)
+  _LAST_HTTP_REQUEST_AT=time.monotonic()
+  try:
+   with urllib.request.urlopen(req,timeout=90) as response:
+    data=response.read()
+   if not data: raise RuntimeError("downloaded response is empty")
+   return data
+  except urllib.error.HTTPError as error:
+   last_error=error
+   if error.code not in _RETRYABLE_HTTP_STATUS: raise
+   if error.code==503:
+    print("PHASE3B_HTTP_503_RETRY:",f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}","url=",url,flush=True)
+  except (urllib.error.URLError,TimeoutError,ConnectionError,OSError) as error:
+   last_error=error
+  if attempt>=_DOWNLOAD_ATTEMPTS: break
+  delay=_RETRY_DELAYS[attempt-1]
+  print("PHASE3B_DOWNLOAD_RETRY:",f"attempt={attempt}/{_DOWNLOAD_ATTEMPTS}","next_delay_seconds=",delay,"url=",url,"error=",str(last_error),flush=True)
+  time.sleep(delay)
+ raise RuntimeError(f"download failed after {_DOWNLOAD_ATTEMPTS} attempts: {url}: {last_error}")
+def github_get(url,headers=None):
+ h={"Accept":"application/vnd.github+json"}
+ if headers: h.update(headers)
+ return download_with_retry(url,h)
 def download_url(url,dest):
  dest.parent.mkdir(parents=True,exist_ok=True)
- req=urllib.request.Request(url,headers={"User-Agent":"Phase3B-AssetFetcher/2.0","Accept":"application/octet-stream,*/*"})
- last=None
- for attempt in range(1,5):
-  try:
-   with urllib.request.urlopen(req,timeout=90) as response: data=response.read()
-   if len(data)<10000: raise RuntimeError(f"download too small ({len(data)} bytes): {url}")
-   dest.write_bytes(data)
-   print("PHASE3B_OGA_ARCHIVE_DOWNLOADED:",dest.name,"bytes=",len(data),flush=True)
-   return dest
-  except Exception as error:
-   last=error
-   if attempt==4: break
-   import time
-   time.sleep(attempt*2)
- raise RuntimeError(f"download failed after 4 attempts: {url}: {last}")
+ data=download_with_retry(url,{"Accept":"application/octet-stream,*/*"})
+ if len(data)<10000: raise RuntimeError(f"download too small ({len(data)} bytes): {url}")
+ dest.write_bytes(data)
+ if not dest.is_file() or dest.stat().st_size<=0:
+  raise RuntimeError(f"downloaded archive is missing or empty: {dest}")
+ print("PHASE3B_OGA_ARCHIVE_DOWNLOADED:",dest.name,"bytes=",len(data),flush=True)
+ return dest
 def extract_archive(archive,target,require_models=True):
  target.mkdir(parents=True,exist_ok=True)
  if zipfile.is_zipfile(archive):
@@ -102,7 +129,8 @@ def fetch_sources():
    target=RAW/key
    for item in candidates:
     rel=item["path"][len(pack_root)+1:]; dest=target/rel; dest.parent.mkdir(parents=True,exist_ok=True)
-    data=github_get(f"https://raw.githubusercontent.com/{GH_ASSET_REPO}/{GH_ASSET_REF}/{item['path']}")
+    data=download_with_retry(f"https://raw.githubusercontent.com/{GH_ASSET_REPO}/{GH_ASSET_REF}/{item['path']}")
+    if not data: raise RuntimeError(f"empty download payload: {item['path']}")
     if len(data)<1000 or data[:4]!=b"glTF": raise RuntimeError(f"invalid GLB payload: {item['path']}")
     if int.from_bytes(data[8:12],"little")!=len(data): raise RuntimeError(f"GLB length header mismatch: {item['path']}")
     dest.write_bytes(data)
@@ -114,6 +142,7 @@ def fetch_sources():
   dest=RAW/item["archive"]
   try:
    if not dest.exists(): download_url(item["url"],dest)
+   if not dest.is_file() or dest.stat().st_size<=0: raise RuntimeError("downloaded archive is missing or empty")
    if dest.stat().st_size<10000: raise RuntimeError("archive smaller than 10 KB")
    if item["archive"].lower().endswith(".zip") and not zipfile.is_zipfile(dest): raise RuntimeError("download is not a valid ZIP archive (possible HTML/error page)")
    if item["archive"].lower().endswith(".7z") and dest.read_bytes()[:6]!=bytes.fromhex("377abcaf271c"): raise RuntimeError("download is not a valid 7z archive (possible HTML/error page)")
