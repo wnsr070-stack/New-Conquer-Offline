@@ -93,6 +93,7 @@ def fetch_modular_parts():
         "Male_Ranger_Acc_Pauldron.gltf",
         "Male_Ranger_Head_Hood.gltf", "Female_Ranger_Head_Hood.gltf",
         "Male_Ranger_Feet_Boots.gltf",
+        "Outfits/Male_Ranger.gltf", "Outfits/Female_Ranger.gltf",
     ]
     downloaded = set()
     raw_base = f"https://raw.githubusercontent.com/{MODULAR_REPO}/{MODULAR_REV}/"
@@ -152,6 +153,8 @@ def fetch_modular_parts():
     result = dict(usable)
     for name in wanted:
         if name in result: continue
+        if name.startswith("Outfits/"):
+            raise RuntimeError("Required complete Humanoid outfit source is unavailable: " + name + "; " + failed.get(name, "unknown source error"))
         fallback = next((candidate for candidate in fallback_preferences.get(name, []) if candidate in usable), None)
         if fallback is None and usable: fallback = sorted(usable)[0]
         if fallback is None:
@@ -375,25 +378,8 @@ print("PHASE3B_85_BLENDER_EXPORT_RENDER_COMPLETE:", len(jobs), flush=True)
         raise RuntimeError("Blender 85-model export/render failed: " + str(proc.returncode))
 
 def build():
-    character_specs = [
-        ("Archer", "archer", "ara3d_archer.glb"),
-        ("Assassin", "assassin", "ara3d_assassin.glb"),
-        ("Trojan", "trojan", "ara3d_trojan.glb"),
-        ("Warrior", "warrior", "ara3d_warrior.glb"),
-        ("Taoist", "taoist", "ara3d_taoist.glb"),
-    ]
     records = []
     hero_jobs = []
-    for display, key, filename in character_specs:
-        path = OUT / "characters" / filename
-        size = valid_glb(path)
-        hero_jobs.append({"id": "hero_" + key, "source": str(path), "tier": "natural", "dest": str(path), "render_only": True})
-        records.append({
-            "id": "hero_" + key, "name": display, "category": "character", "class": key,
-            "file": path.relative_to(OUT).as_posix(), "level_min": 1, "level_max": 110,
-            "source": "Ara 3D Gen 0.9.0 / MakeHuman CC0", "license": "CC0-1.0",
-            "bytes": size, "preview": "previews/hero_" + key + ".png"
-        })
 
     restore_hf_seed()
     weapon_roots = [OUT / "quaternius_library"]
@@ -452,6 +438,74 @@ def build():
         subprocess.run(["gltfpack", "-noq", "-i", str(source), "-o", str(dest)], check=True)
         valid_glb(dest)
         modular_glbs[filename] = dest
+
+    # Two complete, independently rigged fantasy Ranger outfits from the pinned
+    # Quaternius CC0 pack. Their 65-joint Humanoid skeletons provide real male/female
+    # source meshes; class identity is expressed by the weapon loadout in-game.
+    hero_specs = [
+        ("Trojan", "trojan", "male", "Outfits/Male_Ranger.gltf"),
+        ("Trojan", "trojan", "female", "Outfits/Female_Ranger.gltf"),
+        ("Warrior", "warrior", "male", "Outfits/Male_Ranger.gltf"),
+        ("Warrior", "warrior", "female", "Outfits/Female_Ranger.gltf"),
+        ("Archer", "archer", "male", "Outfits/Male_Ranger.gltf"),
+        ("Archer", "archer", "female", "Outfits/Female_Ranger.gltf"),
+        ("Assassin", "assassin", "male", "Outfits/Male_Ranger.gltf"),
+        ("Assassin", "assassin", "female", "Outfits/Female_Ranger.gltf"),
+        ("Taoist", "taoist", "male", "Outfits/Male_Ranger.gltf"),
+        ("Taoist", "taoist", "female", "Outfits/Female_Ranger.gltf"),
+    ]
+    character_report = {
+        "generator": "Quaternius Modular Character Outfits - Fantasy",
+        "source_repository": MODULAR_REPO,
+        "source_revision": MODULAR_REV,
+        "source_license": "CC0-1.0",
+        "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "source_pack_url": "https://quaternius.itch.io/modular-character-outfits-fantasy",
+        "rig": "Humanoid",
+        "profiles": []
+    }
+    for display, key, gender, source_key in hero_specs:
+        source_gltf = modular[source_key]
+        source_doc = json.loads(source_gltf.read_text(encoding="utf-8"))
+        skins = source_doc.get("skins", [])
+        if not skins or len(skins[0].get("joints", [])) < 60:
+            raise RuntimeError("Fantasy hero source lacks a full Humanoid skin: " + source_key)
+        joint_names = [source_doc.get("nodes", [])[i].get("name", "") for i in skins[0]["joints"]]
+        normalized = {name.lower().replace("_", "").replace(".", "") for name in joint_names}
+        if not any(name.endswith("handr") or "righthand" in name for name in normalized):
+            raise RuntimeError("Fantasy hero source has no right-hand bone: " + source_key)
+        if not any(name.endswith("handl") or "lefthand" in name for name in normalized):
+            raise RuntimeError("Fantasy hero source has no left-hand bone: " + source_key)
+        relative = f"characters/{key}_{gender}.glb"
+        destination = OUT / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(modular_glbs[source_key], destination)
+        size = valid_glb(destination)
+        asset_id = f"hero_{key}_{gender}"
+        preview = f"previews/{asset_id}.png"
+        hero_jobs.append({"id": asset_id, "source": str(destination), "tier": "natural",
+                          "dest": str(destination), "render_only": True})
+        records.append({
+            "id": asset_id, "name": f"{display} — {'Male' if gender == 'male' else 'Female'}",
+            "category": "character", "class": key, "gender": gender,
+            "file": relative, "level_min": 1, "level_max": 110,
+            "source": "Quaternius Modular Character Outfits - Fantasy",
+            "source_repository": MODULAR_REPO, "source_revision": MODULAR_REV,
+            "source_model": source_key, "license": "CC0-1.0",
+            "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "bytes": size, "preview": preview
+        })
+        character_report["profiles"].append({
+            "file": relative, "class": key, "gender": gender, "source_model": source_key,
+            "skin_count": len(skins), "humanoid_joint_count": len(skins[0]["joints"]),
+            "right_hand_bone": "hand_r", "left_hand_bone": "hand_l",
+            "bytes": size, "status": "validated"
+        })
+    if len(character_report["profiles"]) != 10:
+        raise RuntimeError("Expected ten real male/female fantasy hero assets")
+    (OUT / "characters" / "character_quality_report.json").write_text(
+        json.dumps(character_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print("PHASE3B_TEN_CC0_HUMANOID_HEROES_READY:", len(character_report["profiles"]), flush=True)
 
     armor_jobs = []
     for slug, display, filename in armor_sources:
@@ -542,14 +596,14 @@ def build():
                             "dest": str(OUT / relative)})
 
     jobs = hero_jobs + weapon_jobs + armor_jobs
-    expected = {"character": 5, "weapon": 27, "armor": 33, "normal_mob": 15, "boss": 5}
+    expected = {"character": 10, "weapon": 27, "armor": 33, "normal_mob": 15, "boss": 5}
     counts = {}
     for record in records:
         counts[record["category"]] = counts.get(record["category"], 0) + 1
-    if counts != expected or len(records) != 85:
-        raise RuntimeError("Exact 85-model count failed: " + json.dumps(counts, sort_keys=True))
-    if len({record["file"] for record in records}) != 85:
-        raise RuntimeError("85 manifest entries do not map to 85 unique GLB paths")
+    if counts != expected or len(records) != 90:
+        raise RuntimeError("Exact 90-model count failed: " + json.dumps(counts, sort_keys=True))
+    if len({record["file"] for record in records}) != 90:
+        raise RuntimeError("90 manifest entries do not map to 90 unique GLB paths")
 
     preview_dir = OUT / "previews"
     write_blender_batch(jobs, preview_dir)
@@ -563,13 +617,13 @@ def build():
         record["preview_bytes"] = preview.stat().st_size
     manifest = {
         "schema_version": 1, "project": "New Conquer Offline", "phase": "3B",
-        "progression": "Lv.1-Lv.110", "expected_total": 85, "actual_total": 85,
+        "progression": "Lv.1-Lv.110", "expected_total": 90, "actual_total": 90,
         "counts": counts, "cities": ["Twin City", "Desert City", "Phoenix Castle", "Bird Island", "Ape Mountain"],
         "weapon_families": 9,
         "tiers": [{"id": t, "name": n, "levels": f"Lv.{lo}-Lv.{hi}"} for t, n, lo, hi in TIERS],
         "armor_slots": {"body": 15, "helmet": 15, "boots": 3},
         "sources": {
-            "characters": "Ara 3D Gen 0.9.0 / MakeHuman CC0",
+            "characters": "Quaternius Modular Character Outfits - Fantasy (10 male/female Humanoid variants, CC0)",
             "weapons_monsters": "Quaternius CC0",
             "armor": {"repo": MODULAR_REPO, "revision": MODULAR_REV, "license": "CC0-1.0",
                      "source_url": "https://quaternius.com/packs/modularcharacteroutfitsfantasy.html"}
@@ -578,13 +632,13 @@ def build():
     }
     (OUT / "phase3b_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     report = {
-        "status": "validated", "expected_total": 85, "actual_total": 85,
-        "counts": counts, "unique_model_paths": 85, "preview_images": 85,
+        "status": "validated", "expected_total": 90, "actual_total": 90,
+        "counts": counts, "unique_model_paths": 90, "preview_images": 90,
         "all_glb_valid": True, "all_previews_nonempty": True,
         "manifest": "phase3b/phase3b_manifest.json"
     }
     (ROOT / "artifacts" / "phase3b_85_asset_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print("PHASE3B_85_PACK_VALIDATED:", json.dumps(report, sort_keys=True), flush=True)
+    print("PHASE3B_90_PACK_VALIDATED:", json.dumps(report, sort_keys=True), flush=True)
 
 if __name__ == "__main__":
     build()
