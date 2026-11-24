@@ -44,7 +44,6 @@ func _ready() -> void:
     _spawn_playable_hero()
     if OS.get_environment("CI_CAPTURE") == "1":
         _capture_hero_preview.call_deferred()
-        _capture.call_deferred()
 func _remove_named_apron_meshes(node: Node, removed: Array[int]) -> void:
     for child in node.get_children():
         var lower_name := String(child.name).to_lower()
