@@ -73,7 +73,7 @@ func _run() -> void:
 	var test_hero := Node3D.new()
 	test_hero.name = "Phase4BTestHero"
 	test_hero.add_to_group("player")
-	test_hero.global_position = Vector3(0.0, 0.0, -230.0)
+	test_hero.position = Vector3(0.0, 0.0, -230.0)
 	root.add_child(test_hero)
 	var spawner := SpawnerScript.new() as MonsterSpawner
 	root.add_child(spawner)
@@ -87,6 +87,12 @@ func _run() -> void:
 		return
 
 	print("PHASE4B_STEP2_CITY_SPAWNER_INTEGRATION_OK: city=TwinCity local_spawn_points=15 active_camp_population=20")
+	for actor in actors:
+		actor.queue_free()
+	spawner.queue_free()
+	test_hero.queue_free()
+	await process_frame
+	RenderingServer.force_sync()
 	print("PHASE4B_STEP2_ANIMATION_SOURCE_COUNTS: embedded=", embedded_count, " procedural=", procedural_count)
 	print("PHASE4B_STEP2_MONSTER_INSTANCES_OK: models=20 embedded=", embedded_count, " procedural=", procedural_count, " idle_walk=20 respawn_cycle=1")
 	quit(0)
