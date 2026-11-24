@@ -55,23 +55,31 @@ func _run() -> void:
  root.add_child(city)
  var hero: CharacterBody3D
  var spawner: MonsterSpawner
- # TwinCity builds its full runtime world in _ready(); wait for the real hero
- # and the scene-owned spawner instead of relying on a fixed startup delay.
- for attempt in range(180):
+ # The live main TwinCity scene owns the playable hero; the isolated proof
+ # scene owns the spawner. Search the SceneTree root, not only the proof scene.
+ print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_INITIAL_LOOKUP")
+ var hero_node := root.find_child("TwinCityPlayableHero", true, false)
+ var spawner_node := city.find_child("MonsterSpawner", true, false)
+ if hero_node is CharacterBody3D:
+  hero = hero_node as CharacterBody3D
+ if spawner_node is MonsterSpawner:
+  spawner = spawner_node as MonsterSpawner
+ for attempt in range(8):
+  if hero != null and spawner != null:
+   break
   print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_FRAME_BEGIN attempt=",attempt)
   await process_frame
   print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_FRAME_END attempt=",attempt)
-  var hero_node := city.find_child("TwinCityPlayableHero", true, false)
-  var spawner_node := city.find_child("MonsterSpawner", true, false)
-  if hero_node is CharacterBody3D and spawner_node is MonsterSpawner:
-   hero = hero_node as CharacterBody3D
-   spawner = spawner_node as MonsterSpawner
-   break
-  print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_TIMER_BEGIN attempt=",attempt)
-  await create_timer(1.0).timeout
-  print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_TIMER_END attempt=",attempt)
+  if hero == null:
+   hero_node = root.find_child("TwinCityPlayableHero", true, false)
+   if hero_node is CharacterBody3D:
+    hero = hero_node as CharacterBody3D
+  if spawner == null:
+   spawner_node = city.find_child("MonsterSpawner", true, false)
+   if spawner_node is MonsterSpawner:
+    spawner = spawner_node as MonsterSpawner
  if hero == null or spawner == null:
-  _fail("PHASE4B_STEP3_REAL_TWIN_CITY_HERO_OR_SPAWNER_MISSING: hero="+str(is_instance_valid(city.find_child("TwinCityPlayableHero", true, false)))+" spawner="+str(is_instance_valid(city.find_child("MonsterSpawner", true, false)))+" city_inside_tree="+str(city.is_inside_tree())); return
+  _fail("PHASE4B_STEP3_REAL_TWIN_CITY_HERO_OR_SPAWNER_MISSING: hero="+str(is_instance_valid(root.find_child("TwinCityPlayableHero", true, false)))+" spawner="+str(is_instance_valid(city.find_child("MonsterSpawner", true, false)))+" city_inside_tree="+str(city.is_inside_tree())); return
  print("PHASE4B_STEP3_REAL_TWIN_CITY_RUNTIME_FOUND: hero_path=",hero.get_path()," spawner_path=",spawner.get_path())
  if hero.get("hero_model") == null:
   _fail("PHASE4B_STEP3_APPROVED_HERO_MODEL_NOT_LOADED"); return
