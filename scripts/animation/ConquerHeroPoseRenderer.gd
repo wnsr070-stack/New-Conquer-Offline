@@ -117,13 +117,13 @@ func _attach_weapons(skeleton: Skeleton3D, pose: String) -> void:
    _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/dual_knives_beginner.glb",Vector3(0,0,90),0.40)
    _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/dual_knives_beginner.glb",Vector3(0,0,-90),0.40)
   "Attack_Trojan":
-   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,90),0.30)
-   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,-90),0.30)
+   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,90),0.14)
+   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,-90),0.14)
   "Attack_SwordShield":
    _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/shield_beginner.glb",Vector3(0,0,0),0.34)
    _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/greatsword_beginner.glb",Vector3(0,0,90),0.34)
   "Attack_Staff":
-   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/magic_staff_beginner.glb",Vector3(0,0,90),0.42)
+   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/magic_staff_beginner.glb",Vector3(0,0,90),0.55)
 
 func _attach_weapon(skeleton: Skeleton3D, bone: String, path: String, rotation: Vector3, size: float) -> void:
  var index := skeleton.find_bone(bone)
