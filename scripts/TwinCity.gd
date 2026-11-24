@@ -550,19 +550,22 @@ func _spawn_playable_hero() -> void:
     var hero := CharacterBody3D.new()
     hero.set_script(hero_script)
     hero.name = "TwinCityPlayableHero"
-    hero.position = Vector3(0, 0.2, 0)
+    var spawn_position := Vector3(0, 0.2, -35.0) if OS.get_environment("PHASE4A_CAPTURE") == "1" else Vector3(0, 0.2, 0)
+    hero.position = spawn_position
     add_child(hero)
-    print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: center=(0,0.2,0) camera=Conquer45Iso")
+    print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: position=", spawn_position, " camera=Conquer45Iso")
 
 func _phase4a_capture_image(camera: Camera3D, hero: CharacterBody3D) -> Image:
-    var camera_position := camera.global_position
+    var camera_position := hero.global_position + Vector3(6.0, 8.5, 6.0)
     camera_position.y = maxf(camera_position.y, 4.0)
     camera.global_position = camera_position
+    camera.fov = 35.0
     camera.look_at(hero.global_position + Vector3(0, 1.0, 0), Vector3.UP)
     if camera.global_position.y < 4.0:
         push_error("PHASE4A_CAMERA_UNDERGROUND_GUARD_FAILED")
         return null
     print("PHASE4A_CAMERA_HEIGHT_OK: y=", camera.global_position.y, " target=", hero.global_position + Vector3(0, 1.0, 0))
+    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=12m pitch≈45 yaw=45 fov=35 hero=", hero.global_position)
     await RenderingServer.frame_post_draw
     var image := get_viewport().get_texture().get_image()
     if image == null or image.is_empty():
@@ -603,11 +606,17 @@ func _save_phase4a_image(image: Image, file_name: String) -> bool:
 func _capture_phase4a_proofs() -> void:
     await get_tree().create_timer(0.8).timeout
     var hero := get_node_or_null("PlayableHero") as CharacterBody3D
-    var camera := get_viewport().get_camera_3d()
-    if hero == null or camera == null:
+    var runtime_camera := get_viewport().get_camera_3d()
+    if hero == null or runtime_camera == null:
         push_error("PHASE4A_HERO_OR_CAMERA_MISSING")
         await _shutdown(1)
         return
+    var camera := Camera3D.new()
+    camera.name = "Phase4A_ProofCamera"
+    camera.fov = 35.0
+    add_child(camera)
+    camera.current = true
+    print("PHASE4A_DEDICATED_PROOF_CAMERA_READY: runtime_camera_kept_separate=true")
 
     var start_position := hero.global_position
     hero.set("move_target", start_position + Vector3(2.0, 0.0, 0.0))
@@ -619,7 +628,7 @@ func _capture_phase4a_proofs() -> void:
         await _shutdown(1)
         return
     print("PHASE4A_HERO_MOVEMENT_OK: distance=", moved_distance)
-    hero.global_position = Vector3(0, 0.2, 0)
+    hero.global_position = Vector3(0, 0.2, -35.0)
     hero.velocity = Vector3.ZERO
     hero.set("has_move_target", false)
     await get_tree().create_timer(0.25).timeout
@@ -666,7 +675,7 @@ func _capture_phase4a_proofs() -> void:
     print("PHASE4A_PROOF_3_JUMP_OK")
 
     await get_tree().create_timer(0.9).timeout
-    hero.global_position = Vector3(0, 0.2, 0)
+    hero.global_position = Vector3(0, 0.2, -35.0)
     hero.velocity = Vector3.ZERO
     hero.set("is_jumping", false)
     var class_images: Array[Image] = []
