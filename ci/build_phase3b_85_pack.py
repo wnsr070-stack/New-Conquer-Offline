@@ -388,7 +388,9 @@ def add_quaternius_head_hair(source_path, gender):
     tgt_head_pos = target_armature.matrix_world @ target_head.head
     src_neck_z = src_neck_world.z
     scale_ratio = target_armature.dimensions.z / max(source_armature.dimensions.z, 0.001)
-    vertex_floor_z = src_head_pos.z - 0.12 * source_armature.dimensions.z
+    # The imported Adventurer rig and mesh may use different object-space origins.
+    # Keep the rig neck as the preferred cut reference, but validate it against each
+    # mesh's actual world-space bounds before using it.
 
     head_terms = ("head", "face", "hair", "eyes", "eyebrows", "beard", "ears")
     excluded_terms = ("backpack", "bag", "quiver", "cape", "shield", "weapon")
@@ -418,22 +420,41 @@ def add_quaternius_head_hair(source_path, gender):
     for obj in head_meshes:
         if len(obj.data.vertices) == 0 or len(obj.data.polygons) == 0:
             continue
+        # Compute a mesh-local, world-space-safe neck plane. A rig bone can sit
+        # outside the mesh bounds after glTF parent normalization; in that case
+        # use a conservative 8% bottom trim rather than deleting the whole head.
+        mesh_world_z = [(obj.matrix_world @ vertex.co).z for vertex in obj.data.vertices]
+        mesh_min_z, mesh_max_z = min(mesh_world_z), max(mesh_world_z)
+        mesh_height = max(mesh_max_z - mesh_min_z, 0.001)
+        if mesh_min_z < src_neck_z < mesh_max_z:
+            mesh_cut_z = src_neck_z
+            cut_mode = "source_neck_bone"
+        else:
+            mesh_cut_z = mesh_min_z + 0.08 * mesh_height
+            cut_mode = "mesh_bounds_fallback"
+        print("PHASE3B_QUATERNIUS_HEAD_CUT_PLANE:",
+              "gender=", gender, "name=", obj.name,
+              "mesh_min_z=", round(mesh_min_z, 4),
+              "mesh_max_z=", round(mesh_max_z, 4),
+              "source_neck_z=", round(src_neck_z, 4),
+              "cut_z=", round(mesh_cut_z, 4), "mode=", cut_mode, flush=True)
+
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.faces.ensure_lookup_table()
         bm.verts.ensure_lookup_table()
-        # Polygon centers are evaluated in world space against the Adventurer neck height.
+        # Polygon centers are evaluated in world space against the validated cut plane.
         remove_faces = []
         for face in bm.faces:
             center_world = obj.matrix_world @ face.calc_center_median()
-            if center_world.z <= src_neck_z:
+            if center_world.z <= mesh_cut_z:
                 remove_faces.append(face)
         if remove_faces:
             bmesh.ops.delete(bm, geom=remove_faces, context="FACES")
         # Also remove every vertex below the specified world-space neck cutoff.
         remove_verts = [
             vert for vert in bm.verts
-            if (obj.matrix_world @ vert.co).z < vertex_floor_z
+            if (obj.matrix_world @ vert.co).z < mesh_cut_z
         ]
         if remove_verts:
             bmesh.ops.delete(bm, geom=remove_verts, context="VERTS")
