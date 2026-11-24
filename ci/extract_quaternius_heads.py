@@ -33,19 +33,27 @@ def extract(g,path):
  bpy.context.view_layer.objects.active=imported[0]
  bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
  bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
- head_world=rig.matrix_world@head.head; src_height=max(rig.dimensions.z,0.001); cut_z=head_world.z-0.08*src_height
- log("HEAD_CUT_PLANE",g,"head_bone",head.name,"head_world",tuple(head_world),"head_local",tuple(head.head),"src_height",src_height,"cut_z",cut_z,"rig_bounds",tuple(rig.dimensions))
- for mesh in [o for o in imported if o.type=="MESH"]:
-  if mesh.data.vertices:
-   zs=[(mesh.matrix_world@v.co).z for v in mesh.data.vertices]
-   log("HEAD_SOURCE_MESH_BOUNDS",g,mesh.name,"zmin",min(zs),"zmax",max(zs),"verts",len(zs),"faces",len(mesh.data.polygons),"matrix",tuple(tuple(row) for row in mesh.matrix_world))
+ src_height=max(rig.dimensions.z,0.001)
  terms=("head","face","hair","eye","brow","beard","ear"); excluded=("backpack","bag","quiver","cape","shield","weapon")
  candidates=[o for o in imported if o.type=="MESH" and any(t in o.name.casefold() for t in terms) and not any(t in o.name.casefold() for t in excluded)]
- if not candidates: candidates=[o for o in imported if o.type=="MESH" and not any(t in o.name.casefold() for t in excluded)]
+ if not candidates: raise RuntimeError(g+" source has no explicitly named head/face/hair meshes; refusing to cut body meshes")
+ # Quaternius GLB's imported armature bone coordinates are not in the same Z frame as its mesh vertices.
+ # Use the head-mesh neck/base boundary as the mesh-space equivalent of the source Head-bone origin.
+ bounds=[]
+ for mesh in candidates:
+  if mesh.data.vertices:
+   zs=[(mesh.matrix_world@v.co).z for v in mesh.data.vertices]
+   bounds.append((min(zs),max(zs),mesh))
+   log("HEAD_SOURCE_MESH_BOUNDS",g,mesh.name,"zmin",min(zs),"zmax",max(zs),"verts",len(zs),"faces",len(mesh.data.polygons))
+ if not bounds: raise RuntimeError(g+" named head meshes contain no vertices")
+ src_head_mesh_base=min(x[0] for x in bounds)
+ cut_z=src_head_mesh_base-0.08*src_height
+ log("HEAD_CUT_PLANE",g,"bone",head.name,"bone_head",tuple(head.head),"bone_world",tuple(rig.matrix_world@head.head),"mesh_space_neck_base",src_head_mesh_base,"src_height",src_height,"cut_z",cut_z,"coordinate_mode","head_mesh_base_fallback")
  kept=[]
  for o in candidates:
   bm=bmesh.new(); bm.from_mesh(o.data); bm.verts.ensure_lookup_table()
-  removed=[v for v in bm.verts if v.co.z<cut_z]
+  # Compare world-space mesh vertices against the cut plane expressed in the same world-space frame.
+  removed=[v for v in bm.verts if (o.matrix_world@v.co).z<cut_z]
   if removed: bmesh.ops.delete(bm,geom=removed,context="VERTS")
   loose=[v for v in bm.verts if not v.link_faces]
   if loose: bmesh.ops.delete(bm,geom=loose,context="VERTS")
