@@ -114,10 +114,41 @@ func _render() -> void:
 
 
 func _apply_class_palette(model: Node3D, pose: String) -> void:
+ if pose in ["Attack_Bow", "Attack_Assassin"]:
+  var purple := StandardMaterial3D.new()
+  purple.albedo_color = Color("#3A1259")
+  purple.roughness = 0.72
+  purple.metallic = 0.04
+  var charcoal := StandardMaterial3D.new()
+  charcoal.albedo_color = Color("#16161C")
+  charcoal.roughness = 0.78
+  charcoal.metallic = 0.08
+  var purple_meshes := 0
+  var charcoal_meshes := 0
+  for node in model.find_children("*", "MeshInstance3D", true, false):
+   var mesh_instance := node as MeshInstance3D
+   if mesh_instance.mesh == null:
+    continue
+   var part_name := mesh_instance.name.to_lower()
+   var assigned: StandardMaterial3D
+   if "arms" in part_name or "sleeve" in part_name or "hood" in part_name or "belt" in part_name:
+    assigned = purple
+    purple_meshes += 1
+   elif "pauldron" in part_name or "armor" in part_name or "torso" in part_name or "pants" in part_name or "legs" in part_name or "boots" in part_name:
+    assigned = charcoal
+    charcoal_meshes += 1
+   else:
+    push_error("ARCHER_UNCLASSIFIED_MESH_PART: " + mesh_instance.name)
+    continue
+   for surface in range(mesh_instance.mesh.get_surface_count()):
+    mesh_instance.set_surface_override_material(surface, assigned)
+  if purple_meshes == 0 or charcoal_meshes == 0:
+   push_error("ARCHER_PART_MATERIAL_ASSIGNMENT_INCOMPLETE: " + pose + " purple_meshes=" + str(purple_meshes) + " charcoal_meshes=" + str(charcoal_meshes))
+  else:
+   print("PHASE4A_ARCHER_PART_MATERIALS_OK: ", pose, " purple_meshes=", purple_meshes, " charcoal_meshes=", charcoal_meshes, " purple=#3A1259 charcoal=#16161C red=0 y_split=0 emission=0")
+  return
  var palette: Array[Color] = []
  match pose:
-  "Attack_Bow", "Attack_Assassin":
-   palette = [Color("#8f24ff"), Color("#ff1b16")]
   "Attack_Trojan":
    palette = [Color("#a30f2d")]
   "Attack_SwordShield":
@@ -126,43 +157,6 @@ func _apply_class_palette(model: Node3D, pose: String) -> void:
    palette = [Color("#d6a82f"), Color("#f4f0df")]
   _:
    return
- if pose in ["Attack_Bow", "Attack_Assassin"]:
-  var shader := Shader.new()
-  shader.code = """
-shader_type spatial;
-varying vec3 world_position;
-void vertex() {
- world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-void fragment() {
- vec3 royal_purple = vec3(0.56, 0.12, 1.0);
- vec3 fire_red = vec3(1.0, 0.035, 0.02);
- vec3 deep_black = vec3(0.018, 0.014, 0.025);
- if (world_position.y > 1.05) {
-  ALBEDO = royal_purple;
- } else if (world_position.y > 0.82) {
-  ALBEDO = fire_red;
- } else {
-  ALBEDO = deep_black;
- }
- ROUGHNESS = 0.5;
- METALLIC = 0.06;
-}
-"""
-  var shader_material := ShaderMaterial.new()
-  shader_material.shader = shader
-  var shader_meshes := 0
-  for node in model.find_children("*", "MeshInstance3D", true, false):
-   var mesh_instance := node as MeshInstance3D
-   if mesh_instance.mesh == null:
-    continue
-   mesh_instance.material_override = shader_material
-   shader_meshes += 1
-  if shader_meshes == 0:
-   push_error("ARCHER_PALETTE_NO_MESHES: " + pose)
-  else:
-   print("PHASE4A_ARCHER_THREE_ZONE_SHADER_OK: ", pose, " meshes=", shader_meshes, " zones=purple_upper_red_belts_black_lower")
-  return
  var material_index := 0
  for node in model.find_children("*", "MeshInstance3D", true, false):
   var mesh_instance := node as MeshInstance3D
@@ -173,16 +167,12 @@ void fragment() {
    material.albedo_color = palette[material_index % palette.size()]
    material.roughness = 0.48
    material.metallic = 0.08
-   if pose in ["Attack_Bow", "Attack_Assassin"]:
-    material.emission_enabled = true
-    material.emission = material.albedo_color
-    material.emission_energy_multiplier = 0.22
    mesh_instance.set_surface_override_material(surface, material)
    material_index += 1
  if material_index == 0:
   push_error("CLASS_PALETTE_NO_MESH_SURFACES: " + pose)
  else:
-  print("PHASE4A_CLASS_PALETTE_OK: ", pose, " surfaces=", material_index, " colors=", palette, " vivid_emission=0.22")
+  print("PHASE4A_CLASS_PALETTE_OK: ", pose, " surfaces=", material_index, " colors=", palette)
 
 
 func _attach_weapons(skeleton: Skeleton3D, pose: String) -> void:
