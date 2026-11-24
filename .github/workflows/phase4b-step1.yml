@@ -1,0 +1,37 @@
+name: Phase 4B Step 1 Monster Spawn Table Validation
+on:
+  push:
+    branches: ['test/phase4b-monsters-bosses']
+    paths:
+      - 'scripts/MonsterGeneratorTable.gd'
+      - 'scripts/MonsterSpawner.gd'
+      - 'scripts/WorldMapManager.gd'
+      - 'ci/phase4b_step1_test.gd'
+      - '.github/workflows/phase4b-step1.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-spawn-table:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.3
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip
+          curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -o /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.3-stable_linux.x86_64
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --version
+      - name: Import project and validate Phase 4B spawn table
+        run: |
+          set -euo pipefail
+          GODOT=/tmp/godot/Godot_v4.3-stable_linux.x86_64
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee /tmp/phase4b_import.log
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://ci/phase4b_step1_test.gd 2>&1 | tee /tmp/phase4b_step1.log
+          grep -q "PHASE4B_STEP1_SPAWN_TABLE_OK: monsters=15 bosses=5 camps=40 kings=40 normal_population=795 world_bosses=5 total_scheduled=800 spawn_points=45 activation_distance=75m" /tmp/phase4b_step1.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4B_TABLE_INVALID|PHASE4B_SPAWN_TOTAL_MISMATCH" /tmp/phase4b_step1.log
+          echo "PHASE4B_STEP1_EXIT_CODE_0"
