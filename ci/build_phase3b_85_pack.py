@@ -366,6 +366,7 @@ def add_standalone_head(source_path, gender):
     for obj in meshes:
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True); bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         obj.rotation_euler.z = yaw
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
