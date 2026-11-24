@@ -13,7 +13,7 @@ const BOSS_OFFSETS := {
 	"PhoenixCastle": Vector3(0.0, 0.0, 330.0),
 	"ApeMountain": Vector3(0.0, 0.0, 380.0),
 	"DesertCity": Vector3(0.0, 0.0, 380.0),
-	"BirdIsland": Vector3(50.0, 0.0, 0.0)
+	"BirdIsland": Vector3(50.0, 0.0, -25.0)
 }
 const ASSET_ROOT := "res://assets/phase3b/"
 const MODEL_FILES := {
