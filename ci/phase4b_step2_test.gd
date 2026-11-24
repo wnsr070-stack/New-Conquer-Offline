@@ -162,3 +162,5 @@ func _fail(message: String) -> void:
 # Include runtime scene-spawner integration in the validation pass.
 
 # Final validation includes explicit cleanup and zero engine ERROR lines.
+
+# Validate Label3D using the CI software OpenGL display path.
