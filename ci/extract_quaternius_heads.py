@@ -94,19 +94,27 @@ def extract(g,path):
  return dest,forward,right
 def render(male,female,male_axes,female_axes):
  mf,mr=male_axes; ff,fr=female_axes
- if mf.dot(ff)<0.95: raise RuntimeError("Male/female Head bone forward axes disagree; refusing guessed camera orientation")
- camera_forward=(mf+ff).normalized()
- camera_right=(mr+fr).normalized()
- camera_right=(camera_right-camera_forward*camera_right.dot(camera_forward)).normalized()
+ # The male and female source rigs use opposite local forward signs. Keep each
+ # exported GLB untouched; rotate only the female QA instance to face the
+ # common camera when the measured Head-bone axes oppose one another.
+ align_female_for_preview = mf.dot(ff) < 0.0
+ camera_forward=mf.normalized()
+ camera_right=(mr-camera_forward*mr.dot(camera_forward)).normalized()
+ log("HEAD_QA_CAMERA_BASIS","forward",tuple(round(v,5) for v in camera_forward),
+     "right",tuple(round(v,5) for v in camera_right),
+     "female_preview_half_turn",align_female_for_preview)
  def render_view(view_name, direction):
   clear(); meshes=[]
-  for p,x in ((male,-0.24),(female,0.24)):
+  for gender,p,x in (("male",male,-0.24),("female",female,0.24)):
    before=set(bpy.context.scene.objects); bpy.ops.import_scene.gltf(filepath=str(p))
    added=[o for o in bpy.context.scene.objects if o not in before and o.type=="MESH"]
    for o in added:
     # Apply the imported 0.01 unit-conversion scale before bounds/camera calculations.
     bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active=o
     bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+    if gender=="female" and align_female_for_preview:
+     o.rotation_euler.z += 3.141592653589793
+     bpy.ops.object.transform_apply(location=False,rotation=True,scale=False)
     o.location.x+=x
     for mat in o.data.materials:
      if mat is not None and hasattr(mat,"use_backface_culling"): mat.use_backface_culling=False
