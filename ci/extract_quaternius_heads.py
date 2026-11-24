@@ -34,7 +34,11 @@ def extract(g,path):
  bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
  bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
  head_world=rig.matrix_world@head.head; src_height=max(rig.dimensions.z,0.001); cut_z=head_world.z-0.08*src_height
- log("HEAD_CUT_PLANE",g,"head_world_z",head_world.z,"src_height",src_height,"cut_z",cut_z)
+ log("HEAD_CUT_PLANE",g,"head_bone",head.name,"head_world",tuple(head_world),"head_local",tuple(head.head),"src_height",src_height,"cut_z",cut_z,"rig_bounds",tuple(rig.dimensions))
+ for mesh in [o for o in imported if o.type=="MESH"]:
+  if mesh.data.vertices:
+   zs=[(mesh.matrix_world@v.co).z for v in mesh.data.vertices]
+   log("HEAD_SOURCE_MESH_BOUNDS",g,mesh.name,"zmin",min(zs),"zmax",max(zs),"verts",len(zs),"faces",len(mesh.data.polygons),"matrix",tuple(tuple(row) for row in mesh.matrix_world))
  terms=("head","face","hair","eye","brow","beard","ear"); excluded=("backpack","bag","quiver","cape","shield","weapon")
  candidates=[o for o in imported if o.type=="MESH" and any(t in o.name.casefold() for t in terms) and not any(t in o.name.casefold() for t in excluded)]
  if not candidates: candidates=[o for o in imported if o.type=="MESH" and not any(t in o.name.casefold() for t in excluded)]
