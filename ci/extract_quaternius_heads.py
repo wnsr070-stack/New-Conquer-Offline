@@ -59,7 +59,8 @@ def extract(g,path):
  if height<=1e-5: raise RuntimeError(g+" extracted head has invalid post-cut height")
  base_x=(min(p.x for p in coords)+max(p.x for p in coords))*0.5
  base_y=(min(p.y for p in coords)+max(p.y for p in coords))*0.5
- factor=0.26/height
+ # GLB export converts Blender units by 0.01; 26 Blender units export as 0.26 m.
+ factor=26.0/height
  for o in kept:
   bm=bmesh.new(); bm.from_mesh(o.data)
   bmesh.ops.recalc_face_normals(bm,faces=bm.faces)
@@ -92,6 +93,9 @@ def render(male,female):
    before=set(bpy.context.scene.objects); bpy.ops.import_scene.gltf(filepath=str(p))
    added=[o for o in bpy.context.scene.objects if o not in before and o.type=="MESH"]
    for o in added:
+    # Apply the imported 0.01 unit-conversion scale before bounds/camera calculations.
+    bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active=o
+    bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
     o.location.x+=x
     for mat in o.data.materials:
      if mat is not None and hasattr(mat,"use_backface_culling"): mat.use_backface_culling=False
@@ -111,6 +115,17 @@ def render(male,female):
   scene.world.use_nodes=True; scene.world.node_tree.nodes["Background"].inputs["Color"].default_value=(0.12,0.13,0.16,1)
   dest=OUT/("heads_"+view_name+"_preview.png"); scene.render.filepath=str(dest); bpy.ops.render.render(write_still=True)
   if not dest.is_file() or dest.stat().st_size<3000: raise RuntimeError("QA preview missing: "+view_name)
+  # Validate visible rendered content, not merely PNG existence/non-zero size.
+  import numpy as np
+  preview=bpy.data.images.load(str(dest), check_existing=False)
+  rgba=np.asarray(preview.pixels[:],dtype=np.float32).reshape((preview.size[1],preview.size[0],4))
+  bg=rgba[0,0,:3]
+  mask=np.max(np.abs(rgba[:,:,:3]-bg),axis=2)>0.035
+  ys,xs=np.where(mask)
+  if len(xs)<5000 or (xs.max()-xs.min())<100 or (ys.max()-ys.min())<100:
+   raise RuntimeError("HEAD_QA_VISUAL_CONTENT_FAILED "+view_name+" pixels="+str(len(xs)))
+  log("HEAD_QA_VISUAL_CONTENT_OK",view_name,"non_background_pixels",int(len(xs)),"bbox",(int(xs.min()),int(ys.min()),int(xs.max()),int(ys.max())))
+  bpy.data.images.remove(preview)
   log("HEAD_QA_RENDER_OK",view_name,dest,dest.stat().st_size)
  render_view("front",(0,-1,0.04))
  render_view("three_quarter",(0.65,-1,0.28))
