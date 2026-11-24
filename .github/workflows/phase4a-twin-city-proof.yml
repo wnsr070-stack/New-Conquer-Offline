@@ -147,6 +147,16 @@ jobs:
           grep -q "PHASE4A_CLASS_PROOF_OK: warrior" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_CLASS_PROOF_OK: taoist" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_CAMERA_HEIGHT_OK:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_CAMERA_COMPOSITION_OK:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_DEDICATED_PROOF_CAMERA_READY:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_bow_hand_l" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_dual_knives_hand_l" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_dual_knives_hand_r" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_dual_blades_hand_l" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_dual_blades_hand_r" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_shield_hand_l" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_greatsword_hand_r" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_magic_staff_hand_r" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_ANIMATION_RESOURCE_PRESERVED:" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_ALL_FOUR_PROOFS_COMPLETE" artifacts/phase4a_twin_city.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4A_.*FAILED|HERO_.*MISSING" artifacts/phase4a_twin_city.log
