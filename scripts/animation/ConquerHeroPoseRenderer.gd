@@ -124,6 +124,43 @@ func _apply_class_palette(model: Node3D, pose: String) -> void:
    palette = [Color("#d6a82f"), Color("#f4f0df")]
   _:
    return
+ if pose in ["Attack_Bow", "Attack_Assassin"]:
+  var shader := Shader.new()
+  shader.code = """
+shader_type spatial;
+varying vec3 world_position;
+void vertex() {
+ world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+ vec3 royal_purple = vec3(0.56, 0.12, 1.0);
+ vec3 fire_red = vec3(1.0, 0.035, 0.02);
+ vec3 deep_black = vec3(0.018, 0.014, 0.025);
+ if (world_position.y > 1.05) {
+  ALBEDO = royal_purple;
+ } else if (world_position.y > 0.82) {
+  ALBEDO = fire_red;
+ } else {
+  ALBEDO = deep_black;
+ }
+ ROUGHNESS = 0.5;
+ METALLIC = 0.06;
+}
+"""
+  var shader_material := ShaderMaterial.new()
+  shader_material.shader = shader
+  var shader_meshes := 0
+  for node in model.find_children("*", "MeshInstance3D", true, false):
+   var mesh_instance := node as MeshInstance3D
+   if mesh_instance.mesh == null:
+    continue
+   mesh_instance.material_override = shader_material
+   shader_meshes += 1
+  if shader_meshes == 0:
+   push_error("ARCHER_PALETTE_NO_MESHES: " + pose)
+  else:
+   print("PHASE4A_ARCHER_THREE_ZONE_SHADER_OK: ", pose, " meshes=", shader_meshes, " zones=purple_upper_red_belts_black_lower")
+  return
  var material_index := 0
  for node in model.find_children("*", "MeshInstance3D", true, false):
   var mesh_instance := node as MeshInstance3D
