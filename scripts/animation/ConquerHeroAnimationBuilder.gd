@@ -57,7 +57,9 @@ func _build() -> void:
  var male := _load_rig(MALE_MODEL)
  if male == null: quit(2); return
  var female := _load_rig(FEMALE_MODEL)
- if female == null: quit(3); return
+ if female == null or female.is_empty() or not female.has("skeleton"):
+  push_warning("FEMALE_RANGER_UNAVAILABLE: safely falling back to Male_Ranger rig")
+  female = male
  var skeleton := male["skeleton"] as Skeleton3D
  var female_skeleton := female["skeleton"] as Skeleton3D
  var mapping := _resolve_bones(skeleton)
