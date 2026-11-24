@@ -649,6 +649,16 @@ func _capture_phase4a_proofs() -> void:
     await get_tree().create_timer(0.25).timeout
 
     hero.call("_switch_class", "archer")
+    await get_tree().process_frame
+    await get_tree().process_frame
+    var archer_animation := hero.get("animation_player") as AnimationPlayer
+    if archer_animation == null or not archer_animation.has_animation("Idle"):
+        push_error("PHASE4A_ARCHER_IDLE_ANIMATION_MISSING")
+        await _shutdown(1)
+        return
+    archer_animation.play("Idle")
+    await get_tree().process_frame
+    print("PHASE4A_ARCHER_BOW_IDLE_READY: current=", archer_animation.current_animation, " bow_hand=left")
     await get_tree().create_timer(0.2).timeout
     if not _phase4a_has_weapon_socket(hero, "HeroWeapon_bow_hand_l"):
         push_error("PHASE4A_ARCHER_BOW_SOCKET_MISSING")
