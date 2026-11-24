@@ -274,8 +274,12 @@ func _capture_boss(city:Node3D,hero:CharacterBody3D,boss:MonsterActor)->void:
 
 func _save_png(camera:Camera3D,file_name:String)->void:
  print("PHASE4B_STEP3_TRACE: PNG_SAVE_ENTER ",file_name)
- if camera.global_position.distance_to(camera.get_parent().get_node("TwinCityPlayableHero").global_position)>12.1:
-  _fail("PHASE4B_STEP3_CAMERA_DISTANCE_OUT_OF_RANGE: "+str(camera.global_position.distance_to(camera.get_parent().get_node("TwinCityPlayableHero").global_position))); return
+ var proof_hero := get_root().find_child("TwinCityPlayableHero",true,false) as CharacterBody3D
+ if proof_hero == null:
+  _fail("PHASE4B_STEP3_PNG_HERO_REFERENCE_MISSING: "+file_name); return
+ var camera_distance := camera.global_position.distance_to(proof_hero.global_position)
+ if camera_distance>12.1:
+  _fail("PHASE4B_STEP3_CAMERA_DISTANCE_OUT_OF_RANGE: "+str(camera_distance)); return
  print("PHASE4B_STEP3_TRACE: PNG_FRAMEBUFFER_READ_BEGIN ",file_name)
  var image:=get_root().get_texture().get_image()
  print("PHASE4B_STEP3_TRACE: PNG_FRAMEBUFFER_READ_END ",file_name," empty=",image==null or image.is_empty())
