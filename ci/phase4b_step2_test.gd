@@ -164,3 +164,5 @@ func _fail(message: String) -> void:
 # Final validation includes explicit cleanup and zero engine ERROR lines.
 
 # Validate Label3D using the CI software OpenGL display path.
+
+# Audio backend is explicitly Dummy for deterministic headless CI.
