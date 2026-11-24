@@ -55,3 +55,5 @@ print("PHASE4B_MONSTER_RENDER_COMPLETE: png_count=20")
 # Ensure Blender's system GLTF importer has its NumPy runtime dependency.
 
 # Retry trigger after adding python3-numpy to the runner packages.
+
+# Execute with Xvfb to provide the off-screen render display in CI.
