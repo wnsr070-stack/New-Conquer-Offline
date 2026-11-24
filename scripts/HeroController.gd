@@ -233,20 +233,38 @@ func _attach_class_weapons() -> void:
    _attach_weapon("hand_r","greatsword")
   "taoist": _attach_weapon("hand_r","magic_staff")
 
-func _attach_weapon(bone_name: String,family: String) -> void:
+func _resolve_hand_bone(side: String) -> int:
+ if skeleton == null:
+  return -1
+ var aliases := ["hand_" + side, "hand" + side, side + "hand", side + "handjoint"]
+ var prefix_aliases := ["mixamorig:" + ("RightHand" if side == "r" else "LeftHand"), "RightHand" if side == "r" else "LeftHand"]
+ for i in range(skeleton.get_bone_count()):
+  var actual := skeleton.get_bone_name(i)
+  var normalized := actual.to_lower().replace("_","").replace("-","").replace(" ","")
+  for alias in aliases:
+   if normalized == alias.to_lower().replace("_","").replace("-","").replace(" ",""):
+    return i
+  for alias in prefix_aliases:
+   if actual.to_lower() == alias.to_lower():
+    return i
+  if normalized.ends_with("righthand") and side == "r":
+   return i
+  if normalized.ends_with("lefthand") and side == "l":
+   return i
+ return -1
+
+func _attach_weapon(hand_side: String,family: String) -> void:
  if skeleton == null:
   push_error("HERO_WEAPON_SKELETON_MISSING: " + family)
   return
- var bone := skeleton.find_bone(bone_name)
+ var bone := _resolve_hand_bone(hand_side)
  if bone < 0:
+  var available: Array[String] = []
   for i in range(skeleton.get_bone_count()):
-   var normalized := skeleton.get_bone_name(i).to_lower().replace("_","")
-   if normalized == bone_name.replace("_",""):
-    bone = i
-    break
- if bone < 0:
-  push_error("HERO_WEAPON_SOCKET_MISSING: "+bone_name)
+   available.append(skeleton.get_bone_name(i))
+  push_error("HERO_REAL_HAND_BONE_NOT_FOUND: side=" + hand_side + " available=" + str(available))
   return
+ var actual_bone := skeleton.get_bone_name(bone)
  var filename := str(WEAPON_FILES.get(family,""))
  var path := WEAPON_ROOT+filename
  if not ResourceLoader.exists(path):
@@ -261,14 +279,17 @@ func _attach_weapon(bone_name: String,family: String) -> void:
   push_error("HERO_WEAPON_INSTANCE_FAILED: " + path)
   return
  var socket := BoneAttachment3D.new()
- var socket_id := "HeroWeapon_"+family+"_"+bone_name
+ var socket_id := "HeroWeapon_"+family+"_hand_"+hand_side
  socket.name = socket_id
- socket.bone_name = skeleton.get_bone_name(bone)
+ socket.bone_name = actual_bone
  socket.bone_idx = bone
+ socket.override_pose = false
  skeleton.add_child(socket)
  socket.set_meta("phase4a_weapon_socket_id", socket_id)
+ socket.set_meta("phase4a_actual_bone_name", actual_bone)
  socket.add_child(weapon)
- weapon.scale = Vector3.ONE*(0.4 if family=="dual_knives" else 0.7)
+ var family_scale := 0.32 if family == "dual_knives" else (0.46 if family == "bow" else 0.52)
+ weapon.scale = Vector3.ONE * family_scale
  var mesh_points: Array[Vector3] = []
  for child in weapon.get_children():
   _collect_weapon_mesh_points(child, Transform3D.IDENTITY, mesh_points)
@@ -281,17 +302,28 @@ func _attach_weapon(bone_name: String,family: String) -> void:
  if family in ["dual_knives", "dual_blades", "greatsword", "magic_staff"]:
   var size := bounds.size
   if size.y >= size.x and size.y >= size.z:
-   grip.y = bounds.position.y + size.y * 0.14
+   grip.y = bounds.position.y + size.y * 0.18
   elif size.x >= size.z:
-   grip.x = bounds.position.x + size.x * 0.14
+   grip.x = bounds.position.x + size.x * 0.18
   else:
-   grip.z = bounds.position.z + size.z * 0.14
- weapon.position = -(grip * weapon.scale)
+   grip.z = bounds.position.z + size.z * 0.18
+ weapon.position = -(grip * family_scale)
  weapon.set_meta("phase4a_grip_local", grip)
  weapon.set_meta("phase4a_mesh_count", _count_weapon_meshes(weapon))
  weapon_nodes.append(socket)
- print("HERO_WEAPON_GRIP_ALIGNED: family=", family, " bounds=", bounds, " grip=", grip, " meshes=", weapon.get_meta("phase4a_mesh_count"))
- print("HERO_WEAPON_SOCKET_ATTACHED: ", socket_id, " node_name=", socket.name)
+ skeleton.force_update_all_bone_transforms()
+ print("HERO_REAL_HAND_BONE_RESOLVED: side=", hand_side, " bone_index=", bone, " bone_name=", actual_bone)
+ print("HERO_WEAPON_BONE_ATTACHMENT_CREATED: ", socket_id, " parent=Skeleton3D bone=", actual_bone)
+ print("HERO_WEAPON_GRIP_ALIGNED: family=", family, " scale=", family_scale, " bounds=", bounds, " grip=", grip, " meshes=", weapon.get_meta("phase4a_mesh_count"))
+ print("HERO_WEAPON_HAND_WORLD_PENDING: ", socket_id, " bone=", actual_bone)
+ call_deferred("_log_bone_attachment_world", socket_id)
+
+func _log_bone_attachment_world(socket_id: String) -> void:
+ var socket := skeleton.get_node_or_null(socket_id) as BoneAttachment3D if is_instance_valid(skeleton) else null
+ if socket == null:
+  push_error("HERO_HAND_ATTACHMENT_LOG_MISSING: " + socket_id)
+  return
+ print("HERO_REAL_HAND_BONE_WORLD: attachment=", socket_id, " bone=", socket.bone_name, " global_position=", socket.global_position)
 
 func _collect_weapon_mesh_points(node: Node, parent_transform: Transform3D, points: Array[Vector3]) -> void:
  var current_transform := parent_transform
@@ -328,18 +360,21 @@ func _count_weapon_meshes(node: Node) -> int:
  return count
 
 func _weapon_visual_metrics(socket: Node3D) -> Dictionary:
- if socket == null or socket.get_child_count() == 0:
+ if socket == null or not socket is BoneAttachment3D or socket.get_child_count() == 0:
   return {"mesh_count": 0, "grip_distance": 999.0}
  var weapon := socket.get_child(0) as Node3D
  if weapon == null:
   return {"mesh_count": 0, "grip_distance": 999.0}
  var grip: Vector3 = weapon.get_meta("phase4a_grip_local", Vector3.ZERO)
  var grip_world := weapon.to_global(grip)
+ var hand_world := (socket as BoneAttachment3D).global_position
  return {
   "mesh_count": _count_weapon_meshes(weapon),
-  "grip_distance": grip_world.distance_to(socket.global_position),
+  "grip_distance": grip_world.distance_to(hand_world),
   "grip_world": grip_world,
-  "socket_world": socket.global_position
+  "hand_world": hand_world,
+  "actual_bone_name": socket.get_meta("phase4a_actual_bone_name", ""),
+  "socket_type": "BoneAttachment3D"
  }
 
 func _clear_weapons() -> void:
@@ -352,10 +387,15 @@ func _clear_weapons() -> void:
  weapon_nodes.clear()
 
 func _update_animation() -> void:
- if animation_player == null or is_jumping: return
+ if animation_player == null: return
+ if is_jumping:
+  if animation_player.current_animation != "Jump" and animation_player.has_animation("Jump"):
+   animation_player.play("Jump")
+  return
  if velocity.length_squared() > 0.25:
-  if animation_player.current_animation != "Run": animation_player.play("Run")
- elif animation_player.current_animation != "Idle":
+  if animation_player.current_animation != "Run" and animation_player.has_animation("Run"):
+   animation_player.play("Run")
+ elif animation_player.current_animation != "Idle" and animation_player.has_animation("Idle"):
   animation_player.play("Idle")
 
 func _ensure_input_actions() -> void:
