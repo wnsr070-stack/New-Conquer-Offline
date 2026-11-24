@@ -92,3 +92,5 @@ jobs:
 # Hybrid animation test revision: trigger validation on the approved branch head.
 
 # Final city-scene resource and per-city spawn-count validation pass.
+
+# Validate final measured scale, ground fit, King styling and respawn lifecycle.
