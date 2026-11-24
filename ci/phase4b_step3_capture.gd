@@ -31,11 +31,22 @@ func _run() -> void:
   _fail("PHASE4B_STEP3_TWIN_CITY_SCENE_MISSING"); return
  var city := packed.instantiate() as Node3D
  root.add_child(city)
- await create_timer(5.0).timeout
- var hero := city.get_node_or_null("TwinCityPlayableHero") as CharacterBody3D
- var spawner := city.get_node_or_null("MonsterSpawner") as MonsterSpawner
+ var hero: CharacterBody3D
+ var spawner: MonsterSpawner
+ # TwinCity builds its full runtime world in _ready(); wait for the real hero
+ # and the scene-owned spawner instead of relying on a fixed startup delay.
+ for attempt in range(180):
+  await process_frame
+  var hero_node := city.find_child("TwinCityPlayableHero", true, false)
+  var spawner_node := city.find_child("MonsterSpawner", true, false)
+  if hero_node is CharacterBody3D and spawner_node is MonsterSpawner:
+   hero = hero_node as CharacterBody3D
+   spawner = spawner_node as MonsterSpawner
+   break
+  await create_timer(1.0).timeout
  if hero == null or spawner == null:
-  _fail("PHASE4B_STEP3_REAL_TWIN_CITY_HERO_OR_SPAWNER_MISSING"); return
+  _fail("PHASE4B_STEP3_REAL_TWIN_CITY_HERO_OR_SPAWNER_MISSING: hero="+str(is_instance_valid(city.find_child("TwinCityPlayableHero", true, false)))+" spawner="+str(is_instance_valid(city.find_child("MonsterSpawner", true, false)))+" city_inside_tree="+str(city.is_inside_tree())); return
+ print("PHASE4B_STEP3_REAL_TWIN_CITY_RUNTIME_FOUND: hero_path=",hero.get_path()," spawner_path=",spawner.get_path())
  if hero.get("hero_model") == null:
   _fail("PHASE4B_STEP3_APPROVED_HERO_MODEL_NOT_LOADED"); return
  var hero_model := hero.get("hero_model") as Node3D
@@ -83,7 +94,7 @@ func _run() -> void:
    _fail("PHASE4B_STEP3_CHICKEN_ACTOR_NOT_ON_GRASS: "+str(actor.global_position.y)); return
  if king.get_model_height()<2.0 or king.get_model_height()>2.2:
   _fail("PHASE4B_STEP3_CHICKEN_KING_HEIGHT_INVALID: "+str(king.get_model_height())); return
- _capture_camp(city,hero,chicken_point)
+ await _capture_camp(city,hero,chicken_point)
  print("PHASE4B_STEP3_CHICKEN_CAMP_PROOF_OK: actors=20 regular=19 king_height=",king.get_model_height()," ground_y=-1.35 hero_height=2.8")
 
  hero.global_position=boss_point.global_position+Vector3(-8.0,0.0,0.0)
@@ -103,7 +114,7 @@ func _run() -> void:
  if boss.get_nameplate()==null or not boss.get_nameplate().modulate.is_equal_approx(Color(1.0,0.72,0.12,1.0)):
   _fail("PHASE4B_STEP3_WORLD_BOSS_GOLD_NAMEPLATE_FAILED"); return
  boss.set_process(false)
- _capture_boss(city,hero,boss)
+ await _capture_boss(city,hero,boss)
  print("PHASE4B_STEP3_WORLD_BOSS_PROOF_OK: name=Mushroom King height=",boss.get_model_height(),"m hero_height=2.8m ground_y=-1.35 gold_nameplate=true")
  print("PHASE4B_STEP3_TWO_IN_GAME_PNG_PROOFS_COMPLETE")
  quit(0)
