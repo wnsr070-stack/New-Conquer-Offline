@@ -94,3 +94,5 @@ func _run() -> void:
 func _fail(message: String) -> void:
 	push_error(message)
 	quit(1)
+
+# Include runtime scene-spawner integration in the validation pass.
