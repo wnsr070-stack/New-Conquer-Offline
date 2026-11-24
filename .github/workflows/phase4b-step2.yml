@@ -86,3 +86,5 @@ jobs:
             artifacts/phase4b_step2_import.log
             artifacts/phase4b_step2_test.log
           retention-days: 14
+
+# Hybrid animation test revision: trigger validation on the approved branch head.
