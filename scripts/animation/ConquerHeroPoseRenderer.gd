@@ -30,7 +30,7 @@ func _render() -> void:
 
  var camera := Camera3D.new()
  camera.position = Vector3(2.0,2.55,5.8)
- camera.fov = 43.0
+ camera.fov = 55.0
  camera.current = true
  scene.add_child(camera)
  camera.look_at(Vector3(0,1.0,0),Vector3.UP)
