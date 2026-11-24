@@ -7,8 +7,6 @@ OUT = ROOT / "assets/phase3b"
 CACHE = ROOT / ".cache/phase3b"
 MODULAR_REPO = "agentkaerf/FreeModels"
 MODULAR_REV = "db3df04d1e4714298a09510b26fb6de6645138a2"
-QUATERNIUS_HEAD_REPO = "trebeljahr/quaternius-showcase"
-QUATERNIUS_HEAD_REV = "0128ca510d653bb04d6d1e4885bd8890b5050b4f"
 OUTFITS_PREFIX = "Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/"
 TIERS = [
     ("beginner", "Beginner", 1, 29),
@@ -127,33 +125,6 @@ def fetch_complete_outfits():
         result[name] = source
         print("PHASE3B_COMPLETE_CC0_OUTFIT_VALIDATED:", name, "meshes=", len(doc["meshes"]), "joints=", len(joints), "right_hand=", right, "left_hand=", left, flush=True)
     print("PHASE3B_COMPLETE_CC0_OUTFITS_READY:", len(result), "models;", len(downloaded), "files; source=", MODULAR_REPO, "revision=", MODULAR_REV, flush=True)
-    return result
-
-def fetch_standalone_heads():
-    """Reuse approved standalone GLBs from HF; never regenerate or modify them."""
-    token = os.environ.get("HF_TOKEN", "").strip()
-    if not token: raise RuntimeError("HF_TOKEN is required for approved standalone heads")
-    from huggingface_hub import snapshot_download
-    root = pathlib.Path(snapshot_download(
-        repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets", repo_type="dataset", token=token,
-        allow_patterns=["heads/male_head.glb", "heads/female_head.glb"],
-        local_dir=str(CACHE / "hf_standalone_heads")
-    ))
-    expected = {
-        "male": ("heads/male_head.glb", 269204, "58f33673b06bdbc3c273dd79669de6bd4167a83822f516baf63d7ff865e04dc1"),
-        "female": ("heads/female_head.glb", 44852, "e114764171d1bf8b7b0b2d1f3636abef74082386533ed0715a59f86adb78046b"),
-    }
-    result = {}
-    for gender, (relative, size, digest) in expected.items():
-        source = root / relative
-        if not source.is_file(): raise RuntimeError("Approved HF head is missing: " + relative)
-        data = source.read_bytes()
-        if len(data) != size or data[:4] != b"glTF" or int.from_bytes(data[8:12], "little") != len(data):
-            raise RuntimeError("Approved head failed GLB validation: " + relative)
-        if hashlib.sha256(data).hexdigest() != digest:
-            raise RuntimeError("Approved head SHA256 mismatch; refusing replacement: " + relative)
-        result[gender] = source
-        print("PHASE3B_APPROVED_STANDALONE_HEAD_VERIFIED:", gender, size, digest, flush=True)
     return result
 
 def restore_hf_seed():
@@ -329,86 +300,6 @@ def add_secondary(path):
         if obj.parent is None:
             obj.location.x += 0.22
 
-def _target_head_bone(armature):
-    def normalized(name):
-        return "".join(ch.lower() for ch in name if ch.isalnum())
-    matches = [bone for bone in armature.data.bones if normalized(bone.name) in {"head", "headjoint"}]
-    if not matches: matches = [bone for bone in armature.data.bones if normalized(bone.name).endswith("head")]
-    if not matches: raise RuntimeError("Target hero rig has no Head bone: " + armature.name)
-    return matches[0]
-
-def add_standalone_head(source_path, gender):
-    """Attach an immutable standalone GLB to the target Head bone."""
-    armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
-    if not armatures: raise RuntimeError("Target hero has no Armature")
-    armature = armatures[0]
-    head = _target_head_bone(armature)
-    neck_base_world = armature.matrix_world @ head.head
-
-    # Source Head-bone forward axes were measured in the extraction run:
-    # male=(+Y), female=(-Y); both have +Z up after standalone normalization.
-    source_forward = Vector((0.0, 1.0 if gender == "male" else -1.0, 0.0))
-    target_basis = armature.matrix_world.to_3x3() @ head.matrix_local.to_3x3()
-    target_forward = (target_basis @ Vector((0.0, 0.0, 1.0))).normalized()
-    target_forward.z = 0.0
-    if target_forward.length < 1e-5: raise RuntimeError("Target Head bone forward axis is degenerate")
-    target_forward.normalize()
-    yaw = math.atan2(target_forward.y, target_forward.x) - math.atan2(source_forward.y, source_forward.x)
-
-    before = set(bpy.context.scene.objects)
-    bpy.ops.import_scene.gltf(filepath=source_path)
-    imported = [obj for obj in bpy.context.scene.objects if obj not in before]
-    meshes = [obj for obj in imported if obj.type == "MESH"]
-    if not meshes: raise RuntimeError("Approved " + gender + " standalone GLB has no mesh")
-    extras = [obj.name for obj in imported if obj.type not in {"MESH", "EMPTY"}]
-    if extras: raise RuntimeError("Standalone head unexpectedly contains rig objects: " + repr(extras))
-
-    for obj in meshes:
-        bpy.ops.object.select_all(action="DESELECT")
-        obj.select_set(True); bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        obj.rotation_euler.z = yaw
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-
-    points = [obj.matrix_world @ vertex.co for obj in meshes for vertex in obj.data.vertices]
-    if not points: raise RuntimeError("Standalone head geometry is empty")
-    source_height = max(p.z for p in points) - min(p.z for p in points)
-    if source_height <= 1e-5: raise RuntimeError("Standalone head height is invalid")
-    scale_ratio = 0.25 / source_height
-
-    for obj in meshes:
-        obj.scale *= scale_ratio
-        bpy.ops.object.select_all(action="DESELECT")
-        obj.select_set(True); bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        # Manifest guarantees neck_base=(0,0,0): place that origin on target_head.head.
-        obj.location += neck_base_world
-        group = obj.vertex_groups.get(head.name) or obj.vertex_groups.new(name=head.name)
-        group.add([v.index for v in obj.data.vertices], 1.0, "REPLACE")
-        world = obj.matrix_world.copy()
-        obj.parent = armature
-        obj.matrix_world = world
-        mod = obj.modifiers.new(name="Phase3B_StandaloneHead_Armature", type="ARMATURE")
-        mod.object = armature
-        mod.use_vertex_groups = True
-        if hasattr(mod, "use_deform_preserve_volume"): mod.use_deform_preserve_volume = True
-        obj.select_set(False)
-
-    final_points = [obj.matrix_world @ vertex.co for obj in meshes for vertex in obj.data.vertices]
-    final_height = max(p.z for p in final_points) - min(p.z for p in final_points)
-    if not 0.245 <= final_height <= 0.255:
-        raise RuntimeError("Head final height outside 0.25m tolerance: " + str(final_height))
-    for obj in meshes:
-        if obj.vertex_groups.get(head.name) is None or not any(m.type == "ARMATURE" and m.object == armature for m in obj.modifiers):
-            raise RuntimeError("Head attachment verification failed: " + obj.name)
-    print("PHASE3B_STANDALONE_HEAD_ATTACHED:", gender, "bone=", head.name,
-          "neck_base_world=", tuple(round(v,5) for v in neck_base_world),
-          "source_forward=", tuple(round(v,4) for v in source_forward),
-          "target_forward=", tuple(round(v,4) for v in target_forward),
-          "yaw_deg=", round(math.degrees(yaw),3), "height_m=", round(final_height,5),
-          "parts=", len(meshes), "vertex_group_weight=1.0", flush=True)
-
 def render_preview(job, index):
     scene = bpy.context.scene
     meshes = [o for o in scene.objects if o.type == "MESH"]
@@ -468,8 +359,6 @@ def render_preview(job, index):
 for index, job in enumerate(jobs, 1):
     clear_scene()
     import_model(job["source"])
-    if job.get("head_source"):
-        add_standalone_head(job["head_source"], job.get("gender", "male"))
     if job.get("secondary"):
         add_secondary(job["secondary"])
     if job.get("dual"):
@@ -559,7 +448,6 @@ def build():
             })
 
     outfits = fetch_complete_outfits()
-    standalone_head_sources = fetch_standalone_heads()
     outfit_glbs = {}
     for filename, source in outfits.items():
         dest = CACHE / "complete_outfit_glb" / (pathlib.Path(filename).stem + ".glb")
@@ -592,23 +480,22 @@ def build():
     hero_specs = [
         ("Trojan", "trojan", "male", "Male_Ranger.gltf"),
         ("Trojan", "trojan", "female", "Female_Ranger.gltf"),
-        ("Warrior", "warrior", "male", "Male_Peasant.gltf"),
-        ("Warrior", "warrior", "female", "Female_Peasant.gltf"),
+        ("Warrior", "warrior", "male", "Male_Ranger.gltf"),
+        ("Warrior", "warrior", "female", "Female_Ranger.gltf"),
         ("Archer", "archer", "male", "Male_Ranger.gltf"),
         ("Archer", "archer", "female", "Female_Ranger.gltf"),
-        ("Assassin", "assassin", "male", "Male_Peasant.gltf"),
-        ("Assassin", "assassin", "female", "Female_Peasant.gltf"),
+        ("Assassin", "assassin", "male", "Male_Ranger.gltf"),
+        ("Assassin", "assassin", "female", "Female_Ranger.gltf"),
         ("Taoist", "taoist", "male", "Male_Ranger.gltf"),
         ("Taoist", "taoist", "female", "Female_Ranger.gltf"),
     ]
     character_report = {
-        "generator": "Quaternius Modular Character Outfits - Fantasy / complete Outfits only",
+        "generator": "Quaternius Modular Character Outfits - Fantasy / complete Ranger Outfits only",
         "source_repository": MODULAR_REPO,
         "source_revision": MODULAR_REV,
         "source_license": "CC0-1.0",
         "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
         "source_pack_url": "https://quaternius.itch.io/modular-character-outfits-fantasy",
-        "head_hair_source": {"pack": "Quaternius approved standalone heads", "repository": "ZzwahwahzZ/clash-of-legends-terrain-assets", "revision": "immutable approved files", "license": "CC0-1.0", "male_source": "heads/male_head.glb", "female_source": "heads/female_head.glb", "male_sha256": "58f33673b06bdbc3c273dd79669de6bd4167a83822f516baf63d7ff865e04dc1", "female_sha256": "e114764171d1bf8b7b0b2d1f3636abef74082386533ed0715a59f86adb78046b"},
         "forbidden_source_paths": ["Modular Parts/"],
         "rig": "Humanoid",
         "profiles": []
@@ -630,7 +517,7 @@ def build():
         asset_id = f"hero_{key}_{gender}"
         preview = f"previews/{asset_id}.png"
         tint = class_tints[key]
-        hero_jobs.append({"id": asset_id, "source": str(outfit_glbs[source_key]), "head_source": str(standalone_head_sources[gender]),
+        hero_jobs.append({"id": asset_id, "source": str(outfit_glbs[source_key]),
                           "gender": gender, "tier": "natural", "dest": str(destination), "class_tint": tint})
         records.append({
             "id": asset_id, "name": f"{display} — {'Male' if gender == 'male' else 'Female'}",
@@ -646,9 +533,8 @@ def build():
             "file": relative, "class": key, "gender": gender, "source_model": source_key,
             "skin_count": len(skins), "humanoid_joint_count": len(skins[0]["joints"]),
             "right_hand_bone": right_hand, "left_hand_bone": left_hand,
-            "clothing_albedo_tint": list(tint), "head_source_pack": "Quaternius Ultimate Modular Men/Women",
-            "head_source_model": "heads/male_head.glb" if gender == "male" else "heads/female_head.glb", "head_attachment_bone": "Head",
-            "expected_head_height_m": 0.25, "attachment": "Vertex Group + Armature Modifier",
+            "clothing_albedo_tint": list(tint), "integrated_headgear": "Ranger Hood (source model geometry)",
+            "head_source": "integrated_in_complete_ranger_outfit",
             "bytes": 0, "status": "validated"
         })
     if len(character_report["profiles"]) != 10:
@@ -791,7 +677,7 @@ def build():
         "tiers": [{"id": t, "name": n, "levels": f"Lv.{lo}-Lv.{hi}"} for t, n, lo, hi in TIERS],
         "armor_slots": {"body": 15, "helmet": 15, "boots": 3},
         "sources": {
-            "characters": "Quaternius complete CC0 Outfits (4 source models reused across 10 class/gender profiles)",
+            "characters": "Quaternius complete CC0 Ranger Outfits (Male_Ranger and Female_Ranger reused across all 10 class/gender profiles; integrated Hood retained)",
             "weapons_monsters": "Quaternius CC0",
             "armor": {"source": "Quaternius CC0 armor models + The Base Mesh CC0 boots"}
         },
