@@ -8,8 +8,8 @@ const FEMALE_MODEL := "res://assets/phase3b/characters/Female_Ranger.glb"
 const CLIPS := ["Idle", "Run", "Jump", "Attack_Bow", "Attack_Assassin", "Attack_Trojan", "Attack_SwordShield", "Attack_Staff", "Hit", "Death"]
 const POSES := {
  "Idle": [
-  {"t":0.0,"p":{"upperarm_l":Vector3(-12,0,-8),"upperarm_r":Vector3(-12,0,8),"lowerarm_l":Vector3(-18,0,-4),"lowerarm_r":Vector3(-18,0,4),"thigh_l":Vector3(-7,0,0),"thigh_r":Vector3(-7,0,0),"calf_l":Vector3(12,0,0),"calf_r":Vector3(12,0,0),"spine_01":Vector3(-2,0,0)}},
-  {"t":0.6,"p":{"upperarm_l":Vector3(-10,0,-7),"upperarm_r":Vector3(-10,0,7),"lowerarm_l":Vector3(-20,0,-4),"lowerarm_r":Vector3(-20,0,4),"thigh_l":Vector3(-9,0,0),"thigh_r":Vector3(-9,0,0),"calf_l":Vector3(14,0,0),"calf_r":Vector3(14,0,0),"spine_01":Vector3(-1,0,0)}}
+  {"t":0.0,"p":{"upperarm_l":Vector3(0,0,-58),"upperarm_r":Vector3(0,0,58),"lowerarm_l":Vector3(-22,0,-10),"lowerarm_r":Vector3(-22,0,10),"thigh_l":Vector3(-7,0,0),"thigh_r":Vector3(-7,0,0),"calf_l":Vector3(12,0,0),"calf_r":Vector3(12,0,0),"spine_01":Vector3(-2,0,0)}},
+  {"t":0.6,"p":{"upperarm_l":Vector3(0,0,-55),"upperarm_r":Vector3(0,0,55),"lowerarm_l":Vector3(-24,0,-10),"lowerarm_r":Vector3(-24,0,10),"thigh_l":Vector3(-9,0,0),"thigh_r":Vector3(-9,0,0),"calf_l":Vector3(14,0,0),"calf_r":Vector3(14,0,0),"spine_01":Vector3(-1,0,0)}}
  ],
  "Run": [
   {"t":0.0,"p":{"upperarm_l":Vector3(-48,0,-12),"upperarm_r":Vector3(48,0,12),"lowerarm_l":Vector3(-55,0,0),"lowerarm_r":Vector3(-55,0,0),"thigh_l":Vector3(42,0,0),"thigh_r":Vector3(-42,0,0),"calf_l":Vector3(-20,0,0),"calf_r":Vector3(35,0,0),"spine_01":Vector3(8,0,0)}},
@@ -17,8 +17,8 @@ const POSES := {
   {"t":0.5,"p":{"upperarm_l":Vector3(-48,0,-12),"upperarm_r":Vector3(48,0,12),"lowerarm_l":Vector3(-55,0,0),"lowerarm_r":Vector3(-55,0,0),"thigh_l":Vector3(42,0,0),"thigh_r":Vector3(-42,0,0),"calf_l":Vector3(-20,0,0),"calf_r":Vector3(35,0,0),"spine_01":Vector3(8,0,0)}}
  ],
  "Jump": [
-  {"t":0.0,"p":{"upperarm_l":Vector3(-68,0,-45),"upperarm_r":Vector3(-68,0,45),"lowerarm_l":Vector3(-8,0,0),"lowerarm_r":Vector3(-8,0,0),"thigh_l":Vector3(-48,0,0),"thigh_r":Vector3(-48,0,0),"calf_l":Vector3(92,0,0),"calf_r":Vector3(92,0,0),"spine_01":Vector3(-8,0,0)}},
-  {"t":0.38,"p":{"upperarm_l":Vector3(-72,0,-48),"upperarm_r":Vector3(-72,0,48),"lowerarm_l":Vector3(-5,0,0),"lowerarm_r":Vector3(-5,0,0),"thigh_l":Vector3(-55,0,0),"thigh_r":Vector3(-55,0,0),"calf_l":Vector3(105,0,0),"calf_r":Vector3(105,0,0),"spine_01":Vector3(-10,0,0)}},
+  {"t":0.0,"p":{"upperarm_l":Vector3(0,0,-45),"upperarm_r":Vector3(0,0,45),"lowerarm_l":Vector3(-10,0,-8),"lowerarm_r":Vector3(-10,0,8),"thigh_l":Vector3(-48,0,0),"thigh_r":Vector3(-48,0,0),"calf_l":Vector3(92,0,0),"calf_r":Vector3(92,0,0),"spine_01":Vector3(-8,0,0)}},
+  {"t":0.38,"p":{"upperarm_l":Vector3(0,0,-50),"upperarm_r":Vector3(0,0,50),"lowerarm_l":Vector3(-8,0,-8),"lowerarm_r":Vector3(-8,0,8),"thigh_l":Vector3(-55,0,0),"thigh_r":Vector3(-55,0,0),"calf_l":Vector3(105,0,0),"calf_r":Vector3(105,0,0),"spine_01":Vector3(-10,0,0)}},
   {"t":0.8,"p":{"upperarm_l":Vector3(-68,0,-45),"upperarm_r":Vector3(-68,0,45),"lowerarm_l":Vector3(-8,0,0),"lowerarm_r":Vector3(-8,0,0),"thigh_l":Vector3(-48,0,0),"thigh_r":Vector3(-48,0,0),"calf_l":Vector3(92,0,0),"calf_r":Vector3(92,0,0),"spine_01":Vector3(-8,0,0)}}
  ],
  "Attack_Bow": [
