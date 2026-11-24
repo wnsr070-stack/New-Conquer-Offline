@@ -16,6 +16,41 @@ func _run() -> void:
 		_fail("PHASE4B_STEP2_EXPECTED_EXACTLY_20_MODELS")
 		return
 
+	# Verify all five world scenes reference the attached spawner and load as PackedScenes.
+	var scene_paths := [
+		"res://scenes/TwinCity.tscn",
+		"res://scenes/cities/PhoenixCastle.tscn",
+		"res://scenes/cities/ApeMountain.tscn",
+		"res://scenes/cities/DesertCity.tscn",
+		"res://scenes/cities/BirdIsland.tscn"
+	]
+	for scene_path in scene_paths:
+		if load(scene_path) as PackedScene == null:
+			_fail("PHASE4B_STEP2_CITY_SCENE_LOAD_FAILED: " + scene_path)
+			return
+	var manager := root.get_node_or_null("WorldMapManager")
+	if manager == null:
+		_fail("PHASE4B_STEP2_WORLD_MAP_MANAGER_MISSING")
+		return
+	var city_cases := [
+		{"id":"TwinCity","count":15},
+		{"id":"PhoenixCastle","count":9},
+		{"id":"ApeMountain","count":7},
+		{"id":"DesertCity","count":6},
+		{"id":"BirdIsland","count":8}
+	]
+	for city_case in city_cases:
+		manager.set("current_city", String(city_case.id))
+		var city_probe := SpawnerScript.new() as MonsterSpawner
+		root.add_child(city_probe)
+		await process_frame
+		if city_probe.spawn_points.size() != int(city_case.count):
+			_fail("PHASE4B_STEP2_CITY_SPAWN_SCOPE_FAILED: " + String(city_case.id) + " points=" + str(city_probe.spawn_points.size()))
+			return
+		city_probe.queue_free()
+		await process_frame
+	manager.set("current_city", "TwinCity")
+
 	var embedded_count := 0
 	var procedural_count := 0
 	var actors: Array[MonsterActor] = []
@@ -67,9 +102,7 @@ func _run() -> void:
 		return
 
 	# Integration proof: activate one real Twin City camp through MonsterSpawner.
-	var manager := root.get_node_or_null("WorldMapManager")
-	if manager != null:
-		manager.set("current_city", "TwinCity")
+	manager.set("current_city", "TwinCity")
 	var test_hero := Node3D.new()
 	test_hero.name = "Phase4BTestHero"
 	test_hero.add_to_group("player")
