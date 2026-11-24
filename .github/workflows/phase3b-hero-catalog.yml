@@ -1,0 +1,62 @@
+name: Phase 3B Ara3D Hero Preset Catalogue
+on:
+  push:
+    branches: ['test/phase3b-characters-weapons']
+    paths:
+      - 'ci/build_phase3b_hero_catalog.py'
+      - '.github/workflows/phase3b-hero-catalog.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: phase3b-hero-catalog
+  cancel-in-progress: true
+jobs:
+  build-catalog:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test/phase3b-characters-weapons
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Blender and catalogue rendering dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          # Ubuntu's Blender GLTF importer imports numpy from the system Python.
+          # Install it explicitly; otherwise GLB import fails before thumbnails render.
+          sudo apt-get install -y --no-install-recommends blender python3-numpy python3-pil fonts-dejavu-core xvfb xauth libgl1-mesa-dri
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 blender --background --python-expr "import numpy; print('BLENDER_NUMPY_OK', numpy.__version__)"
+          mkdir -p artifacts .cache/ara3d-catalog
+      - name: Cache Ara3D character data
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ara3d
+          key: ara3d-data-0.9.0-linux-v1
+      - name: Install pinned Ara3D CLI
+        run: |
+          set -euo pipefail
+          npm install --global ara3d@0.9.0
+          ara3d --version
+          ara3d presets
+      - name: Export and render the actual fantasy preset catalogue
+        run: |
+          set -euo pipefail
+          python3 ci/build_phase3b_hero_catalog.py 2>&1 | tee artifacts/phase3b_hero_catalog.log
+          test -s artifacts/phase3b_hero_catalog.png
+          test -s artifacts/ara3d_presets_full.txt
+          test -s artifacts/ara3d_catalog_manifest.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase3b-hero-catalog-${{ github.run_number }}
+          path: |
+            artifacts/phase3b_hero_catalog.png
+            artifacts/ara3d_presets.log
+            artifacts/ara3d_presets_full.txt
+            artifacts/ara3d_catalog_manifest.json
+            artifacts/phase3b_hero_catalog.log
+          retention-days: 14

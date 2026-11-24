@@ -1,0 +1,278 @@
+name: Phase 3B Characters, Weapons and Monster Cache
+on:
+  push:
+    branches: ['test/phase3b-characters-weapons']
+    paths:
+      - 'ci/**'
+      - '.github/workflows/phase3b-preview.yml'
+  workflow_dispatch:
+    inputs:
+      rebuild_assets:
+        description: "Force regeneration and re-upload of Phase 3B assets"
+        type: boolean
+        required: false
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: phase3b-preview-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GODOT_VERSION: "4.3"
+  GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
+  LIBGL_ALWAYS_SOFTWARE: "1"
+  CI_CAPTURE: "1"
+jobs:
+  prepare-assets:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.rebuild_assets == true)
+    name: Download CC0 assets, Assimp-convert and cache
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Phase 3B source archives and pinned CC0 downloads
+        id: phase3b-assets
+        uses: actions/cache@v4
+        with:
+          path: .cache/phase3b
+          key: phase3b-source-v2-${{ hashFiles('ci/prepare_phase3b_assets.py', 'ci/build_phase3b_85_pack.py') }}-pinned-cc0-v3
+          restore-keys: |
+            phase3b-source-v2-
+      - name: Install Assimp, 7z and preparation tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends assimp-utils blender python3-numpy p7zip-full curl unzip python3-pip npm xvfb xauth libgl1-mesa-dri libglx-mesa0
+          mkdir -p .cache/godot .cache/tools .cache/phase3b assets/phase3b artifacts
+          assimp version
+          blender --background --factory-startup --python-expr "import sys; sys.path.append('/usr/lib/python3/dist-packages'); import numpy; print('BLENDER_NUMPY_OK:', numpy.__version__)"
+      - name: Install Godot 4.3 and gltfpack
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 4 "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
+          unzip -o .cache/godot/godot.zip -d .cache/godot
+          chmod +x "$GODOT_BIN"
+          npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack
+          echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
+          export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
+          command -v gltfpack
+          gltfpack -h >/dev/null 2>&1 || true
+          "$GODOT_BIN" --version
+      - name: Syntax-check asset preparation script (no Google Drive dependencies)
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          python3 -m py_compile ci/prepare_phase3b_assets.py ci/build_phase3b_85_pack.py
+      - name: Fetch pinned Quaternius CC0 packs from GitHub and approved OGA archives
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 1280x1024x24" python3 ci/prepare_phase3b_assets.py 2>&1 | tee artifacts/phase3b_asset_prepare.log
+          python3 - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          result = api.upload_folder(repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets", repo_type="dataset", folder_path="assets/phase3b/characters", path_in_repo="characters", commit_message="add(phase3b): publish five audited high-detail CC0 humanoids")
+          oid = getattr(result, "oid", None)
+          if not oid:
+              raise RuntimeError("Hugging Face character upload did not return a commit OID")
+          print("PHASE3B_HF_CHARACTERS_UPLOAD_COMPLETE:", oid)
+          PY
+          test -s artifacts/phase3b_asset_report.json
+          test -s assets/phase3b/phase3b_manifest.json
+          test -s assets/phase3b/quaternius_library/katana_katana.glb
+          grep -q 'vertex_color_use_as_albedo = true' scripts/AssetLoader.gd
+          preview_count=$(find assets/phase3b/previews -maxdepth 1 -type f -name '*.png' | wc -l)
+          [ "$preview_count" -eq 90 ] || { echo "::error::Expected 90 real Blender previews, got $preview_count"; exit 1; }
+          python3 - <<'PY'
+          import json, pathlib
+          manifest=json.loads(pathlib.Path("assets/phase3b/phase3b_manifest.json").read_text())
+          assert manifest.get("actual_total")==90 and len(manifest.get("assets",[]))==90
+          assert manifest.get("counts")=={"character":10,"weapon":27,"armor":33,"normal_mob":15,"boss":5}
+          assert sum(1 for x in manifest["assets"] if x.get("category")=="character" and x.get("gender") in {"male","female"})==10
+          print("PHASE3B_90_ASSETS_AND_TEN_HUMANOID_HEROES_READY")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase3b-prepared-assets-${{ github.run_number }}
+          path: |
+            assets/phase3b/**
+            artifacts/phase3b_asset_report.json
+            artifacts/phase3b_85_asset_report.json
+            assets/phase3b/phase3b_manifest.json
+            assets/phase3b/previews/**
+            assets/phase3b/characters/character_quality_report.json
+
+            artifacts/phase3b_asset_prepare.log
+
+          retention-days: 14
+  render-previews:
+    name: Import Godot and render Phase 3B previews and 90-model catalog
+    needs: prepare-assets
+    if: always() && (needs.prepare-assets.result == 'success' || needs.prepare-assets.result == 'skipped')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rendering dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0
+          mkdir -p .cache/godot assets/phase3b artifacts
+      - name: Restore Godot 4.3
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 4 "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
+          unzip -o .cache/godot/godot.zip -d .cache/godot
+          chmod +x "$GODOT_BIN"
+      - name: Restore ready Phase 3B assets from cache
+        if: needs.prepare-assets.result == 'skipped'
+        id: ready-assets-cache
+        uses: actions/cache@v4
+        with:
+          path: assets/phase3b
+          key: phase3b-ready-assets-v1
+      - name: Download ready assets from Hugging Face when cache is cold
+        if: needs.prepare-assets.result == 'skipped' && steps.ready-assets-cache.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          python3 - <<'PY'
+          import os, pathlib, shutil
+          from huggingface_hub import snapshot_download
+          root = pathlib.Path(snapshot_download(repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets", repo_type="dataset", token=os.environ["HF_TOKEN"], allow_patterns=["phase3b/**", "characters/**"]))
+          source = root / "phase3b"
+          if not source.is_dir(): raise SystemExit("HF snapshot is missing phase3b/ assets")
+          target = pathlib.Path("assets/phase3b")
+          if target.exists(): shutil.rmtree(target)
+          shutil.copytree(source, target)
+          chars = root / "characters"
+          if chars.is_dir():
+              (target / "characters").mkdir(parents=True, exist_ok=True)
+              for item in chars.iterdir():
+                  dest = target / "characters" / item.name
+                  if item.is_dir(): shutil.copytree(item, dest, dirs_exist_ok=True)
+                  else: shutil.copy2(item, dest)
+          print("PHASE3B_HF_ASSET_RESTORE_OK:", sum(1 for p in target.rglob("*") if p.is_file()), "files")
+          PY
+      - name: Cache restored ready assets for subsequent fast previews
+        if: needs.prepare-assets.result == 'skipped' && steps.ready-assets-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: assets/phase3b
+          key: phase3b-ready-assets-v1
+      - uses: actions/download-artifact@v4
+        if: needs.prepare-assets.result == 'success'
+        with:
+          name: phase3b-prepared-assets-${{ github.run_number }}
+          path: .
+      - name: Validate models and import project
+        run: |
+          set -euo pipefail
+          find assets/phase3b -name '*.glb' -type f -size +10k
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/phase3b_import.log
+          test -s assets/phase3b/characters/character_quality_report.json
+          test -s assets/phase3b/phase3b_manifest.json
+          python3 - <<'PY'
+          import json, pathlib
+          root=pathlib.Path('assets/phase3b')
+          m=json.loads((root/'phase3b_manifest.json').read_text())
+          assert m['actual_total']==90 and len(m['assets'])==90, '90-model manifest count mismatch'
+          assert len({x['file'] for x in m['assets']})==90, 'duplicate asset paths'
+          assert sum(1 for x in m['assets'] if x.get('category')=='character' and x.get('gender') in {'male','female'})==10, 'ten male/female hero assets missing'
+          for x in m['assets']:
+              p=root/x['file']; q=root/x['preview']
+              assert p.is_file() and p.stat().st_size>1000, f"missing GLB: {p}"
+              assert q.is_file() and q.stat().st_size>3000, f"missing preview: {q}"
+          print('PHASE3B_85_MANIFEST_AND_PREVIEWS_VALIDATED')
+          PY
+      - name: Render ten hero, monster and weapon previews
+        run: |
+          set -euo pipefail
+          LIBGL_ALWAYS_SOFTWARE=1 CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/Phase3BPreview.tscn 2>&1 | tee artifacts/phase3b_render.log
+          test -s assets/phase3b/quaternius_library/katana_katana.glb
+          for image in phase3b_hero_01_archer_male.png phase3b_hero_02_archer_female.png phase3b_hero_03_assassin_male_plus12.png phase3b_hero_04_assassin_female.png phase3b_hero_05_trojan_male.png phase3b_hero_06_trojan_female.png phase3b_hero_07_warrior_male.png phase3b_hero_08_warrior_female.png phase3b_hero_09_taoist_male.png phase3b_hero_10_taoist_female.png phase3b_11_oga_dragon_daylight.png phase3b_12_quaternius_dragon_daylight.png phase3b_13_quaternius_demon_daylight.png phase3b_14_weapon_collection.png; do
+            test -s "artifacts/$image"
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 15000 ] || { echo "::error::Preview image $image is too small"; exit 1; }
+          done
+          creature_count=$(find artifacts -maxdepth 1 -type f -name 'phase3b_catalog_*.png' | wc -l)
+          [ "$creature_count" -eq 20 ] || { echo "::error::Expected 20 mob/boss catalog images, got $creature_count"; exit 1; }
+          grep -q "PHASE3B_ALL_CATALOG_CAPTURES_COMPLETE: 34" artifacts/phase3b_render.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3B_CAPTURE_FAILED" artifacts/phase3b_render.log
+      - name: Assemble the ten-hero visual review catalog
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-pil
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+          from pathlib import Path
+          names = [
+              ("ARCHER - MALE", "phase3b_hero_01_archer_male.png"),
+              ("ARCHER - FEMALE", "phase3b_hero_02_archer_female.png"),
+              ("EASTERN ASSASSIN - MALE +12", "phase3b_hero_03_assassin_male_plus12.png"),
+              ("EASTERN ASSASSIN - FEMALE", "phase3b_hero_04_assassin_female.png"),
+              ("TROJAN - MALE", "phase3b_hero_05_trojan_male.png"),
+              ("TROJAN - FEMALE", "phase3b_hero_06_trojan_female.png"),
+              ("WARRIOR - MALE", "phase3b_hero_07_warrior_male.png"),
+              ("WARRIOR - FEMALE", "phase3b_hero_08_warrior_female.png"),
+              ("TAOIST - MALE", "phase3b_hero_09_taoist_male.png"),
+              ("TAOIST - FEMALE", "phase3b_hero_10_taoist_female.png"),
+          ]
+          root = Path("artifacts")
+          cell_w, cell_h, label_h, margin = 360, 230, 30, 18
+          canvas = Image.new("RGB", (5*cell_w+6*margin, 2*(cell_h+label_h)+3*margin), (25, 31, 39))
+          draw = ImageDraw.Draw(canvas)
+          font = ImageFont.load_default()
+          for i, (label, filename) in enumerate(names):
+              path = root / filename
+              if not path.is_file() or path.stat().st_size < 15000:
+                  raise SystemExit(f"Missing/invalid hero preview: {path}")
+              image = Image.open(path).convert("RGB")
+              image.thumbnail((cell_w, cell_h))
+              x = margin + (i % 5) * (cell_w + margin)
+              y = margin + (i // 5) * (cell_h + label_h + margin)
+              canvas.paste(image, (x + (cell_w-image.width)//2, y))
+              draw.text((x, y + cell_h + 6), label, fill=(245, 230, 190), font=font)
+          output = root / "phase3b_hero_catalog.png"
+          canvas.save(output, format="PNG", optimize=True)
+          if output.stat().st_size < 30000:
+              raise SystemExit("Hero catalog output is unexpectedly small")
+          print("PHASE3B_TEN_HERO_CATALOG_CREATED:", output, output.stat().st_size)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase3b-90-model-catalog-and-previews-${{ github.run_number }}
+          path: |
+            artifacts/phase3b_hero_01_archer_male.png
+            artifacts/phase3b_hero_02_archer_female.png
+            artifacts/phase3b_hero_03_assassin_male_plus12.png
+            artifacts/phase3b_hero_04_assassin_female.png
+            artifacts/phase3b_hero_05_trojan_male.png
+            artifacts/phase3b_hero_06_trojan_female.png
+            artifacts/phase3b_hero_07_warrior_male.png
+            artifacts/phase3b_hero_08_warrior_female.png
+            artifacts/phase3b_hero_09_taoist_male.png
+            artifacts/phase3b_hero_10_taoist_female.png
+            artifacts/phase3b_hero_catalog.png
+            artifacts/phase3b_11_oga_dragon_daylight.png
+            artifacts/phase3b_12_quaternius_dragon_daylight.png
+            artifacts/phase3b_13_quaternius_demon_daylight.png
+            artifacts/phase3b_14_weapon_collection.png
+            artifacts/phase3b_catalog_*.png
+            artifacts/phase3b_asset_report.json
+            artifacts/phase3b_asset_prepare.log
+            artifacts/phase3b_import.log
+            artifacts/phase3b_render.log
+            assets/phase3b/previews/**
+            assets/phase3b/phase3b_manifest.json
+            artifacts/phase3b_85_asset_report.json
+          retention-days: 14
