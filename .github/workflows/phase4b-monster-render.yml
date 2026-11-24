@@ -20,14 +20,15 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends blender python3-pil python3-pip ca-certificates
-          python3 -m pip install --break-system-packages --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          sudo apt-get install -y --no-install-recommends blender python3-pil python3-venv ca-certificates
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
           blender --version
           mkdir -p artifacts/monster_png assets/phase3b
       - name: Restore and SHA256-verify approved Phase 3B GLBs
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          .venv/bin/python - <<'PY'
           import hashlib, json, os, pathlib, shutil
           from huggingface_hub import snapshot_download
           if not os.environ.get("HF_TOKEN"): raise SystemExit("HF_TOKEN secret is required")
