@@ -15,6 +15,10 @@ var active_spawn_points: int = 0
 
 func _ready() -> void:
     build_spawn_points()
+    var initial_hero := get_tree().get_first_node_in_group("player")
+    if initial_hero is Node3D:
+        hero = initial_hero
+    _update_distance_activation()
 
 func build_spawn_points() -> void:
     for child in get_children():
@@ -95,6 +99,10 @@ func set_hero(target: Node3D) -> void:
     _update_distance_activation()
 
 func _process(_delta: float) -> void:
+    if not is_instance_valid(hero):
+        var candidate := get_tree().get_first_node_in_group("player")
+        if candidate is Node3D:
+            hero = candidate
     if is_instance_valid(hero):
         _update_distance_activation()
 
@@ -108,6 +116,7 @@ func _update_distance_activation() -> void:
         var world_position := point.global_position
         var distance := hero.global_position.distance_to(world_position)
         var enabled := distance <= ACTIVATION_DISTANCE_M
+        point.process_mode = Node.PROCESS_MODE_INHERIT if enabled else Node.PROCESS_MODE_DISABLED
         point.set_process(enabled)
         point.set_physics_process(enabled)
         point.set_meta("distance_active", enabled)
