@@ -49,7 +49,7 @@ const CITY_GATE_POSITIONS := {
     "PhoenixCastle": [Vector3(0,0,145),Vector3(18,0,145)],
     "ApeMountain": [Vector3(-130,0,145),Vector3(130,0,145)],
     "DesertCity": [Vector3(-135,0,150),Vector3(135,0,150)],
-    "BirdIsland": [Vector3(-120,4.6,-15),Vector3(15,4.6,-15)]
+    "BirdIsland": [Vector3(-95,4.6,30),Vector3(48,4.6,30)]
 }
 const CAMP_OFFSETS := {
     "TwinCity": [
