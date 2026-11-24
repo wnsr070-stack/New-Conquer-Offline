@@ -27,48 +27,52 @@ def extract(g,path):
  clear(); bpy.ops.import_scene.gltf(filepath=str(path))
  imported=list(bpy.context.scene.objects); rigs=[o for o in imported if o.type=="ARMATURE"]
  if not rigs: raise RuntimeError(g+" source armature missing")
- rig=rigs[0]; head=bone(rig,"head")
- bpy.ops.object.select_all(action="DESELECT")
- for o in imported: o.select_set(True)
- bpy.context.view_layer.objects.active=imported[0]
- bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
- bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
- src_height=max(rig.dimensions.z,0.001)
- terms=("head","face","hair","eye","brow","beard","ear"); excluded=("backpack","bag","quiver","cape","shield","weapon")
- candidates=[o for o in imported if o.type=="MESH" and any(t in o.name.casefold() for t in terms) and not any(t in o.name.casefold() for t in excluded)]
- if not candidates: raise RuntimeError(g+" source has no explicitly named head/face/hair meshes; refusing to cut body meshes")
- # Quaternius GLB's imported armature bone coordinates are not in the same Z frame as its mesh vertices.
- # Use the head-mesh neck/base boundary as the mesh-space equivalent of the source Head-bone origin.
- bounds=[]
- for mesh in candidates:
-  if mesh.data.vertices:
-   zs=[(mesh.matrix_world@v.co).z for v in mesh.data.vertices]
-   bounds.append((min(zs),max(zs),mesh))
-   log("HEAD_SOURCE_MESH_BOUNDS",g,mesh.name,"zmin",min(zs),"zmax",max(zs),"verts",len(zs),"faces",len(mesh.data.polygons))
- if not bounds: raise RuntimeError(g+" named head meshes contain no vertices")
- src_head_mesh_base=min(x[0] for x in bounds)
- cut_z=src_head_mesh_base-0.08*src_height
- log("HEAD_CUT_PLANE",g,"bone",head.name,"bone_head",tuple(head.head),"bone_world",tuple(rig.matrix_world@head.head),"mesh_space_neck_base",src_head_mesh_base,"src_height",src_height,"cut_z",cut_z,"coordinate_mode","head_mesh_base_fallback")
- kept=[]
+ # Adventurer.glb already contains an independent head mesh. Never cut or derive geometry from the body.
+ candidates=[o for o in imported if o.type=="MESH" and "head" in o.name.casefold() and not any(t in o.name.casefold() for t in ("backpack","bag","quiver","cape","shield","weapon"))]
+ if not candidates: raise RuntimeError(g+" independent Adventurer head mesh not found")
  for o in candidates:
-  bm=bmesh.new(); bm.from_mesh(o.data); bm.verts.ensure_lookup_table()
-  # Compare world-space mesh vertices against the cut plane expressed in the same world-space frame.
-  removed=[v for v in bm.verts if (o.matrix_world@v.co).z<cut_z]
-  if removed: bmesh.ops.delete(bm,geom=removed,context="VERTS")
-  loose=[v for v in bm.verts if not v.link_faces]
-  if loose: bmesh.ops.delete(bm,geom=loose,context="VERTS")
-  bm.to_mesh(o.data); bm.free(); o.data.update()
-  if o.data.vertices and o.data.polygons: kept.append(o); log("HEAD_MESH_RETAINED",g,o.name,len(o.data.vertices),len(o.data.polygons))
- if not kept: raise RuntimeError(g+" BMesh cut retained no head geometry")
+  for mat in o.data.materials:
+   if mat is not None and hasattr(mat,"use_backface_culling"): mat.use_backface_culling=False
+ coords=[o.matrix_world@v.co for o in candidates for v in o.data.vertices]
+ if not coords: raise RuntimeError(g+" independent head mesh is empty")
+ src_min=min(p.z for p in coords); src_max=max(p.z for p in coords); src_height=src_max-src_min
+ if src_height<=1e-5: raise RuntimeError(g+" independent head has invalid source height")
+ cut_z=None
+ if g=="female":
+  cut_z=src_min+0.15*src_height
+  removed_total=0
+  for o in candidates:
+   bm=bmesh.new(); bm.from_mesh(o.data); bm.verts.ensure_lookup_table()
+   removed=[v for v in bm.verts if (o.matrix_world@v.co).z<cut_z]
+   removed_total+=len(removed)
+   if removed: bmesh.ops.delete(bm,geom=removed,context="VERTS")
+   loose=[v for v in bm.verts if not v.link_faces]
+   if loose: bmesh.ops.delete(bm,geom=loose,context="VERTS")
+   bm.to_mesh(o.data); bm.free(); o.data.update()
+  log("FEMALE_HEAD_BOTTOM_CUT", "cut_z",cut_z,"source_min_z",src_min,"source_height",src_height,"ratio",0.15,"removed_vertices",removed_total)
+ else:
+  log("MALE_HEAD_NO_CUT","independent_head_mesh_only")
+ kept=[o for o in candidates if o.data.vertices and o.data.polygons]
+ if not kept: raise RuntimeError(g+" extraction retained no independent head geometry")
  coords=[o.matrix_world@v.co for o in kept for v in o.data.vertices]
- zmin=min(v.z for v in coords); zmax=max(v.z for v in coords); height=zmax-zmin
- if height<=1e-5: raise RuntimeError(g+" extracted head has invalid height")
+ zmin=min(p.z for p in coords); zmax=max(p.z for p in coords); height=zmax-zmin
+ if height<=1e-5: raise RuntimeError(g+" extracted head has invalid post-cut height")
+ base_x=(min(p.x for p in coords)+max(p.x for p in coords))*0.5
+ base_y=(min(p.y for p in coords)+max(p.y for p in coords))*0.5
  factor=0.26/height
  for o in kept:
+  bm=bmesh.new(); bm.from_mesh(o.data)
+  bmesh.ops.recalc_face_normals(bm,faces=bm.faces)
+  bm.to_mesh(o.data); bm.free()
   for v in o.data.vertices:
-   w=o.matrix_world@v.co; v.co=Vector((w.x*factor,w.y*factor,(w.z-zmin)*factor))
+   w=o.matrix_world@v.co
+   v.co=Vector(((w.x-base_x)*factor,(w.y-base_y)*factor,(w.z-zmin)*factor))
   o.matrix_world.identity(); o.data.update()
-  bm=bmesh.new(); bm.from_mesh(o.data); bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces)); bm.to_mesh(o.data); bm.free()
+  bm=bmesh.new(); bm.from_mesh(o.data)
+  bmesh.ops.recalc_face_normals(bm,faces=bm.faces)
+  bm.to_mesh(o.data); bm.free()
+  for mat in o.data.materials:
+   if mat is not None and hasattr(mat,"use_backface_culling"): mat.use_backface_culling=False
  keep=set(kept)
  for o in list(bpy.context.scene.objects):
   if o not in keep: bpy.data.objects.remove(o,do_unlink=True)
@@ -79,29 +83,37 @@ def extract(g,path):
  bpy.ops.export_scene.gltf(filepath=str(dest),export_format="GLB",export_apply=True)
  data=dest.read_bytes()
  if len(data)<1000 or data[:4]!=b"glTF" or int.from_bytes(data[8:12],"little")!=len(data): raise RuntimeError("Invalid exported "+g+" GLB")
- log("HEAD_EXPORT_OK",g,dest,len(data),"height_m=0.26","base_origin=(0,0,0)","parts",len(kept)); return dest
+ log("HEAD_EXPORT_OK",g,dest,len(data),"height_m=0.26","neck_base_origin=(0,0,0)","parts",len(kept),"cut",("15_percent_bottom" if g=="female" else "none"))
+ return dest
 def render(male,female):
- clear(); meshes=[]
- for p,x in ((male,-0.24),(female,0.24)):
-  before=set(bpy.context.scene.objects); bpy.ops.import_scene.gltf(filepath=str(p))
-  added=[o for o in bpy.context.scene.objects if o not in before and o.type=="MESH"]
-  for o in added: o.location.x+=x
-  meshes+=added
- pts=[o.matrix_world@Vector(c) for o in meshes for c in o.bound_box]
- lo=Vector((min(p.x for p in pts),min(p.y for p in pts),min(p.z for p in pts))); hi=Vector((max(p.x for p in pts),max(p.y for p in pts),max(p.z for p in pts)))
- center=(lo+hi)*0.5; ext=max((hi-lo).x,(hi-lo).y,(hi-lo).z,0.3); scene=bpy.context.scene
- bpy.ops.object.camera_add(location=center+Vector((ext*2.7,-ext*4,ext*1.8))); cam=bpy.context.object
- cam.rotation_euler=(center-cam.location).to_track_quat("-Z","Y").to_euler(); cam.data.type="ORTHO"; cam.data.ortho_scale=ext*2.25; scene.camera=cam
- for loc,power,size in ((center+Vector((1.5,-2.5,2.4)),500,2.0),(center+Vector((-2,1,1.4)),250,2.5)):
-  bpy.ops.object.light_add(type="AREA",location=loc); light=bpy.context.object; light.data.energy=power; light.data.shape="DISK"; light.data.size=size
-  light.rotation_euler=(center-light.location).to_track_quat("-Z","Y").to_euler()
- ids=[e.identifier for e in scene.render.bl_rna.properties["engine"].enum_items]; scene.render.engine="BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in ids else "BLENDER_EEVEE"
- scene.render.resolution_x=1200; scene.render.resolution_y=700; scene.render.resolution_percentage=100; scene.render.image_settings.file_format="PNG"
- scene.view_settings.view_transform="Standard"; scene.view_settings.exposure=0; scene.view_settings.gamma=1
- if scene.world is None: scene.world=bpy.data.worlds.new("HeadsQA")
- scene.world.use_nodes=True; scene.world.node_tree.nodes["Background"].inputs["Color"].default_value=(0.12,0.13,0.16,1)
- dest=OUT/"heads_pair_preview.png"; scene.render.filepath=str(dest); bpy.ops.render.render(write_still=True)
- if not dest.is_file() or dest.stat().st_size<3000: raise RuntimeError("QA preview missing")
- log("HEAD_PAIR_QA_RENDER_OK",dest,dest.stat().st_size)
+ def render_view(view_name, direction):
+  clear(); meshes=[]
+  for p,x in ((male,-0.24),(female,0.24)):
+   before=set(bpy.context.scene.objects); bpy.ops.import_scene.gltf(filepath=str(p))
+   added=[o for o in bpy.context.scene.objects if o not in before and o.type=="MESH"]
+   for o in added:
+    o.location.x+=x
+    for mat in o.data.materials:
+     if mat is not None and hasattr(mat,"use_backface_culling"): mat.use_backface_culling=False
+   meshes+=added
+  pts=[o.matrix_world@Vector(c) for o in meshes for c in o.bound_box]
+  lo=Vector((min(p.x for p in pts),min(p.y for p in pts),min(p.z for p in pts))); hi=Vector((max(p.x for p in pts),max(p.y for p in pts),max(p.z for p in pts)))
+  center=(lo+hi)*0.5; ext=max((hi-lo).x,(hi-lo).y,(hi-lo).z,0.3); scene=bpy.context.scene
+  bpy.ops.object.camera_add(location=center+Vector(direction)*ext*4.5); cam=bpy.context.object
+  cam.rotation_euler=(center-cam.location).to_track_quat("-Z","Y").to_euler(); cam.data.type="ORTHO"; cam.data.ortho_scale=ext*2.15; scene.camera=cam
+  for loc,power,size in ((center+Vector((1.5,-2.5,2.4)),500,2.0),(center+Vector((-2,1,1.4)),250,2.5)):
+   bpy.ops.object.light_add(type="AREA",location=loc); light=bpy.context.object; light.data.energy=power; light.data.shape="DISK"; light.data.size=size
+   light.rotation_euler=(center-light.location).to_track_quat("-Z","Y").to_euler()
+  ids=[e.identifier for e in scene.render.bl_rna.properties["engine"].enum_items]; scene.render.engine="BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in ids else "BLENDER_EEVEE"
+  scene.render.resolution_x=1000; scene.render.resolution_y=700; scene.render.resolution_percentage=100; scene.render.image_settings.file_format="PNG"
+  scene.view_settings.view_transform="Standard"; scene.view_settings.exposure=0; scene.view_settings.gamma=1
+  if scene.world is None: scene.world=bpy.data.worlds.new("HeadsQA")
+  scene.world.use_nodes=True; scene.world.node_tree.nodes["Background"].inputs["Color"].default_value=(0.12,0.13,0.16,1)
+  dest=OUT/("heads_"+view_name+"_preview.png"); scene.render.filepath=str(dest); bpy.ops.render.render(write_still=True)
+  if not dest.is_file() or dest.stat().st_size<3000: raise RuntimeError("QA preview missing: "+view_name)
+  log("HEAD_QA_RENDER_OK",view_name,dest,dest.stat().st_size)
+ render_view("front",(0,-1,0.04))
+ render_view("three_quarter",(0.65,-1,0.28))
+
 male=extract("male",source("male")); female=extract("female",source("female")); render(male,female)
-(OUT/"heads_manifest.json").write_text(json.dumps({"source":REPO,"revision":REV,"license":"CC0-1.0","cut":"v.co.z < src_head_world.z - 0.08 * src_height","normalization":{"neck_base":[0,0,0],"height_m":0.26},"files":[{"name":p.name,"bytes":p.stat().st_size,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()} for p in (male,female)],"preview":"heads_pair_preview.png"},indent=2)+"\n")
+(OUT/"heads_manifest.json").write_text(json.dumps({"source":REPO,"revision":REV,"license":"CC0-1.0","cut":{"male":"none; independent head mesh","female":"remove vertices below min_z + 0.15 * source_head_height"},"normalization":{"neck_base":[0,0,0],"height_m":0.26},"files":[{"name":p.name,"bytes":p.stat().st_size,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()} for p in (male,female)],"previews":["heads_front_preview.png","heads_three_quarter_preview.png"]},indent=2)+"\n")
