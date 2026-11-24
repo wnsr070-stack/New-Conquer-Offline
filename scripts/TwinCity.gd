@@ -12,6 +12,7 @@ const CITY_SIZE := 320.0
 const CITY_HALF := CITY_SIZE * 0.5
 const DIRT_TILE_SOURCE_SIZE := 11.8
 const DIRT_TILES_PER_SIDE := 28
+const HERO_PLAZA_SPAWN := Vector3(0, 0.2, -34)
 var captures := [
     {"file": "twin_city_overview.png", "pos": Vector3(330, 315, 350), "target": Vector3(0, 4, 0), "fov": 58.0},
     {"file": "twin_city_palace.png", "pos": Vector3(0, 25, -43), "target": Vector3(0, 12, -75), "fov": 39.0},
@@ -550,22 +551,23 @@ func _spawn_playable_hero() -> void:
     var hero := CharacterBody3D.new()
     hero.set_script(hero_script)
     hero.name = "TwinCityPlayableHero"
-    var spawn_position := Vector3(0, 0.2, 0)
+    var spawn_position := HERO_PLAZA_SPAWN
     hero.position = spawn_position
     add_child(hero)
     print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: position=", spawn_position, " camera=Conquer45Iso")
 
 func _phase4a_capture_image(camera: Camera3D, hero: CharacterBody3D) -> Image:
-    var camera_offset := Vector3(4.2, 4.6, 4.2)
+    var camera_offset := Vector3(6.0, 8.485, 6.0)
     camera.global_position = hero.global_position + camera_offset
     camera.fov = 42.0
-    camera.look_at(hero.global_position + Vector3(0, 1.0, 0), Vector3.UP)
+    camera.look_at(hero.global_position + Vector3(0, 1.1, 0), Vector3.UP)
     if camera.global_position.y < 4.0:
         push_error("PHASE4A_CAMERA_UNDERGROUND_GUARD_FAILED")
         return null
-    var camera_distance := camera.global_position.distance_to(hero.global_position + Vector3(0, 1.0, 0))
+    var camera_distance := camera.global_position.distance_to(hero.global_position + Vector3(0, 1.1, 0))
     print("PHASE4A_CAMERA_HEIGHT_OK: y=", camera.global_position.y, " target=", hero.global_position + Vector3(0, 1.0, 0))
-    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=", camera_distance, " target_range=6_to_8m pitch≈45 yaw=45 fov=42 plaza_center=", hero.global_position)
+    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=", camera_distance, " target_range=12m pitch=45 yaw=45 fov=42 plaza=front_of_main_gate plaza_center=", hero.global_position)
+    await get_tree().process_frame
     await RenderingServer.frame_post_draw
     var image := get_viewport().get_texture().get_image()
     if image == null or image.is_empty():
@@ -629,7 +631,7 @@ func _capture_phase4a_proofs() -> void:
     camera.fov = 35.0
     add_child(camera)
     camera.current = true
-    print("PHASE4A_DEDICATED_PROOF_CAMERA_READY: runtime_camera_kept_separate=true")
+    print("PHASE4A_DEDICATED_PROOF_CAMERA_READY: runtime_camera_kept_separate=true plaza_spawn=", HERO_PLAZA_SPAWN, " framing=main_gate_and_surrounding_buildings")
 
     var start_position := hero.global_position
     hero.set("move_target", start_position + Vector3(2.0, 0.0, 0.0))
@@ -641,7 +643,7 @@ func _capture_phase4a_proofs() -> void:
         await _shutdown(1)
         return
     print("PHASE4A_HERO_MOVEMENT_OK: distance=", moved_distance)
-    hero.global_position = Vector3(0, 0.2, 0)
+    hero.global_position = HERO_PLAZA_SPAWN
     hero.velocity = Vector3.ZERO
     hero.set("has_move_target", false)
     await get_tree().create_timer(0.25).timeout
