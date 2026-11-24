@@ -581,6 +581,17 @@ func _phase4a_has_weapon_socket(hero: CharacterBody3D, expected_name: String) ->
             var socket_id := String(socket.get_meta("phase4a_weapon_socket_id", socket.name))
             names.append(socket_id + " (node=" + String(socket.name) + ")")
             if socket_id == expected_name:
+                if not socket is Node3D:
+                    push_error("PHASE4A_WEAPON_SOCKET_NOT_NODE3D: " + expected_name)
+                    return false
+                var visual: Dictionary = hero.call("_weapon_visual_metrics", socket as Node3D)
+                var mesh_count := int(visual.get("mesh_count", 0))
+                var grip_distance := float(visual.get("grip_distance", 999.0))
+                if mesh_count < 1 or grip_distance > 0.05:
+                    push_error("PHASE4A_WEAPON_VISUAL_FAILED: socket=" + expected_name + " meshes=" + str(mesh_count) + " grip_distance=" + str(grip_distance))
+                    return false
+                print("PHASE4A_WEAPON_VISUAL_OK: socket=", expected_name, " mesh_count=", mesh_count, " grip_distance=", grip_distance, " grip_world=", visual.get("grip_world"), " hand_world=", visual.get("socket_world"))
+                print("PHASE4A_WEAPON_GRIP_ALIGNMENT_OK: ", expected_name)
                 return true
     print("PHASE4A_WEAPON_SOCKET_DIAGNOSTIC: expected=", expected_name, " tracked=", names)
     return false
