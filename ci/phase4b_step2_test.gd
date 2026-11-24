@@ -80,8 +80,22 @@ func _run() -> void:
 		if actor.get_nameplate() == null or not actor.get_nameplate().text.begins_with("[Lv."):
 			_fail("PHASE4B_STEP2_NAMEPLATE_FAILED: " + monster_id)
 			return
-		if actor.get_model_height() <= 0.0:
-			_fail("PHASE4B_STEP2_MODEL_HEIGHT_FAILED: " + monster_id)
+		if is_boss:
+			if absf(actor.get_model_height() - 4.4) > 0.02:
+				_fail("PHASE4B_STEP2_BOSS_SCALE_FAILED: " + monster_id + " height=" + str(actor.get_model_height()))
+				return
+			if not actor.get_nameplate().modulate.is_equal_approx(Color(1.0, 0.72, 0.12, 1.0)):
+				_fail("PHASE4B_STEP2_BOSS_NAME_COLOR_FAILED: " + monster_id)
+				return
+		else:
+			if actor.get_model_height() < 1.6 or actor.get_model_height() > 2.2:
+				_fail("PHASE4B_STEP2_NORMAL_SCALE_FAILED: " + monster_id + " height=" + str(actor.get_model_height()))
+				return
+			if not actor.get_nameplate().modulate.is_equal_approx(Color.WHITE):
+				_fail("PHASE4B_STEP2_NORMAL_NAME_COLOR_FAILED: " + monster_id)
+				return
+		if absf(actor.get_model_ground_offset()) > 0.02:
+			_fail("PHASE4B_STEP2_GROUND_ALIGNMENT_FAILED: " + monster_id + " offset=" + str(actor.get_model_ground_offset()))
 			return
 		actors.append(actor)
 		await process_frame
@@ -117,6 +131,17 @@ func _run() -> void:
 	var active_camp := spawner.spawn_points[0]
 	if not bool(active_camp.get_meta("actors_spawned", false)) or active_camp.get_child_count() != 20:
 		_fail("PHASE4B_STEP2_REAL_CAMP_POPULATION_FAILED: children=" + str(active_camp.get_child_count()))
+		return
+	var king_actor: MonsterActor
+	for child in active_camp.get_children():
+		if child is MonsterActor and (child as MonsterActor).is_king:
+			king_actor = child as MonsterActor
+			break
+	if king_actor == null or absf(king_actor.get_model_height() - 2.08) > 0.02:
+		_fail("PHASE4B_STEP2_KING_SCALE_FAILED")
+		return
+	if not king_actor.get_nameplate().modulate.is_equal_approx(Color(1.0, 0.9, 0.12, 1.0)):
+		_fail("PHASE4B_STEP2_KING_NAME_COLOR_FAILED")
 		return
 
 	print("PHASE4B_STEP2_CITY_SPAWNER_INTEGRATION_OK: city=TwinCity local_spawn_points=15 active_camp_population=20")
