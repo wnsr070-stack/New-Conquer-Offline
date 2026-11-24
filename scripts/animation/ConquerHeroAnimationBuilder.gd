@@ -149,11 +149,19 @@ func _make_animation(clip: String, skeleton: Skeleton3D, skeleton_path: NodePath
    var degrees: Vector3 = frame["p"].get(canonical, Vector3.ZERO)
    var delta_quat := Quaternion.from_euler(Vector3(deg_to_rad(degrees.x), deg_to_rad(degrees.y), deg_to_rad(degrees.z)))
    if clip == "Attack_Bow" and canonical == "upperarm_r":
-    # Ranger upper-arm longitudinal axis is local +Y. Aim that axis exactly at
-    # skeleton-space -Z using the measured global rest basis, not guessed Euler angles.
-    var global_rest_basis := skeleton.get_bone_global_rest(bone_index).basis.orthonormalized()
-    var target_in_bone_space := (global_rest_basis.inverse() * Vector3(0, 0, -1)).normalized()
-    delta_quat = Quaternion(Vector3.UP, target_in_bone_space)
+    # The imported Ranger faces skeleton-space +Z (verified by the front-facing
+    # hood/face and the rig's measured rest transforms). The previous -Z target
+    # aimed the arm behind the torso, making it disappear from the front view.
+    # Build the aim in the clavicle's parent-rest space, then convert it to the
+    # local delta expected by the Animation rotation track.
+    var parent_index := skeleton.get_bone_parent(bone_index)
+    var parent_global_basis := Basis.IDENTITY
+    if parent_index >= 0:
+     parent_global_basis = skeleton.get_bone_global_rest(parent_index).basis.orthonormalized()
+    var target_in_parent_space := (parent_global_basis.inverse() * Vector3(0, 0, 1)).normalized()
+    var target_parent_rotation := Quaternion(Vector3.UP, target_in_parent_space)
+    var local_rest_rotation := skeleton.get_bone_rest(bone_index).basis.get_rotation_quaternion()
+    delta_quat = (local_rest_rotation.inverse() * target_parent_rotation).normalized()
    elif clip == "Attack_Bow" and canonical == "lowerarm_r":
     # Keep the elbow completely straight; no forearm bend.
     delta_quat = Quaternion.IDENTITY
