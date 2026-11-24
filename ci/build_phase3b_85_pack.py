@@ -393,28 +393,32 @@ def add_quaternius_head_hair(source_path, gender):
           "names=", [obj.name for obj in head_parts], flush=True)
     source_armature = source_armatures[0]
     source_head = _head_bone(source_armature)
-    source_head_world = source_armature.matrix_world @ source_head.matrix_local
-    target_head_world = target_armature.matrix_world @ target_head.matrix_local
-    alignment = target_head_world @ source_head_world.inverted_safe()
+    src_head_pos = source_armature.matrix_world @ source_head.head
+    tgt_head_pos = target_armature.matrix_world @ target_head.head
+    offset = tgt_head_pos - src_head_pos
     for obj in head_meshes:
-        aligned_world = alignment @ obj.matrix_world.copy()
-        obj.parent = None
-        obj.matrix_world = aligned_world
-        for modifier in list(obj.modifiers):
-            if modifier.type == "ARMATURE":
-                obj.modifiers.remove(modifier)
-        for group in list(obj.vertex_groups):
-            obj.vertex_groups.remove(group)
-        head_group = obj.vertex_groups.new(name=target_head.name)
         if len(obj.data.vertices) == 0:
             raise RuntimeError("Quaternius head mesh is empty: " + obj.name)
+        bpy.ops.object.select_all(action="DESELECT")
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+        obj.location += offset
+        head_group = obj.vertex_groups.get(target_head.name) or obj.vertex_groups.new(name=target_head.name)
         head_group.add(list(range(len(obj.data.vertices))), 1.0, "REPLACE")
         obj.parent = target_armature
-        obj.matrix_world = aligned_world
         armature_modifier = obj.modifiers.new(name="Phase3B_HeadBoneSkin", type="ARMATURE")
         armature_modifier.object = target_armature
-        armature_modifier.use_vertex_groups = True
-        armature_modifier.use_bone_envelopes = False
+        obj.select_set(False)
+    world_centers = []
+    for obj in head_meshes:
+        corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        if corners:
+            center = sum(corners, Vector((0.0, 0.0, 0.0))) / len(corners)
+            world_centers.append((obj.name, tuple(round(v, 4) for v in center)))
+    print("PHASE3B_HEAD_PRE_EXPORT_CHECK:",
+          "gender=", gender, "head_count=", len(head_meshes),
+          "world_centers=", world_centers, flush=True)
     for obj in list(imported_head_objects):
         if obj not in head_meshes and obj.name in bpy.data.objects:
             bpy.data.objects.remove(obj, do_unlink=True)
