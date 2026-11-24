@@ -72,8 +72,8 @@ const CAMP_OFFSETS := {
         Vector3(185,0,215),Vector3(225,0,245)
     ],
     "BirdIsland": [
-        Vector3(-90,0,70),Vector3(-120,0,50),Vector3(-110,0,-80),
-        Vector3(210,0,70),Vector3(240,0,50),Vector3(230,0,-80),Vector3(70,0,-115)
+        Vector3(-125,0,-25),Vector3(-65,0,-25),Vector3(-125,0,25),
+        Vector3(16,0,-25),Vector3(85,0,-25),Vector3(16,0,25),Vector3(85,0,25)
     ]
 }
 
