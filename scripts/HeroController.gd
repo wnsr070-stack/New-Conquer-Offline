@@ -234,7 +234,9 @@ func _attach_class_weapons() -> void:
   "taoist": _attach_weapon("hand_r","magic_staff")
 
 func _attach_weapon(bone_name: String,family: String) -> void:
- if skeleton == null: return
+ if skeleton == null:
+  push_error("HERO_WEAPON_SKELETON_MISSING: " + family)
+  return
  var bone := skeleton.find_bone(bone_name)
  if bone < 0:
   for i in range(skeleton.get_bone_count()):
@@ -251,8 +253,13 @@ func _attach_weapon(bone_name: String,family: String) -> void:
   push_error("HERO_WEAPON_ASSET_MISSING: "+path)
   return
  var packed := load(path) as PackedScene
- var weapon := packed.instantiate() as Node3D if packed else null
- if weapon == null: return
+ if packed == null:
+  push_error("HERO_WEAPON_PACKED_SCENE_LOAD_FAILED: " + path)
+  return
+ var weapon := packed.instantiate() as Node3D
+ if weapon == null:
+  push_error("HERO_WEAPON_INSTANCE_FAILED: " + path)
+  return
  var socket := BoneAttachment3D.new()
  socket.name = "HeroWeapon_"+family+"_"+bone_name
  socket.bone_name = skeleton.get_bone_name(bone)
@@ -261,6 +268,7 @@ func _attach_weapon(bone_name: String,family: String) -> void:
  socket.add_child(weapon)
  weapon.scale = Vector3.ONE*(0.4 if family=="dual_knives" else 0.7)
  weapon_nodes.append(socket)
+ print("HERO_WEAPON_SOCKET_ATTACHED: ", socket.name)
 
 func _clear_weapons() -> void:
  for node in weapon_nodes:

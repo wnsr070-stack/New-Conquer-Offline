@@ -570,6 +570,17 @@ func _phase4a_capture_image(camera: Camera3D, hero: CharacterBody3D) -> Image:
         return null
     return image
 
+func _phase4a_has_weapon_socket(hero: CharacterBody3D, expected_name: String) -> bool:
+    var tracked: Array = hero.get("weapon_nodes")
+    var names: Array[String] = []
+    for socket in tracked:
+        if is_instance_valid(socket):
+            names.append(String(socket.name))
+            if String(socket.name) == expected_name:
+                return true
+    print("PHASE4A_WEAPON_SOCKET_DIAGNOSTIC: expected=", expected_name, " tracked=", names)
+    return false
+
 func _save_phase4a_image(image: Image, file_name: String) -> bool:
     if image == null or image.is_empty():
         push_error("PHASE4A_CAPTURE_INVALID_IMAGE: " + file_name)
@@ -614,7 +625,7 @@ func _capture_phase4a_proofs() -> void:
 
     hero.call("_switch_class", "archer")
     await get_tree().create_timer(0.2).timeout
-    if hero.find_child("HeroWeapon_bow_hand_l", true, false) == null:
+    if not _phase4a_has_weapon_socket(hero, "HeroWeapon_bow_hand_l"):
         push_error("PHASE4A_ARCHER_BOW_SOCKET_MISSING")
         await _shutdown(1)
         return
@@ -626,7 +637,7 @@ func _capture_phase4a_proofs() -> void:
 
     hero.call("_switch_class", "oriental_assassin")
     await get_tree().create_timer(0.2).timeout
-    if hero.find_child("HeroWeapon_dual_knives_hand_l", true, false) == null or hero.find_child("HeroWeapon_dual_knives_hand_r", true, false) == null:
+    if not _phase4a_has_weapon_socket(hero, "HeroWeapon_dual_knives_hand_l") or not _phase4a_has_weapon_socket(hero, "HeroWeapon_dual_knives_hand_r"):
         push_error("PHASE4A_ASSASSIN_DUAL_KNIVES_SOCKET_MISSING")
         await _shutdown(1)
         return
@@ -668,7 +679,7 @@ func _capture_phase4a_proofs() -> void:
         hero.call("_switch_class", class_ids[index])
         await get_tree().create_timer(0.22).timeout
         for socket_name in expected_sockets[index]:
-            if hero.find_child(socket_name, true, false) == null:
+            if not _phase4a_has_weapon_socket(hero, socket_name):
                 push_error("PHASE4A_CLASS_WEAPON_SOCKET_MISSING: " + class_ids[index] + " " + socket_name)
                 await _shutdown(1)
                 return
