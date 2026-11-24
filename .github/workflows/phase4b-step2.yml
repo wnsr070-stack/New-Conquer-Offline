@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip python3-pip
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip python3-pip xvfb xauth libgl1-mesa-dri
           mkdir -p .cache/godot assets/phase3b artifacts
           curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o /tmp/godot.zip
           unzip -o /tmp/godot.zip -d .cache/godot
@@ -75,10 +75,13 @@ jobs:
           set -euo pipefail
           GODOT=.cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/phase4b_step2_import.log
-          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://ci/phase4b_step2_test.gd 2>&1 | tee artifacts/phase4b_step2_test.log
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 "$GODOT" --path "$GITHUB_WORKSPACE" --script res://ci/phase4b_step2_test.gd 2>&1 | tee artifacts/phase4b_step2_test.log
           grep -q "PHASE4B_STEP2_MONSTER_INSTANCES_OK: models=20" artifacts/phase4b_step2_test.log
           grep -q "PHASE4B_STEP2_ANIMATION_SOURCE_COUNTS:" artifacts/phase4b_step2_test.log
-          ! grep -E "ERROR:|SCRIPT ERROR|Parse Error|Failed to load script|PHASE4B_STEP2_.*FAILED" artifacts/phase4b_step2_test.log
+          if grep -Eq "ERROR:|SCRIPT ERROR|Parse Error|Failed to load script|PHASE4B_STEP2_.*FAILED" artifacts/phase4b_step2_test.log; then
+            echo "PHASE4B_STEP2_LOG_ERRORS_DETECTED"
+            exit 1
+          fi
           echo "PHASE4B_STEP2_EXIT_CODE_0"
       - uses: actions/upload-artifact@v4
         if: always()
