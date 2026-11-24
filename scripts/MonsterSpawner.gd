@@ -8,6 +8,13 @@ const ACTIVATION_DISTANCE_M := 75.0
 const KING_SCALE := 1.3
 const KING_HP_MULTIPLIER := 2.0
 const KING_EXP_MULTIPLIER := 1.5
+const BOSS_OFFSETS := {
+	"TwinCity": Vector3(65.0, 0.0, -230.0),
+	"PhoenixCastle": Vector3(0.0, 0.0, 330.0),
+	"ApeMountain": Vector3(0.0, 0.0, 380.0),
+	"DesertCity": Vector3(0.0, 0.0, 380.0),
+	"BirdIsland": Vector3(50.0, 0.0, 0.0)
+}
 const ASSET_ROOT := "res://assets/phase3b/"
 const MODEL_FILES := {
 	"Bunny": "monsters/normal/bunny.glb",
@@ -77,7 +84,7 @@ func build_spawn_points() -> void:
 			continue
 		var city: String = boss.city
 		var center: Vector3 = centers[city]
-		var boss_position := center + Vector3(200.0, 0.0, 0.0)
+		var boss_position: Vector3 = center + BOSS_OFFSETS.get(city, Vector3(0.0, 0.0, 330.0))
 		var point := Node3D.new()
 		point.name = "WorldBoss_" + String(boss.id).replace(" ", "")
 		point.position = boss_position
@@ -205,8 +212,8 @@ func _spawn_actor(point: Node3D, definition: Dictionary, king: bool, boss: bool,
 	if not actor.configure(actor_data, path, king, boss, center):
 		actor.queue_free()
 		return false
-	actor.camp_half_extent = TABLE.CAMP_SIZE_M * 0.5
-	actor.global_position = center + Vector3(_rng_offset(), 0.0, _rng_offset())
+	actor.camp_half_extent = Vector2.ZERO if boss else TABLE.CAMP_SIZE_M * 0.5
+	actor.global_position = center if boss else center + Vector3(_rng_offset(), 0.0, _rng_offset())
 	return true
 
 func _rng_offset() -> float:
