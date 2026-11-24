@@ -33,12 +33,16 @@ const MODEL_FILES := {
 }
 
 var hero: Node3D
+var current_city := "TwinCity"
 var spawn_points: Array[Node3D] = []
 var active_spawn_points: int = 0
 var _definitions: Dictionary = {}
 var _model_cache: Dictionary = {}
 
 func _ready() -> void:
+	var manager := get_node_or_null("/root/WorldMapManager")
+	if manager != null:
+		current_city = String(manager.get("current_city"))
 	for item in TABLE.MONSTERS:
 		_definitions[String(item.id)] = item
 	for item in TABLE.WORLD_BOSSES:
@@ -57,6 +61,8 @@ func build_spawn_points() -> void:
 	spawn_points.clear()
 	var centers := _city_centers()
 	for monster in TABLE.MONSTERS:
+		if String(monster.city) != current_city:
+			continue
 		var city: String = monster.city
 		var offsets: Array = TABLE.CAMP_OFFSETS[city]
 		var center: Vector3 = centers[city]
@@ -67,6 +73,8 @@ func build_spawn_points() -> void:
 			add_child(camp)
 			spawn_points.append(camp)
 	for boss in TABLE.WORLD_BOSSES:
+		if String(boss.city) != current_city:
+			continue
 		var city: String = boss.city
 		var center: Vector3 = centers[city]
 		var boss_position := center + Vector3(200.0, 0.0, 0.0)

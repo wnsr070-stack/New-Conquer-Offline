@@ -66,6 +66,27 @@ func _run() -> void:
 		_fail("PHASE4B_STEP2_RESPAWN_FAILED")
 		return
 
+	# Integration proof: activate one real Twin City camp through MonsterSpawner.
+	var manager := root.get_node_or_null("WorldMapManager")
+	if manager != null:
+		manager.set("current_city", "TwinCity")
+	var test_hero := Node3D.new()
+	test_hero.name = "Phase4BTestHero"
+	test_hero.add_to_group("player")
+	test_hero.global_position = Vector3(0.0, 0.0, -230.0)
+	root.add_child(test_hero)
+	var spawner := SpawnerScript.new() as MonsterSpawner
+	root.add_child(spawner)
+	await process_frame
+	if spawner.spawn_points.size() != 15:
+		_fail("PHASE4B_STEP2_CITY_SPAWNER_SCOPE_FAILED: " + str(spawner.spawn_points.size()))
+		return
+	var active_camp := spawner.spawn_points[0]
+	if not bool(active_camp.get_meta("actors_spawned", false)) or active_camp.get_child_count() != 20:
+		_fail("PHASE4B_STEP2_REAL_CAMP_POPULATION_FAILED: children=" + str(active_camp.get_child_count()))
+		return
+
+	print("PHASE4B_STEP2_CITY_SPAWNER_INTEGRATION_OK: city=TwinCity local_spawn_points=15 active_camp_population=20")
 	print("PHASE4B_STEP2_ANIMATION_SOURCE_COUNTS: embedded=", embedded_count, " procedural=", procedural_count)
 	print("PHASE4B_STEP2_MONSTER_INSTANCES_OK: models=20 embedded=", embedded_count, " procedural=", procedural_count, " idle_walk=20 respawn_cycle=1")
 	quit(0)
