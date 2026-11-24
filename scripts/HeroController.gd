@@ -23,7 +23,8 @@ const WEAPON_FILES := {
 @export var stamina_regen := 12.0
 @export var jump_duration := 0.82
 @export var jump_height := 2.8
-@export var character_level := 40 # QA spawn level enables the documented level-40 Assassin swap\nvar stamina := 100.0
+@export var character_level := 40 # QA spawn level enables the documented level-40 Assassin swap
+var stamina := 100.0
 var active_class := "archer"
 var archer_dual_knives := false
 var hero_model: Node3D
@@ -45,7 +46,8 @@ func _ready() -> void:
  _load_approved_ranger()
  _setup_camera()
  _switch_class("archer")
- _ensure_input_actions()\n set_process_unhandled_input(true)
+ _ensure_input_actions()
+ set_process_unhandled_input(true)
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
 
 func _load_approved_ranger() -> void:
