@@ -115,7 +115,7 @@ func _apply_class_palette(model: Node3D, pose: String) -> void:
  var palette: Array[Color] = []
  match pose:
   "Attack_Bow", "Attack_Assassin":
-   palette = [Color("#17151f"), Color("#7135a8"), Color("#b3263e")]
+   palette = [Color("#08070c"), Color("#7b20f5"), Color("#ff2020")]
   "Attack_Trojan":
    palette = [Color("#a30f2d")]
   "Attack_SwordShield":
