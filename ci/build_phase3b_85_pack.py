@@ -460,9 +460,9 @@ def add_quaternius_head_hair(source_path, gender):
 
         head_group = obj.vertex_groups.get(target_head.name) or obj.vertex_groups.new(name=target_head.name)
         head_group.add([vertex.index for vertex in obj.data.vertices], 1.0, "REPLACE")
+        preserved_world = obj.matrix_world.copy()
         obj.parent = target_armature
-        obj.parent_type = "BONE"
-        obj.parent_bone = target_head.name
+        obj.matrix_world = preserved_world
         armature_modifier = obj.modifiers.new(name="Phase3B_HeadBoneSkin", type="ARMATURE")
         armature_modifier.object = target_armature
         obj.select_set(False)
