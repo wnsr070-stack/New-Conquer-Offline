@@ -229,5 +229,10 @@ func is_dead() -> bool:
 func get_model_height() -> float:
 	return _model_height
 
+func get_model_ground_offset() -> float:
+	if _model == null:
+		return INF
+	return AssetLoader._measure_bounds(_model, Transform3D.IDENTITY).position.y
+
 func get_nameplate() -> Label3D:
 	return _nameplate
