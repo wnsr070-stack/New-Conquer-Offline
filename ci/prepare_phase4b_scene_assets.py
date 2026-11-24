@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """CI-only preparation of the approved city/wilderness runtime catalog; never uploads to HF."""
-import json, pathlib, subprocess, requests
+import json, pathlib, subprocess, requests, os
 from huggingface_hub import hf_hub_download
 ROOT=pathlib.Path(".cache/hf-assets"); W=ROOT/"wilderness"; W.mkdir(parents=True,exist_ok=True)
 REPO="ZzwahwahzZ/clash-of-legends-terrain-assets"
@@ -35,7 +35,7 @@ models={
 "bridge_stone":"assets/wuxia_imperial_pack/candidates/models/opengameart-stone-bridge-0.glb",
 "bridge_wood":"assets/wuxia_imperial_pack/candidates/models/opengameart-wooden-bridge-0.glb"}
 for key,remote in models.items():
- src=pathlib.Path(hf_hub_download(repo_id=REPO,repo_type="dataset",filename=remote,token=None))
+ src=pathlib.Path(hf_hub_download(repo_id=REPO,repo_type="dataset",filename=remote,token=os.environ.get("HF_TOKEN")))
  out=W/(key+".godot43.glb")
  subprocess.run(["gltfpack","-i",str(src),"-o",str(out),"-noq"],check=True,timeout=240)
  if not out.is_file() or out.stat().st_size<20 or out.read_bytes()[:4]!=b"glTF": raise SystemExit("Invalid normalized GLB: "+key)
