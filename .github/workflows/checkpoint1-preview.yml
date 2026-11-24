@@ -169,6 +169,7 @@ jobs:
           repo = "ZzwahwahzZ/clash-of-legends-terrain-assets"
           targets = {
               "phase3b/characters/archer_male.glb": "assets/phase3b/characters/Male_Ranger.glb",
+              "phase3b/characters/archer_female.glb": "assets/phase3b/characters/Female_Ranger.glb",
               "phase3b/weapons/bow_beginner.glb": "assets/phase3b/weapons/bow_beginner.glb",
               "phase3b/weapons/dual_knives_beginner.glb": "assets/phase3b/weapons/dual_knives_beginner.glb",
               "phase3b/weapons/dual_blades_beginner.glb": "assets/phase3b/weapons/dual_blades_beginner.glb",
