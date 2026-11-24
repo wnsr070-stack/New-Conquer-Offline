@@ -12,7 +12,7 @@ const CITY_SIZE := 320.0
 const CITY_HALF := CITY_SIZE * 0.5
 const DIRT_TILE_SOURCE_SIZE := 11.8
 const DIRT_TILES_PER_SIDE := 28
-const HERO_PLAZA_SPAWN := Vector3(0, 0.2, -49)
+var HERO_PLAZA_SPAWN := Vector3(0, 0.2, -49)
 var captures := [
     {"file": "twin_city_overview.png", "pos": Vector3(330, 315, 350), "target": Vector3(0, 4, 0), "fov": 58.0},
     {"file": "twin_city_palace.png", "pos": Vector3(0, 25, -43), "target": Vector3(0, 12, -75), "fov": 39.0},
@@ -312,8 +312,17 @@ func _build_plaza_and_palace() -> bool:
         push_error("CHECKPOINT1_IMPERIAL_PALACE_GLB_INVALID: bytes=" + str(palace_bytes))
         return false
     print("CHECKPOINT1_IMPERIAL_PALACE_SOURCE_OK: valid GLB bytes=", palace_bytes, " (gltfpack-normalized size accepted)")
-    if _place_width(PALACE_ID, Vector3(0, 3.5, -75), 28.0, PI) == null:
+    var palace := _place_width(PALACE_ID, Vector3(0, 3.5, -75), 28.0, PI)
+    if palace == null:
         return false
+    var palace_bounds := Assets._measure_bounds(palace, Transform3D.IDENTITY)
+    if palace_bounds.size.y < 4.0 or palace_bounds.size.x < 10.0 or palace_bounds.size.z < 10.0:
+        push_error("PHASE4A_BUILDING_AABB_INVALID: imperial_palace bounds=" + str(palace_bounds))
+        return false
+    # Palace entrance/stairs are on the +Z facade; place the hero 2.5m beyond the measured facade.
+    HERO_PLAZA_SPAWN = Vector3(palace_bounds.get_center().x, 0.2, palace_bounds.end.z + 2.5)
+    print("PHASE4A_REAL_BUILDING_AABB: asset=imperial_palace min=", palace_bounds.position, " size=", palace_bounds.size, " height_m=", palace_bounds.size.y, " measured_front_facade_z=", palace_bounds.end.z)
+    print("PHASE4A_HERO_BUILDING_STANDOFF: spawn=", HERO_PLAZA_SPAWN, " facade_clearance_m=2.5 front=+Z")
     var stairs: Node3D = Assets.load_model("imperial_entrance_stairs", "")
     if stairs == null:
         push_error("CHECKPOINT1_ENTRANCE_STAIRS_MISSING")
@@ -399,6 +408,8 @@ func _build_house_blocks() -> bool:
         var removed: Array[int] = [0]
         _remove_house_bases(prototype, removed)
         Assets.fit_height(prototype, 7.0)
+        var house_bounds := Assets._measure_bounds(prototype, Transform3D.IDENTITY)
+        print("PHASE4A_REAL_HOUSE_AABB: asset=", asset_id, " size=", house_bounds.size, " height_m=", house_bounds.size.y, " width_m=", maxf(house_bounds.size.x, house_bounds.size.z))
         prototypes.append(prototype)
         print("CHECKPOINT1_HOUSE_BASES_REMOVED: ", asset_id, " removed=", removed[0])
     var occupied: Array[AABB] = []
@@ -557,16 +568,16 @@ func _spawn_playable_hero() -> void:
     print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: position=", spawn_position, " camera=Conquer45Iso")
 
 func _phase4a_capture_image(camera: Camera3D, hero: CharacterBody3D) -> Image:
-    var camera_offset := Vector3(6.0, 8.485, 6.0)
+    var camera_offset := Vector3(12.0, 16.97, 12.0)
     camera.global_position = hero.global_position + camera_offset
-    camera.fov = 42.0
-    camera.look_at(hero.global_position + Vector3(0, 1.1, 0), Vector3.UP)
+    camera.fov = 48.0
+    camera.look_at(hero.global_position + Vector3(0, 1.8, 0), Vector3.UP)
     if camera.global_position.y < 4.0:
         push_error("PHASE4A_CAMERA_UNDERGROUND_GUARD_FAILED")
         return null
     var camera_distance := camera.global_position.distance_to(hero.global_position + Vector3(0, 1.1, 0))
     print("PHASE4A_CAMERA_HEIGHT_OK: y=", camera.global_position.y, " target=", hero.global_position + Vector3(0, 1.0, 0))
-    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=", camera_distance, " target_range=12m pitch=45 yaw=45 fov=42 plaza=central_main_street_front_of_imperial_palace_door hero_position=", hero.global_position)
+    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=", camera_distance, " target_range=24m pitch=45 yaw=45 fov=48 framing=full_imperial_palace_facade_and_surrounding_houses hero_position=", hero.global_position)
     await get_tree().process_frame
     await RenderingServer.frame_post_draw
     var image := get_viewport().get_texture().get_image()
