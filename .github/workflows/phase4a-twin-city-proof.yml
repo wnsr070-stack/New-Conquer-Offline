@@ -168,6 +168,7 @@ jobs:
           grep -q "HERO_ANIMATION_IDLE_PLAYING:" artifacts/phase4a_twin_city.log
           grep -q "HERO_REAL_HAND_BONE_WORLD:" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_ANIMATION_RESOURCE_PRESERVED:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_ARCHER_BOW_IDLE_READY:" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_ALL_FOUR_PROOFS_COMPLETE" artifacts/phase4a_twin_city.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4A_.*FAILED|HERO_.*MISSING|HERO_ANIMATION_LIBRARY_MISSING" artifacts/phase4a_twin_city.log
       - name: Upload four proof images and diagnostics
