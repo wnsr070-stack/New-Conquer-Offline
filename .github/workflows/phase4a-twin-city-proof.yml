@@ -130,7 +130,7 @@ jobs:
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroAnimationBuilder.gd 2>&1 | tee artifacts/animation_builder.log
           test -s assets/phase4/animations/conquer_hero_anims.res
-          echo PHASE4A_ANIMATION_LIBRARY_GENERATED_BY_APPROVED_BUILDER
+          echo PHASE4A_ANIMATION_LIBRARY_GENERATED_BY_APPROVED_BUILDER | tee -a artifacts/animation_builder.log
       - name: Render four Phase 4A proofs inside Twin City
         run: |
           set -euo pipefail
