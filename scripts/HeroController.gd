@@ -269,8 +269,78 @@ func _attach_weapon(bone_name: String,family: String) -> void:
  socket.set_meta("phase4a_weapon_socket_id", socket_id)
  socket.add_child(weapon)
  weapon.scale = Vector3.ONE*(0.4 if family=="dual_knives" else 0.7)
+ var mesh_points: Array[Vector3] = []
+ for child in weapon.get_children():
+  _collect_weapon_mesh_points(child, Transform3D.IDENTITY, mesh_points)
+ if mesh_points.is_empty():
+  push_error("HERO_WEAPON_HAS_NO_RENDERABLE_MESH: " + family)
+  socket.queue_free()
+  return
+ var bounds := _points_bounds(mesh_points)
+ var grip := bounds.get_center()
+ if family in ["dual_knives", "dual_blades", "greatsword", "magic_staff"]:
+  var size := bounds.size
+  if size.y >= size.x and size.y >= size.z:
+   grip.y = bounds.position.y + size.y * 0.14
+  elif size.x >= size.z:
+   grip.x = bounds.position.x + size.x * 0.14
+  else:
+   grip.z = bounds.position.z + size.z * 0.14
+ weapon.position = -(grip * weapon.scale)
+ weapon.set_meta("phase4a_grip_local", grip)
+ weapon.set_meta("phase4a_mesh_count", _count_weapon_meshes(weapon))
  weapon_nodes.append(socket)
+ print("HERO_WEAPON_GRIP_ALIGNED: family=", family, " bounds=", bounds, " grip=", grip, " meshes=", weapon.get_meta("phase4a_mesh_count"))
  print("HERO_WEAPON_SOCKET_ATTACHED: ", socket_id, " node_name=", socket.name)
+
+func _collect_weapon_mesh_points(node: Node, parent_transform: Transform3D, points: Array[Vector3]) -> void:
+ var current_transform := parent_transform
+ if node is Node3D:
+  current_transform = parent_transform * (node as Node3D).transform
+ if node is MeshInstance3D:
+  var mesh_instance := node as MeshInstance3D
+  if mesh_instance.mesh != null:
+   var box := mesh_instance.mesh.get_aabb()
+   for x in range(2):
+    for y in range(2):
+     for z in range(2):
+      var corner := box.position + Vector3(box.size.x * float(x), box.size.y * float(y), box.size.z * float(z))
+      points.append(current_transform * corner)
+ for child in node.get_children():
+  _collect_weapon_mesh_points(child, current_transform, points)
+
+func _points_bounds(points: Array[Vector3]) -> AABB:
+ var minimum := Vector3(1.0e20, 1.0e20, 1.0e20)
+ var maximum := Vector3(-1.0e20, -1.0e20, -1.0e20)
+ for point in points:
+  minimum.x = minf(minimum.x, point.x)
+  minimum.y = minf(minimum.y, point.y)
+  minimum.z = minf(minimum.z, point.z)
+  maximum.x = maxf(maximum.x, point.x)
+  maximum.y = maxf(maximum.y, point.y)
+  maximum.z = maxf(maximum.z, point.z)
+ return AABB(minimum, maximum - minimum)
+
+func _count_weapon_meshes(node: Node) -> int:
+ var count := 1 if node is MeshInstance3D and (node as MeshInstance3D).mesh != null else 0
+ for child in node.get_children():
+  count += _count_weapon_meshes(child)
+ return count
+
+func _weapon_visual_metrics(socket: Node3D) -> Dictionary:
+ if socket == null or socket.get_child_count() == 0:
+  return {"mesh_count": 0, "grip_distance": 999.0}
+ var weapon := socket.get_child(0) as Node3D
+ if weapon == null:
+  return {"mesh_count": 0, "grip_distance": 999.0}
+ var grip: Vector3 = weapon.get_meta("phase4a_grip_local", Vector3.ZERO)
+ var grip_world := weapon.to_global(grip)
+ return {
+  "mesh_count": _count_weapon_meshes(weapon),
+  "grip_distance": grip_world.distance_to(socket.global_position),
+  "grip_world": grip_world,
+  "socket_world": socket.global_position
+ }
 
 func _clear_weapons() -> void:
  for node in weapon_nodes:
