@@ -76,6 +76,7 @@ func _render() -> void:
   model.position = Vector3(X_POS[i],0,0)
   model.scale = Vector3.ONE * 0.82
   scene.add_child(model)
+  _apply_class_palette(model, POSES[i])
   var skeletons := model.find_children("*","Skeleton3D",true,false)
   if skeletons.is_empty(): push_error("RANGER_SKELETON_NOT_FOUND: "+POSES[i]); quit(6); return
   var skeleton := skeletons[0] as Skeleton3D
@@ -108,6 +109,38 @@ func _render() -> void:
  if err != OK: push_error("PNG_SAVE_FAILED: "+str(err)); quit(9); return
  print("PHASE4A_POSE_RENDER_OK: ",OUTPUT_PATH," 1920x1080 bytes=",FileAccess.get_file_as_bytes(output).size())
  quit(0)
+
+
+func _apply_class_palette(model: Node3D, pose: String) -> void:
+ var palette: Array[Color] = []
+ match pose:
+  "Attack_Bow", "Attack_Assassin":
+   palette = [Color("#17151f"), Color("#7135a8"), Color("#b3263e")]
+  "Attack_Trojan":
+   palette = [Color("#a30f2d")]
+  "Attack_SwordShield":
+   palette = [Color("#2456c5")]
+  "Attack_Staff":
+   palette = [Color("#d6a82f"), Color("#f4f0df")]
+  _:
+   return
+ var material_index := 0
+ for node in model.find_children("*", "MeshInstance3D", true, false):
+  var mesh_instance := node as MeshInstance3D
+  if mesh_instance.mesh == null:
+   continue
+  for surface in range(mesh_instance.mesh.get_surface_count()):
+   var material := StandardMaterial3D.new()
+   material.albedo_color = palette[material_index % palette.size()]
+   material.roughness = 0.68
+   material.metallic = 0.12 if pose == "Attack_Staff" else 0.05
+   mesh_instance.set_surface_override_material(surface, material)
+   material_index += 1
+ if material_index == 0:
+  push_error("CLASS_PALETTE_NO_MESH_SURFACES: " + pose)
+ else:
+  print("PHASE4A_CLASS_PALETTE_OK: ", pose, " surfaces=", material_index, " colors=", palette)
+
 
 func _attach_weapons(skeleton: Skeleton3D, pose: String) -> void:
  match pose:
