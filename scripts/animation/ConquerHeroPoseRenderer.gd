@@ -80,6 +80,8 @@ func _render() -> void:
   var skeletons := model.find_children("*","Skeleton3D",true,false)
   if skeletons.is_empty(): push_error("RANGER_SKELETON_NOT_FOUND: "+POSES[i]); quit(6); return
   var skeleton := skeletons[0] as Skeleton3D
+  if POSES[i] in ["Attack_Bow","Attack_Assassin"]:
+   _log_ranger_rig_and_materials(model,skeleton,POSES[i])
   var player := AnimationPlayer.new()
   player.name = "AnimationPlayer"
   model.add_child(player)
@@ -228,3 +230,26 @@ func _file_sha256(path: String) -> String:
   if chunk.is_empty(): break
   ctx.update(chunk)
  return ctx.finish().hex_encode()
+
+func _log_ranger_rig_and_materials(model: Node3D, skeleton: Skeleton3D, pose: String) -> void:
+ print("PHASE4A_RIG_DIAGNOSTIC_BEGIN: ",pose)
+ for bone_name in ["clavicle_r","upperarm_r","lowerarm_r","hand_r","clavicle_l","upperarm_l","lowerarm_l","hand_l"]:
+  var index := skeleton.find_bone(bone_name)
+  if index < 0:
+   for j in range(skeleton.get_bone_count()):
+    var actual := skeleton.get_bone_name(j).to_lower().replace("_","")
+    if actual == bone_name.to_lower().replace("_",""):
+     index = j
+     break
+  if index >= 0:
+   var rest := skeleton.get_bone_global_rest(index)
+   print("PHASE4A_BONE_REST: ",bone_name," actual=",skeleton.get_bone_name(index)," origin=",rest.origin," basis_x=",rest.basis.x," basis_y=",rest.basis.y," basis_z=",rest.basis.z)
+ for node in model.find_children("*","MeshInstance3D",true,false):
+  var mi := node as MeshInstance3D
+  if mi.mesh == null:
+   continue
+  print("PHASE4A_MESH_DIAGNOSTIC: node=",mi.get_path()," type=",mi.mesh.get_class()," surfaces=",mi.mesh.get_surface_count()," local_aabb=",mi.mesh.get_aabb())
+  for surface in range(mi.mesh.get_surface_count()):
+   var mat := mi.get_active_material(surface)
+   print("PHASE4A_SURFACE_DIAGNOSTIC: node=",mi.name," surface=",surface," material=",mat.resource_name if mat else "<none>"," material_class=",mat.get_class() if mat else "<none>")
+ print("PHASE4A_RIG_DIAGNOSTIC_END: ",pose)
