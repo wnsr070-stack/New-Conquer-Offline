@@ -6,7 +6,7 @@ const MALE := "res://assets/phase3b/characters/Male_Ranger.glb"
 const FEMALE := "res://assets/phase3b/characters/Female_Ranger.glb"
 const POSES := ["Idle","Jump","Attack_Bow","Attack_Assassin","Attack_Trojan","Attack_SwordShield","Attack_Staff"]
 const LABELS := ["IDLE","JUMP","ARCHER • BOW","SAME ARCHER • DUAL KNIVES","TROJAN","WARRIOR • SWORD + SHIELD","TAOIST • STAFF"]
-const X_POS := [-4.8,-3.2,-1.6,0.0,1.6,3.2,4.8]
+const X_POS := [-3.6,-2.4,-1.2,0.0,1.2,2.4,3.6]
 
 func _initialize() -> void:
  call_deferred("_render")
@@ -29,8 +29,9 @@ func _render() -> void:
  scene.add_child(world)
 
  var camera := Camera3D.new()
- camera.position = Vector3(2.0,2.55,5.8)
- camera.fov = 68.0
+ camera.position = Vector3(2.0,2.25,5.8)
+ camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+ camera.size = 4.9
  camera.current = true
  scene.add_child(camera)
  camera.look_at(Vector3(0,1.0,0),Vector3.UP)
@@ -73,7 +74,7 @@ func _render() -> void:
   if model == null: push_error("RANGER_INSTANCE_FAILED: "+POSES[i]); quit(5); return
   model.name = "RangerHood_%02d_%s" % [i,POSES[i]]
   model.position = Vector3(X_POS[i],0,0)
-  model.scale = Vector3.ONE * 0.72
+  model.scale = Vector3.ONE * 0.82
   scene.add_child(model)
   var skeletons := model.find_children("*","Skeleton3D",true,false)
   if skeletons.is_empty(): push_error("RANGER_SKELETON_NOT_FOUND: "+POSES[i]); quit(6); return
@@ -90,8 +91,8 @@ func _render() -> void:
   _attach_weapons(skeleton,POSES[i])
   var label := Label3D.new()
   label.text = LABELS[i]
-  label.font_size = 34
-  label.pixel_size = 0.0032
+  label.font_size = 28
+  label.pixel_size = 0.0028
   label.modulate = Color(0.98,0.84,0.52)
   label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
   label.position = Vector3(X_POS[i],0.12,0.5)
