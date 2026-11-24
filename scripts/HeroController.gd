@@ -44,7 +44,7 @@ var measured_model_height := 0.0
 func _ready() -> void:
  name = "PlayableHero"
  floor_snap_length = 0.35
- _load_approved_ranger()
+ await _load_approved_ranger()
  _setup_camera()
  _switch_class("archer")
  _ensure_input_actions()
