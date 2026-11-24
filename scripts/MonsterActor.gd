@@ -1,5 +1,6 @@
 extends Node3D
 class_name MonsterActor
+# Step 3 visual proof uses the measured 5.0m World Boss runtime height.
 
 signal respawned(actor: MonsterActor)
 
