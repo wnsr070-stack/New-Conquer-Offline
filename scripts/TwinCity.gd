@@ -41,7 +41,9 @@ func _ready() -> void:
         return
     captures.append_array(Flora.captures())
     _camera()
+    _spawn_playable_hero()
     if OS.get_environment("CI_CAPTURE") == "1":
+        _capture_hero_preview.call_deferred()
         _capture.call_deferred()
 func _remove_named_apron_meshes(node: Node, removed: Array[int]) -> void:
     for child in node.get_children():
@@ -535,3 +537,33 @@ func _capture() -> void:
     print("CHECKPOINT1_ALL_SIX_CAPTURES_COMPLETE")
     print("CHECKPOINT2_ALL_SIX_CAPTURES_COMPLETE")
     await _shutdown(0)
+
+func _spawn_playable_hero() -> void:
+    var hero_script := load("res://scripts/HeroController.gd") as Script
+    if hero_script == null:
+        push_error("TWIN_CITY_HERO_CONTROLLER_SCRIPT_MISSING")
+        return
+    var hero := CharacterBody3D.new()
+    hero.set_script(hero_script)
+    hero.name = "TwinCityPlayableHero"
+    hero.position = Vector3(0, 0.2, 0)
+    add_child(hero)
+    print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: center=(0,0.2,0) camera=Conquer45Iso")
+
+func _capture_hero_preview() -> void:
+    await get_tree().create_timer(1.0).timeout
+    var camera := get_viewport().get_camera_3d()
+    if camera == null:
+        push_error("TWIN_CITY_HERO_CAPTURE_NO_ACTIVE_CAMERA")
+        return
+    var image := get_viewport().get_texture().get_image()
+    if image == null or image.is_empty():
+        push_error("TWIN_CITY_HERO_CAPTURE_EMPTY")
+        return
+    var path := ProjectSettings.globalize_path("res://artifacts/twin_city_hero_isometric.png")
+    DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+    var error := image.save_png(path)
+    if error != OK:
+        push_error("TWIN_CITY_HERO_CAPTURE_SAVE_FAILED: " + str(error))
+        return
+    print("TWIN_CITY_HERO_ISOMETRIC_RENDER_OK: ", path, " bytes=", FileAccess.get_file_as_bytes(path).size())
