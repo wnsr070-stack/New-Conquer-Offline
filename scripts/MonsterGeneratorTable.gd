@@ -56,12 +56,12 @@ const CAMP_OFFSETS := {
         Vector3(0,0,-230),Vector3(0,0,-275),Vector3(-55,0,-245),Vector3(0,0,230),
         Vector3(0,0,275),Vector3(55,0,245),Vector3(230,0,0),Vector3(275,0,0),
         Vector3(245,0,-55),Vector3(-230,0,0),Vector3(-275,0,0),Vector3(-245,0,55),
-        Vector3(-230,0,-230),Vector3(230,0,230)
+        Vector3(-230,0,230),Vector3(230,0,-230)
     ],
     "PhoenixCastle": [
         Vector3(0,0,220),Vector3(-55,0,240),Vector3(65,0,250),
         Vector3(0,0,290),Vector3(-130,0,230),Vector3(130,0,230),
-        Vector3(-90,0,285),Vector3(100,0,285)
+        Vector3(-100,0,260),Vector3(100,0,260)
     ],
     "ApeMountain": [
         Vector3(-180,0,210),Vector3(-220,0,240),Vector3(-100,0,260),
@@ -114,9 +114,10 @@ static func validate() -> PackedStringArray:
             if amount < 1:
                 errors.append("Invalid camp population: " + str(monster.id))
             var offset: Vector3 = offsets[camp_index]
+            var camp_local_position: Vector3 = CITY_CENTER_FALLBACKS[monster.city] + offset
             var nearest_gate := INF
             for gate in gates:
-                nearest_gate = minf(nearest_gate, offset.distance_to(gate))
+                nearest_gate = minf(nearest_gate, camp_local_position.distance_to(gate))
             if nearest_gate < 45.0 or nearest_gate > 160.0:
                 errors.append("Camp outside 45-160m gate clearance: " + str(monster.id) + " camp=" + str(camp_index) + " clearance=" + str(nearest_gate))
     for boss in WORLD_BOSSES:
