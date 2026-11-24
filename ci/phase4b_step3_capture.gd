@@ -51,35 +51,31 @@ func _run() -> void:
  var packed := load("res://scenes/TwinCity.tscn") as PackedScene
  if packed == null:
   _fail("PHASE4B_STEP3_TWIN_CITY_SCENE_MISSING"); return
+ # Instantiate the actual main Twin City scene in the test SceneTree. This
+ # scene owns both the playable hero and the production MonsterSpawner.
  var city := packed.instantiate() as Node3D
+ if city == null:
+  _fail("PHASE4B_STEP3_TWIN_CITY_INSTANCE_FAILED"); return
  root.add_child(city)
+ print("PHASE4B_STEP3_TRACE: MAIN_TWIN_CITY_ADDED")
+ print("PHASE4B_STEP3_TRACE: MAIN_TWIN_CITY_FRAME_1_BEGIN")
+ await process_frame
+ print("PHASE4B_STEP3_TRACE: MAIN_TWIN_CITY_FRAME_1_END")
+ print("PHASE4B_STEP3_TRACE: MAIN_TWIN_CITY_FRAME_2_BEGIN")
+ await process_frame
+ print("PHASE4B_STEP3_TRACE: MAIN_TWIN_CITY_FRAME_2_END")
  var hero: CharacterBody3D
  var spawner: MonsterSpawner
- # The live main TwinCity scene owns the playable hero; the isolated proof
- # scene owns the spawner. Search the SceneTree root, not only the proof scene.
- print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_INITIAL_LOOKUP")
- var hero_node := root.find_child("TwinCityPlayableHero", true, false)
+ print("PHASE4B_STEP3_TRACE: MAIN_SCENE_HERO_SPAWNER_LOOKUP")
+ var hero_node := city.find_child("TwinCityPlayableHero", true, false)
  var spawner_node := city.find_child("MonsterSpawner", true, false)
  if hero_node is CharacterBody3D:
   hero = hero_node as CharacterBody3D
  if spawner_node is MonsterSpawner:
   spawner = spawner_node as MonsterSpawner
- for attempt in range(8):
-  if hero != null and spawner != null:
-   break
-  print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_FRAME_BEGIN attempt=",attempt)
-  await process_frame
-  print("PHASE4B_STEP3_TRACE: HERO_DISCOVERY_FRAME_END attempt=",attempt)
-  if hero == null:
-   hero_node = root.find_child("TwinCityPlayableHero", true, false)
-   if hero_node is CharacterBody3D:
-    hero = hero_node as CharacterBody3D
-  if spawner == null:
-   spawner_node = city.find_child("MonsterSpawner", true, false)
-   if spawner_node is MonsterSpawner:
-    spawner = spawner_node as MonsterSpawner
  if hero == null or spawner == null:
-  _fail("PHASE4B_STEP3_REAL_TWIN_CITY_HERO_OR_SPAWNER_MISSING: hero="+str(is_instance_valid(root.find_child("TwinCityPlayableHero", true, false)))+" spawner="+str(is_instance_valid(city.find_child("MonsterSpawner", true, false)))+" city_inside_tree="+str(city.is_inside_tree())); return
+  _fail("PHASE4B_STEP3_REAL_TWIN_CITY_HERO_OR_SPAWNER_MISSING: hero="+str(hero_node!=null)+" spawner="+str(spawner_node!=null)+" city_inside_tree="+str(city.is_inside_tree())); return
+ print("PHASE4B_STEP3_REAL_TWIN_CITY_RUNTIME_FOUND: hero_path=",hero.get_path()," spawner_path=",spawner.get_path())
  print("PHASE4B_STEP3_REAL_TWIN_CITY_RUNTIME_FOUND: hero_path=",hero.get_path()," spawner_path=",spawner.get_path())
  if hero.get("hero_model") == null:
   _fail("PHASE4B_STEP3_APPROVED_HERO_MODEL_NOT_LOADED"); return
