@@ -27,6 +27,12 @@ def extract(g,path):
  clear(); bpy.ops.import_scene.gltf(filepath=str(path))
  imported=list(bpy.context.scene.objects); rigs=[o for o in imported if o.type=="ARMATURE"]
  if not rigs: raise RuntimeError(g+" source armature missing")
+ # Derive the face-facing direction from the source Head bone roll, not guessed world axes.
+ head_bone=bone(rigs[0],"head")
+ bone_world=rigs[0].matrix_world.to_3x3() @ head_bone.matrix_local.to_3x3()
+ forward=(bone_world @ Vector((0,0,1))).normalized()
+ right=(bone_world @ Vector((1,0,0))).normalized()
+ log("HEAD_BONE_CAMERA_AXES",g,"bone",head_bone.name,"forward",tuple(round(v,5) for v in forward),"right",tuple(round(v,5) for v in right),"bone_y",tuple(round(v,5) for v in (bone_world @ Vector((0,1,0))).normalized()))
  # Adventurer.glb already contains an independent head mesh. Never cut or derive geometry from the body.
  candidates=[o for o in imported if o.type=="MESH" and "head" in o.name.casefold() and not any(t in o.name.casefold() for t in ("backpack","bag","quiver","cape","shield","weapon"))]
  if not candidates: raise RuntimeError(g+" independent Adventurer head mesh not found")
@@ -85,8 +91,13 @@ def extract(g,path):
  data=dest.read_bytes()
  if len(data)<1000 or data[:4]!=b"glTF" or int.from_bytes(data[8:12],"little")!=len(data): raise RuntimeError("Invalid exported "+g+" GLB")
  log("HEAD_EXPORT_OK",g,dest,len(data),"height_m=0.26","neck_base_origin=(0,0,0)","parts",len(kept),"cut",("15_percent_bottom" if g=="female" else "none"))
- return dest
-def render(male,female):
+ return dest,forward,right
+def render(male,female,male_axes,female_axes):
+ mf,mr=male_axes; ff,fr=female_axes
+ if mf.dot(ff)<0.95: raise RuntimeError("Male/female Head bone forward axes disagree; refusing guessed camera orientation")
+ camera_forward=(mf+ff).normalized()
+ camera_right=(mr+fr).normalized()
+ camera_right=(camera_right-camera_forward*camera_right.dot(camera_forward)).normalized()
  def render_view(view_name, direction):
   clear(); meshes=[]
   for p,x in ((male,-0.24),(female,0.24)):
@@ -103,7 +114,10 @@ def render(male,female):
   pts=[o.matrix_world@Vector(c) for o in meshes for c in o.bound_box]
   lo=Vector((min(p.x for p in pts),min(p.y for p in pts),min(p.z for p in pts))); hi=Vector((max(p.x for p in pts),max(p.y for p in pts),max(p.z for p in pts)))
   center=(lo+hi)*0.5; ext=max((hi-lo).x,(hi-lo).y,(hi-lo).z,0.3); scene=bpy.context.scene
-  bpy.ops.object.camera_add(location=center+Vector(direction)*ext*4.5); cam=bpy.context.object
+  # Camera direction is built from the Head bone's local roll axes.
+  cam_offset=camera_forward*ext*4.5
+  if view_name=="three_quarter": cam_offset=(camera_forward+camera_right*0.65+Vector((0,0,0.18))).normalized()*ext*4.5
+  bpy.ops.object.camera_add(location=center+cam_offset); cam=bpy.context.object
   cam.rotation_euler=(center-cam.location).to_track_quat("-Z","Y").to_euler(); cam.data.type="ORTHO"; cam.data.ortho_scale=ext*2.15; scene.camera=cam
   for loc,power,size in ((center+Vector((1.5,-2.5,2.4)),500,2.0),(center+Vector((-2,1,1.4)),250,2.5)):
    bpy.ops.object.light_add(type="AREA",location=loc); light=bpy.context.object; light.data.energy=power; light.data.shape="DISK"; light.data.size=size
@@ -127,8 +141,10 @@ def render(male,female):
   log("HEAD_QA_VISUAL_CONTENT_OK",view_name,"non_background_pixels",int(len(xs)),"bbox",(int(xs.min()),int(ys.min()),int(xs.max()),int(ys.max())))
   bpy.data.images.remove(preview)
   log("HEAD_QA_RENDER_OK",view_name,dest,dest.stat().st_size)
- render_view("front",(0,1,0.04))
- render_view("three_quarter",(0.65,1,0.28))
+ render_view("front",None)
+ render_view("three_quarter",None)
 
-male=extract("male",source("male")); female=extract("female",source("female")); render(male,female)
+male,male_forward,male_right=extract("male",source("male"))
+female,female_forward,female_right=extract("female",source("female"))
+render(male,female,(male_forward,male_right),(female_forward,female_right))
 (OUT/"heads_manifest.json").write_text(json.dumps({"source":REPO,"revision":REV,"license":"CC0-1.0","cut":{"male":"none; independent head mesh","female":"remove vertices below min_z + 0.15 * source_head_height"},"normalization":{"neck_base":[0,0,0],"height_m":0.26},"files":[{"name":p.name,"bytes":p.stat().st_size,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()} for p in (male,female)],"previews":["heads_front_preview.png","heads_three_quarter_preview.png"]},indent=2)+"\n")
