@@ -6,6 +6,8 @@ on:
       - 'scripts/MonsterActor.gd'
       - 'scripts/MonsterSpawner.gd'
       - 'ci/phase4b_step2_test.gd'
+      - 'scenes/TwinCity.tscn'
+      - 'scenes/cities/*.tscn'
       - '.github/workflows/phase4b-step2.yml'
   workflow_dispatch:
 permissions:
@@ -76,7 +78,7 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://ci/phase4b_step2_test.gd 2>&1 | tee artifacts/phase4b_step2_test.log
           grep -q "PHASE4B_STEP2_MONSTER_INSTANCES_OK: models=20" artifacts/phase4b_step2_test.log
           grep -q "PHASE4B_STEP2_ANIMATION_SOURCE_COUNTS:" artifacts/phase4b_step2_test.log
-          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4B_STEP2_.*FAILED" artifacts/phase4b_step2_test.log
+          ! grep -E "ERROR:|SCRIPT ERROR|Parse Error|Failed to load script|PHASE4B_STEP2_.*FAILED" artifacts/phase4b_step2_test.log
           echo "PHASE4B_STEP2_EXIT_CODE_0"
       - uses: actions/upload-artifact@v4
         if: always()
