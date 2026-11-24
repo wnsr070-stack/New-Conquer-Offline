@@ -47,3 +47,5 @@ def render_one(label,relpath,height,category):
  print("PHASE4B_MONSTER_PNG_RENDERED:",label,"category=",category,"height_m=",height)
 for model in models: render_one(*model)
 print("PHASE4B_MONSTER_RENDER_COMPLETE: png_count=20")
+
+# Render workflow retry: use isolated venv for Hugging Face client.
