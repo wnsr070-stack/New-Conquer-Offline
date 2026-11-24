@@ -118,7 +118,8 @@ static func validate() -> PackedStringArray:
             var nearest_gate := INF
             for gate in gates:
                 nearest_gate = minf(nearest_gate, camp_local_position.distance_to(gate))
-            var minimum_gate_clearance := 25.0 if String(monster.city) == "BirdIsland" else 45.0\n            if nearest_gate < minimum_gate_clearance or nearest_gate > 160.0:
+            var minimum_gate_clearance := 25.0 if String(monster.city) == "BirdIsland" else 45.0
+            if nearest_gate < minimum_gate_clearance or nearest_gate > 160.0:
                 errors.append("Camp outside 45-160m gate clearance: " + str(monster.id) + " camp=" + str(camp_index) + " clearance=" + str(nearest_gate))
     for boss in WORLD_BOSSES:
         if int(boss.max_npc) != 1 or float(boss.scale) != 2.5 or float(boss.rest_secs) != 60.0:
