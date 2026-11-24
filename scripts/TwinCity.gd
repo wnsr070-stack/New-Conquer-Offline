@@ -575,8 +575,9 @@ func _phase4a_has_weapon_socket(hero: CharacterBody3D, expected_name: String) ->
     var names: Array[String] = []
     for socket in tracked:
         if is_instance_valid(socket):
-            names.append(String(socket.name))
-            if String(socket.name) == expected_name:
+            var socket_id := String(socket.get_meta("phase4a_weapon_socket_id", socket.name))
+            names.append(socket_id + " (node=" + String(socket.name) + ")")
+            if socket_id == expected_name:
                 return true
     print("PHASE4A_WEAPON_SOCKET_DIAGNOSTIC: expected=", expected_name, " tracked=", names)
     return false

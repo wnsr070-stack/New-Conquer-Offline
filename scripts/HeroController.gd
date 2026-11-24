@@ -261,18 +261,24 @@ func _attach_weapon(bone_name: String,family: String) -> void:
   push_error("HERO_WEAPON_INSTANCE_FAILED: " + path)
   return
  var socket := BoneAttachment3D.new()
- socket.name = "HeroWeapon_"+family+"_"+bone_name
+ var socket_id := "HeroWeapon_"+family+"_"+bone_name
+ socket.name = socket_id
  socket.bone_name = skeleton.get_bone_name(bone)
  socket.bone_idx = bone
  skeleton.add_child(socket)
+ socket.set_meta("phase4a_weapon_socket_id", socket_id)
  socket.add_child(weapon)
  weapon.scale = Vector3.ONE*(0.4 if family=="dual_knives" else 0.7)
  weapon_nodes.append(socket)
- print("HERO_WEAPON_SOCKET_ATTACHED: ", socket.name)
+ print("HERO_WEAPON_SOCKET_ATTACHED: ", socket_id, " node_name=", socket.name)
 
 func _clear_weapons() -> void:
  for node in weapon_nodes:
-  if is_instance_valid(node): node.queue_free()
+  if is_instance_valid(node):
+   var parent := node.get_parent()
+   if parent != null:
+    parent.remove_child(node)
+   node.queue_free()
  weapon_nodes.clear()
 
 func _update_animation() -> void:
