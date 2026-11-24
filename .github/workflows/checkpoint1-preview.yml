@@ -156,10 +156,46 @@ jobs:
           test -x .cache/tools/bin/gltfpack
           cp .cache/hf-assets/landmark_sources.txt artifacts/landmark_sources.txt
           echo PREPARED_ASSETS_AND_TOOLS_READY
+      - name: Fetch approved Ranger hero and class weapons
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          python3 - <<'PY'
+          import pathlib, shutil, os
+          from huggingface_hub import hf_hub_download
+          repo = "ZzwahwahzZ/clash-of-legends-terrain-assets"
+          targets = {
+              "phase3b/characters/archer_male.glb": "assets/phase3b/characters/Male_Ranger.glb",
+              "phase3b/weapons/bow_beginner.glb": "assets/phase3b/weapons/bow_beginner.glb",
+              "phase3b/weapons/dual_knives_beginner.glb": "assets/phase3b/weapons/dual_knives_beginner.glb",
+              "phase3b/weapons/dual_blades_beginner.glb": "assets/phase3b/weapons/dual_blades_beginner.glb",
+              "phase3b/weapons/shield_beginner.glb": "assets/phase3b/weapons/shield_beginner.glb",
+              "phase3b/weapons/greatsword_beginner.glb": "assets/phase3b/weapons/greatsword_beginner.glb",
+              "phase3b/weapons/magic_staff_beginner.glb": "assets/phase3b/weapons/magic_staff_beginner.glb",
+          }
+          for source, target in targets.items():
+              downloaded = pathlib.Path(hf_hub_download(repo_id=repo, repo_type="dataset", filename=source, token=os.environ["HF_TOKEN"]))
+              destination = pathlib.Path(target)
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(downloaded, destination)
+              data = destination.read_bytes()
+              if len(data) < 10000 or data[:4] != b"glTF":
+                  raise SystemExit("Invalid approved hero/weapon GLB: " + target)
+              print("TWIN_CITY_HERO_ASSET_OK:", target, "bytes=", len(data))
+          PY
       - name: Import Godot project
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
+      - name: Build locked shared animation resource
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroAnimationBuilder.gd 2>&1 | tee artifacts/hero_animation_build.log
+          test -s assets/phase4/animations/conquer_hero_anims.res
+          grep -q "PHASE4A_ANIMATION_LIBRARY_OK" artifacts/hero_animation_build.log
       - name: Render Twin City and capture six views
         run: |
           set -euo pipefail
@@ -223,6 +259,8 @@ jobs:
             artifacts/wilderness_prepare.log
             artifacts/wilderness_asset_report.json
             artifacts/import.log
+            artifacts/hero_animation_build.log
+            artifacts/twin_city_hero_isometric.png
             artifacts/godot.log
       - name: Verify all six captures and checkpoint markers
         if: always()
