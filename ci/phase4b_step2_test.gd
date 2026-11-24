@@ -28,7 +28,7 @@ func _run() -> void:
 			return
 		var actor := MonsterActorScript.new() as MonsterActor
 		root.add_child(actor)
-		var is_boss := definition.has("max_npc")
+		var is_boss: bool = definition.has("max_npc")
 		if not actor.configure(definition, path, false, is_boss, Vector3.ZERO):
 			_fail("PHASE4B_STEP2_MODEL_INSTANCE_FAILED: " + monster_id)
 			return
