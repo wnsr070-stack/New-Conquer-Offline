@@ -3,11 +3,11 @@ const CITY_SCENES={"TwinCity":"res://scenes/TwinCity.tscn","PhoenixCastle":"res:
 
 # Scene-local city centers used by Phase 4B monster camps and world bosses.
 const CITY_CENTERS := {
-    "TwinCity": Vector3(0.0, 0.0, 0.0),
+    "TwinCity": Vector3(0.0, -1.35, 0.0),
     "PhoenixCastle": Vector3(0.0, 0.0, 0.0),
     "ApeMountain": Vector3(0.0, 0.0, 0.0),
     "DesertCity": Vector3(0.0, 0.0, 0.0),
-    "BirdIsland": Vector3(-70.0, 4.6, 0.0)
+    "BirdIsland": Vector3(0.0, 4.6, 0.0)
 }
 func get_city_center(city_id: String) -> Vector3:
     return CITY_CENTERS.get(city_id, Vector3.ZERO)
