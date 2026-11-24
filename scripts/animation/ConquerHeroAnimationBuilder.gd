@@ -148,6 +148,15 @@ func _make_animation(clip: String, skeleton: Skeleton3D, skeleton_path: NodePath
   for frame in frames:
    var degrees: Vector3 = frame["p"].get(canonical, Vector3.ZERO)
    var delta_quat := Quaternion.from_euler(Vector3(deg_to_rad(degrees.x), deg_to_rad(degrees.y), deg_to_rad(degrees.z)))
+   if clip == "Attack_Bow" and canonical == "upperarm_r":
+    # Ranger upper-arm longitudinal axis is local +Y. Aim that axis exactly at
+    # skeleton-space -Z using the measured global rest basis, not guessed Euler angles.
+    var global_rest_basis := skeleton.get_bone_global_rest(bone_index).basis.orthonormalized()
+    var target_in_bone_space := (global_rest_basis.inverse() * Vector3(0, 0, -1)).normalized()
+    delta_quat = Quaternion(Vector3.UP, target_in_bone_space)
+   elif clip == "Attack_Bow" and canonical == "lowerarm_r":
+    # Keep the elbow completely straight; no forearm bend.
+    delta_quat = Quaternion.IDENTITY
    animation.track_insert_key(track, float(frame["t"]), (rest_quat * delta_quat).normalized())
  if clip == "Jump" and mapping.has("pelvis"):
   var pelvis := str(mapping["pelvis"])
