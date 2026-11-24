@@ -36,9 +36,9 @@ const POSES := {
 		{"t": 0.42, "p": {"spine_01": Vector3(-8, -5, 0), "upperarm_l": Vector3(-28, 0, -30), "upperarm_r": Vector3(-28, 0, 30), "lowerarm_l": Vector3(-48, 0, 0), "lowerarm_r": Vector3(-48, 0, 0)}}
 	],
 	"Attack_Assassin": [
-		{"t": 0.0, "p": {"spine_01": Vector3(-8, -15, 0), "upperarm_l": Vector3(-30, 0, -52), "upperarm_r": Vector3(-30, 0, 52), "lowerarm_l": Vector3(-75, 0, 0), "lowerarm_r": Vector3(-75, 0, 0), "thigh_l": Vector3(-12, 0, 0), "thigh_r": Vector3(20, 0, 0)}},
-		{"t": 0.12, "p": {"spine_01": Vector3(18, 22, 0), "upperarm_l": Vector3(62, 0, -30), "upperarm_r": Vector3(72, 0, 30), "lowerarm_l": Vector3(-18, 0, 0), "lowerarm_r": Vector3(-12, 0, 0), "thigh_l": Vector3(24, 0, 0), "thigh_r": Vector3(-22, 0, 0)}},
-		{"t": 0.28, "p": {"spine_01": Vector3(-5, -18, 0), "upperarm_l": Vector3(-45, 0, -38), "upperarm_r": Vector3(-55, 0, 38), "lowerarm_l": Vector3(-35, 0, 0), "lowerarm_r": Vector3(-28, 0, 0)}}
+		{"t": 0.0, "p": {"spine_01": Vector3(-9, -15, 0), "spine_02": Vector3(-5, 0, 0), "spine_03": Vector3(-3, 0, 0), "upperarm_l": Vector3(-30, 0, -52), "upperarm_r": Vector3(-30, 0, 52), "lowerarm_l": Vector3(-75, 0, 0), "lowerarm_r": Vector3(-75, 0, 0), "thigh_l": Vector3(-16, 0, 0), "thigh_r": Vector3(16, 0, 0), "calf_l": Vector3(22, 0, 0), "calf_r": Vector3(22, 0, 0)}},
+		{"t": 0.12, "p": {"spine_01": Vector3(-12, -12, 0), "spine_02": Vector3(-7, 0, 0), "spine_03": Vector3(-4, 0, 0), "upperarm_l": Vector3(62, 0, -30), "upperarm_r": Vector3(72, 0, 30), "lowerarm_l": Vector3(-18, 0, 0), "lowerarm_r": Vector3(-12, 0, 0), "thigh_l": Vector3(-18, 0, 0), "thigh_r": Vector3(18, 0, 0), "calf_l": Vector3(26, 0, 0), "calf_r": Vector3(26, 0, 0)}},
+		{"t": 0.28, "p": {"spine_01": Vector3(-9, -15, 0), "spine_02": Vector3(-5, 0, 0), "spine_03": Vector3(-3, 0, 0), "upperarm_l": Vector3(-45, 0, -38), "upperarm_r": Vector3(-55, 0, 38), "lowerarm_l": Vector3(-35, 0, 0), "lowerarm_r": Vector3(-28, 0, 0), "thigh_l": Vector3(-16, 0, 0), "thigh_r": Vector3(16, 0, 0), "calf_l": Vector3(22, 0, 0), "calf_r": Vector3(22, 0, 0)}}
 	],
 	"Attack_SwordShield": [
 		{"t": 0.0, "p": {"upperarm_l": Vector3(-30, 0, -42), "upperarm_r": Vector3(-65, 0, 18), "lowerarm_l": Vector3(-55, 0, 0), "lowerarm_r": Vector3(-30, 0, 0), "spine_01": Vector3(-5, -8, 0)}},
@@ -46,9 +46,9 @@ const POSES := {
 		{"t": 0.45, "p": {"upperarm_l": Vector3(-30, 0, -42), "upperarm_r": Vector3(-40, 0, 18), "lowerarm_l": Vector3(-55, 0, 0), "lowerarm_r": Vector3(-35, 0, 0), "spine_01": Vector3(-5, -8, 0)}}
 	],
 	"Attack_Bow": [
-		{"t": 0.0, "p": {"spine_01": Vector3(-4, -8, 0), "clavicle_l": Vector3(0, 0, -8), "clavicle_r": Vector3(0, 0, 8), "upperarm_l": Vector3(-82, 0, -18), "upperarm_r": Vector3(-82, 0, 18), "lowerarm_l": Vector3(-8, 0, 0), "lowerarm_r": Vector3(-8, 0, 0)}},
-		{"t": 0.32, "p": {"spine_01": Vector3(0, 0, 0), "upperarm_l": Vector3(-88, 0, -12), "upperarm_r": Vector3(-105, 0, 12), "lowerarm_l": Vector3(-4, 0, 0), "lowerarm_r": Vector3(-72, 0, 0), "hand_r": Vector3(0, 0, 12)}},
-		{"t": 0.55, "p": {"spine_01": Vector3(8, 4, 0), "upperarm_l": Vector3(-82, 0, -18), "upperarm_r": Vector3(-82, 0, 18), "lowerarm_l": Vector3(-8, 0, 0), "lowerarm_r": Vector3(-8, 0, 0)}}
+		{"t": 0.0, "p": {"spine_01": Vector3(-8, -8, 0), "spine_02": Vector3(-5, 0, 0), "spine_03": Vector3(-3, 0, 0), "thigh_l": Vector3(-8, 0, 0), "thigh_r": Vector3(-8, 0, 0), "calf_l": Vector3(16, 0, 0), "calf_r": Vector3(16, 0, 0), "clavicle_l": Vector3(0, 0, -8), "clavicle_r": Vector3(0, 0, 8), "upperarm_l": Vector3(-82, 0, -18), "upperarm_r": Vector3(-82, 0, 18), "lowerarm_l": Vector3(-8, 0, 0), "lowerarm_r": Vector3(-8, 0, 0)}},
+		{"t": 0.32, "p": {"spine_01": Vector3(-10, -5, 0), "spine_02": Vector3(-6, 0, 0), "spine_03": Vector3(-4, 0, 0), "thigh_l": Vector3(-10, 0, 0), "thigh_r": Vector3(-10, 0, 0), "calf_l": Vector3(19, 0, 0), "calf_r": Vector3(19, 0, 0), "upperarm_l": Vector3(-88, 0, -12), "upperarm_r": Vector3(-105, 0, 12), "lowerarm_l": Vector3(-4, 0, 0), "lowerarm_r": Vector3(-72, 0, 0), "hand_r": Vector3(0, 0, 12)}},
+		{"t": 0.55, "p": {"spine_01": Vector3(-8, -8, 0), "spine_02": Vector3(-5, 0, 0), "spine_03": Vector3(-3, 0, 0), "thigh_l": Vector3(-8, 0, 0), "thigh_r": Vector3(-8, 0, 0), "calf_l": Vector3(16, 0, 0), "calf_r": Vector3(16, 0, 0), "upperarm_l": Vector3(-82, 0, -18), "upperarm_r": Vector3(-82, 0, 18), "lowerarm_l": Vector3(-8, 0, 0), "lowerarm_r": Vector3(-8, 0, 0)}}
 	],
 	"Attack_Staff": [
 		{"t": 0.0, "p": {"upperarm_l": Vector3(-35, 0, -25), "upperarm_r": Vector3(-45, 0, 25), "lowerarm_l": Vector3(-35, 0, 0), "lowerarm_r": Vector3(-45, 0, 0), "spine_01": Vector3(-5, 0, 0)}},
