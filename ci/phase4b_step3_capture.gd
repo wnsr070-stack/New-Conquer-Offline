@@ -144,7 +144,7 @@ func _probe_city(item:Dictionary,manager:Node)->bool:
    var ice_ok=p.x-20.0>=-4.0 and p.x+20.0<=108.0 and p.z-20.0>=-45.0 and p.z+20.0<=50.0
    if not sand_ok and not ice_ok:
     _fail("PHASE4B_STEP3_BIRD_CAMP_OUTSIDE_ISLAND: "+str(p)); return false
- if not _actors(camp).size()==20:
+ if _actors(camp).size()!=20:
   _fail("PHASE4B_STEP3_AUTOMATIC_CAMP_POPULATION_FAILED: "+String(item.id)+" actors="+str(_actors(camp).size())); return false
  dummy.global_position=boss_point.global_position
  await process_frame
