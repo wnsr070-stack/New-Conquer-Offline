@@ -36,7 +36,8 @@ jobs:
           xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 GITHUB_WORKSPACE="$GITHUB_WORKSPACE" blender --background --factory-startup --python-exit-code 1 --python ci/extract_quaternius_heads.py 2>&1 | tee artifacts/heads/extraction.log
           test -s artifacts/heads/male_head.glb
           test -s artifacts/heads/female_head.glb
-          test -s artifacts/heads/heads_pair_preview.png
+          test -s artifacts/heads/heads_front_preview.png
+          test -s artifacts/heads/heads_three_quarter_preview.png
           python3 - <<'PY'
           import json,pathlib
           root=pathlib.Path("artifacts/heads"); m=json.loads((root/"heads_manifest.json").read_text())
