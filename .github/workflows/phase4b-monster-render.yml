@@ -20,7 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends blender python3-pil python3-venv ca-certificates
+          sudo apt-get install -y --no-install-recommends blender python3-pil python3-numpy python3-venv ca-certificates
           python3 -m venv .venv
           .venv/bin/pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
           blender --version
