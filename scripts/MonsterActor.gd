@@ -6,7 +6,7 @@ signal respawned(actor: MonsterActor)
 const NORMAL_MIN_HEIGHT := 1.6
 const NORMAL_MAX_HEIGHT := 2.2
 const KING_SCALE := 1.3
-const BOSS_SCALE := 2.2
+const BOSS_SCALE := 2.5
 
 var definition: Dictionary = {}
 var is_king := false
