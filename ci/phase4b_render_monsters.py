@@ -51,3 +51,5 @@ print("PHASE4B_MONSTER_RENDER_COMPLETE: png_count=20")
 # Render workflow retry: use isolated venv for Hugging Face client.
 
 # Ensure Blender's system GLTF importer has its NumPy runtime dependency.
+
+# Retry trigger after adding python3-numpy to the runner packages.
