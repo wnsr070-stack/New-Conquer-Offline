@@ -1,4 +1,4 @@
-name: Phase 4A Hero Animation Build and Pose Review
+name: Phase 4A Ranger Hood Animation and Real Godot Pose Review
 on:
   workflow_dispatch:
   push:
@@ -16,92 +16,148 @@ env:
   GODOT_VERSION: "4.3"
   GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
   LIBGL_ALWAYS_SOFTWARE: "1"
-  CI_CAPTURE: "1"
 jobs:
   build-and-render:
     runs-on: ubuntu-22.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
           ref: test/phase4a-hero-movement
-      - name: Install Godot 4.3 and rendering dependencies
+      - name: Install Godot 4.3 and Xvfb
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0 python3-pip
-          mkdir -p .cache/godot assets/phase3b/characters assets/phase4/animations artifacts
+          mkdir -p .cache/godot assets/phase3b/characters assets/phase3b/weapons assets/phase4/animations artifacts
           curl -L --fail --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
           unzip -o .cache/godot/godot.zip -d .cache/godot
           chmod +x "$GODOT_BIN"
           "$GODOT_BIN" --version
           python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
-      - name: Fetch approved Phase 3B hero GLBs from Hugging Face
+      - name: Fetch only Male_Ranger, Female_Ranger and approved Phase 3B weapons
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
           test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
           python3 - <<'PY'
-          import os, pathlib, shutil
-          from huggingface_hub import snapshot_download
-          root = pathlib.Path(snapshot_download(
-              repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets",
-              repo_type="dataset", token=os.environ["HF_TOKEN"],
-              allow_patterns=["phase3b/**", "characters/**"]
-          ))
-          candidates = [root / "phase3b" / "characters", root / "characters"]
-          source = next((p for p in candidates if p.is_dir()), None)
-          if source is None:
-              raise SystemExit("HF repository has no phase3b/characters or characters directory")
-          target = pathlib.Path("assets/phase3b/characters")
-          target.mkdir(parents=True, exist_ok=True)
-          for item in source.iterdir():
-              dest = target / item.name
-              if item.is_dir(): shutil.copytree(item, dest, dirs_exist_ok=True)
-              else: shutil.copy2(item, dest)
-          required = ["archer_male.glb", "archer_female.glb"]
-          for name in required:
-              path = target / name
-              if not path.is_file() or path.stat().st_size < 10000:
-                  raise SystemExit(f"Required hero GLB missing/invalid: {path}")
-          print("PHASE4A_HF_HERO_DOWNLOAD_OK:", len(list(target.glob("*.glb"))), "GLBs")
+          import hashlib, json, os, pathlib, shutil
+          from huggingface_hub import hf_hub_download
+          repo = "ZzwahwahzZ/clash-of-legends-terrain-assets"
+          token = os.environ["HF_TOKEN"]
+          root = pathlib.Path(".")
+          chars = root / "assets/phase3b/characters"
+          weapons = root / "assets/phase3b/weapons"
+          chars.mkdir(parents=True, exist_ok=True)
+          weapons.mkdir(parents=True, exist_ok=True)
+          sources = {
+              "Male_Ranger.glb": "phase3b/characters/archer_male.glb",
+              "Female_Ranger.glb": "phase3b/characters/archer_female.glb",
+          }
+          hashes = {}
+          for target, source in sources.items():
+              downloaded = pathlib.Path(hf_hub_download(repo_id=repo, repo_type="dataset", filename=source, token=token))
+              destination = chars / target
+              shutil.copy2(downloaded, destination)
+              if destination.stat().st_size < 1000000 or destination.read_bytes()[:4] != b"glTF":
+                  raise SystemExit(f"Invalid Ranger GLB: {source}")
+              hashes[target] = hashlib.sha256(destination.read_bytes()).hexdigest()
+          weapon_files = [
+              "bow_beginner.glb", "dual_knives_beginner.glb", "dual_blades_beginner.glb",
+              "shield_beginner.glb", "greatsword_beginner.glb", "magic_staff_beginner.glb"
+          ]
+          weapon_hashes = {}
+          for name in weapon_files:
+              source = "phase3b/weapons/" + name
+              downloaded = pathlib.Path(hf_hub_download(repo_id=repo, repo_type="dataset", filename=source, token=token))
+              destination = weapons / name
+              shutil.copy2(downloaded, destination)
+              if destination.stat().st_size < 10000 or destination.read_bytes()[:4] != b"glTF":
+                  raise SystemExit(f"Invalid Phase 3B weapon GLB: {source}")
+              weapon_hashes[name] = hashlib.sha256(destination.read_bytes()).hexdigest()
+          report_source = pathlib.Path(hf_hub_download(repo_id=repo, repo_type="dataset", filename="phase3b/characters/character_quality_report.json", token=token))
+          report = json.loads(report_source.read_text(encoding="utf-8"))
+          profiles = {p["file"]: p for p in report.get("profiles", [])}
+          for filename, expected in [("characters/archer_male.glb", "Male_Ranger.gltf"), ("characters/archer_female.glb", "Female_Ranger.gltf")]:
+              profile = profiles.get(filename)
+              if not profile or profile.get("source_model") != expected or "Hood" not in profile.get("integrated_headgear", ""):
+                  raise SystemExit(f"Phase 3B provenance does not certify Ranger Hood source: {filename}")
+          manifest = {
+              "source_repo": repo,
+              "source_path": "phase3b/characters",
+              "source_models": ["Male_Ranger.gltf", "Female_Ranger.gltf"],
+              "source_revision": "agentkaerf/FreeModels@db3df04d1e4714298a09510b26fb6de6645138a2",
+              "headgear": "Ranger Hood integrated in complete outfit mesh",
+              "forbidden": ["Male_Peasant.gltf", "Female_Peasant.gltf", "Peasant", "yellow shorts", "Ara3D legacy character GLBs"],
+              "character_files": hashes,
+              "weapon_files": weapon_hashes,
+              "class_model_policy": "All class poses instantiate only Male_Ranger.glb or Female_Ranger.glb; Archer and Eastern Assassin share the exact same Male_Ranger instance source."
+          }
+          pathlib.Path("artifacts/phase4a_source_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+          print("PHASE4A_APPROVED_RANGER_SOURCE_OK:", json.dumps(manifest, sort_keys=True))
           PY
-      - name: Import hero models and inspect the unified skeleton
+      - name: Import models and validate exact Ranger skeleton and weapon inventory
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/godot_import.log
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --editor --quit 2>&1 | tee artifacts/godot_import.log
           python3 - <<'PY'
-          import json, struct, pathlib
-          required = {"pelvis","spine_01","spine_02","spine_03","neck_01","Head","clavicle_l","clavicle_r","upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r","thigh_l","thigh_r","calf_l","calf_r","foot_l","foot_r"}
-          for filename in ("archer_male.glb","archer_female.glb"):
-              path=pathlib.Path("assets/phase3b/characters")/filename
-              data=path.read_bytes()
-              if data[:4] != b"glTF": raise SystemExit(f"Not GLB: {path}")
-              length=struct.unpack_from("<I",data,12)[0]
-              doc=json.loads(data[20:20+length])
-              skins=doc.get("skins",[])
-              if not skins: raise SystemExit(f"No skin in {filename}")
-              nodes=doc.get("nodes",[])
-              names={nodes[i].get("name","") for i in skins[0].get("joints",[])}
-              missing=required-names
-              if missing: raise SystemExit(f"{filename} missing unified bones: {sorted(missing)}")
-              print("PHASE4A_SKELETON_OK:",filename,"bones=",len(names))
+          import json, pathlib, struct
+          required = {"hand_l", "hand_r"}
+          for filename in ("Male_Ranger.glb", "Female_Ranger.glb"):
+              path = pathlib.Path("assets/phase3b/characters") / filename
+              data = path.read_bytes()
+              if data[:4] != b"glTF" or struct.unpack_from("<I", data, 8)[0] != len(data):
+                  raise SystemExit("Invalid GLB container: " + filename)
+              offset = 12
+              doc = None
+              while offset + 8 <= len(data):
+                  length, kind = struct.unpack_from("<II", data, offset)
+                  offset += 8
+                  chunk = data[offset:offset+length]
+                  offset += length
+                  if kind == 0x4E4F534A:
+                      doc = json.loads(chunk.decode("utf-8").rstrip(" \0"))
+                      break
+              if doc is None or not doc.get("skins"):
+                  raise SystemExit("No glTF skin: " + filename)
+              nodes = doc.get("nodes", [])
+              joints = [nodes[i].get("name", "") for i in doc["skins"][0].get("joints", [])]
+              missing = required - set(joints)
+              if len(joints) < 60 or missing:
+                  raise SystemExit(f"Ranger rig invalid: {filename}, joints={len(joints)}, missing={sorted(missing)}")
+              print("PHASE4A_RANGER_SKELETON_OK:", filename, "joint_count=", len(joints), "joint_names=", json.dumps(joints))
+          for path in pathlib.Path("assets/phase3b/weapons").glob("*.glb"):
+              if not path.is_file() or path.stat().st_size < 10000:
+                  raise SystemExit("Invalid weapon: " + str(path))
+          if len(list(pathlib.Path("assets/phase3b/characters").glob("*.glb"))) != 2:
+              raise SystemExit("Character directory must contain exactly two Ranger GLBs; legacy/Peasant models are forbidden")
           PY
-      - name: Build and reload the real AnimationLibrary in Godot 4.3
+      - name: Build and reload shared rest-pose animation library
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroAnimationBuilder.gd 2>&1 | tee artifacts/animation_build.log
           test -s assets/phase4/animations/conquer_hero_anims.res
           grep -q "PHASE4A_ANIMATION_LIBRARY_OK" artifacts/animation_build.log
           cp assets/phase4/animations/conquer_hero_anims.res artifacts/conquer_hero_anims.res
-      - name: Render six approved hero poses in Godot 4.3 under Xvfb
+      - name: Render seven real Ranger Hood poses in Godot 4.3 under Xvfb
         run: |
           set -euo pipefail
           xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroPoseRenderer.gd 2>&1 | tee artifacts/pose_render.log
           test -s artifacts/hero_pose_review.png
           grep -q "PHASE4A_POSE_RENDER_OK" artifacts/pose_render.log
-      - name: Upload real Godot animation and pose review artifacts
+          python3 - <<'PY'
+          import pathlib, struct
+          p=pathlib.Path("artifacts/hero_pose_review.png")
+          b=p.read_bytes()
+          if b[:8] != b"\x89PNG\r\n\x1a\n":
+              raise SystemExit("Pose review is not a real PNG")
+          w,h=struct.unpack(">II",b[16:24])
+          if (w,h)!=(1920,1080) or len(b)<50000:
+              raise SystemExit(f"PNG dimensions/size invalid: {(w,h)} bytes={len(b)}")
+          print("PHASE4A_REAL_PNG_VALIDATED:",p,"dimensions=",w,"x",h,"bytes=",len(b))
+          PY
+      - name: Upload render, animation, source manifest and validation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -109,8 +165,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: |
-            artifacts/conquer_hero_anims.res
             artifacts/hero_pose_review.png
+            artifacts/conquer_hero_anims.res
+            artifacts/phase4a_source_manifest.json
             artifacts/godot_import.log
             artifacts/animation_build.log
             artifacts/pose_render.log
