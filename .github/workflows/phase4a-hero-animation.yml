@@ -5,6 +5,7 @@ on:
     branches: ['test/phase4a-hero-movement']
     paths:
       - 'scripts/animation/ConquerHeroAnimationBuilder.gd'
+      - 'scripts/animation/ConquerHeroPoseRenderer.gd'
       - '.github/workflows/phase4a-hero-animation.yml'
 permissions:
   contents: read
@@ -93,3 +94,23 @@ jobs:
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroAnimationBuilder.gd 2>&1 | tee artifacts/animation_build.log
           test -s assets/phase4/animations/conquer_hero_anims.res
           grep -q "PHASE4A_ANIMATION_LIBRARY_OK" artifacts/animation_build.log
+          cp assets/phase4/animations/conquer_hero_anims.res artifacts/conquer_hero_anims.res
+      - name: Render six approved hero poses in Godot 4.3 under Xvfb
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroPoseRenderer.gd 2>&1 | tee artifacts/pose_render.log
+          test -s artifacts/hero_pose_review.png
+          grep -q "PHASE4A_POSE_RENDER_OK" artifacts/pose_render.log
+      - name: Upload real Godot animation and pose review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4a-hero-pose-review
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            artifacts/conquer_hero_anims.res
+            artifacts/hero_pose_review.png
+            artifacts/godot_import.log
+            artifacts/animation_build.log
+            artifacts/pose_render.log
