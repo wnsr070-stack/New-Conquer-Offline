@@ -115,7 +115,7 @@ func _apply_class_palette(model: Node3D, pose: String) -> void:
  var palette: Array[Color] = []
  match pose:
   "Attack_Bow", "Attack_Assassin":
-   palette = [Color("#08070c"), Color("#7b20f5"), Color("#ff2020")]
+   palette = [Color("#8f24ff"), Color("#ff1b16")]
   "Attack_Trojan":
    palette = [Color("#a30f2d")]
   "Attack_SwordShield":
@@ -132,14 +132,18 @@ func _apply_class_palette(model: Node3D, pose: String) -> void:
   for surface in range(mesh_instance.mesh.get_surface_count()):
    var material := StandardMaterial3D.new()
    material.albedo_color = palette[material_index % palette.size()]
-   material.roughness = 0.68
-   material.metallic = 0.12 if pose == "Attack_Staff" else 0.05
+   material.roughness = 0.48
+   material.metallic = 0.08
+   if pose in ["Attack_Bow", "Attack_Assassin"]:
+    material.emission_enabled = true
+    material.emission = material.albedo_color
+    material.emission_energy_multiplier = 0.22
    mesh_instance.set_surface_override_material(surface, material)
    material_index += 1
  if material_index == 0:
   push_error("CLASS_PALETTE_NO_MESH_SURFACES: " + pose)
  else:
-  print("PHASE4A_CLASS_PALETTE_OK: ", pose, " surfaces=", material_index, " colors=", palette)
+  print("PHASE4A_CLASS_PALETTE_OK: ", pose, " surfaces=", material_index, " colors=", palette, " vivid_emission=0.22")
 
 
 func _attach_weapons(skeleton: Skeleton3D, pose: String) -> void:
