@@ -27,10 +27,10 @@ const MONSTERS := [
 
 const WORLD_BOSSES := [
     {"id":"Mushroom King","city":"TwinCity","level":25,"hp":12000,"damage":220,"exp":3500,"max_npc":1,"scale":2.5,"rest_secs":60.0},
-    {"id":"Orc Skull","city":"PhoenixCastle","level":48,"hp":45000,"damage":580,"exp":12000,"max_npc":1,"scale":2.2,"rest_secs":60.0},
-    {"id":"Alpaking Evolved","city":"ApeMountain","level":68,"hp":110000,"damage":1100,"exp":30000,"max_npc":1,"scale":2.2,"rest_secs":60.0},
-    {"id":"Blue Demon","city":"DesertCity","level":88,"hp":250000,"damage":1950,"exp":70000,"max_npc":1,"scale":2.2,"rest_secs":60.0},
-    {"id":"Dragon Evolved","cq_name":"Terato Dragon","city":"BirdIsland","level":115,"hp":600000,"damage":3500,"exp":180000,"max_npc":1,"scale":2.2,"rest_secs":60.0}
+    {"id":"Orc Skull","city":"PhoenixCastle","level":48,"hp":45000,"damage":580,"exp":12000,"max_npc":1,"scale":2.5,"rest_secs":60.0},
+    {"id":"Alpaking Evolved","city":"ApeMountain","level":68,"hp":110000,"damage":1100,"exp":30000,"max_npc":1,"scale":2.5,"rest_secs":60.0},
+    {"id":"Blue Demon","city":"DesertCity","level":88,"hp":250000,"damage":1950,"exp":70000,"max_npc":1,"scale":2.5,"rest_secs":60.0},
+    {"id":"Dragon Evolved","cq_name":"Terato Dragon","city":"BirdIsland","level":115,"hp":600000,"damage":3500,"exp":180000,"max_npc":1,"scale":2.5,"rest_secs":60.0}
 ]
 
 # Each city has its own scene-local coordinate frame; these are the authored scene origins.
