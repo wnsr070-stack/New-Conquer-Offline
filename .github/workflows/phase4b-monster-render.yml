@@ -1,0 +1,78 @@
+name: Phase 4B Independent Monster PNG Showcase Render
+on:
+  push:
+    branches: ['test/phase4b-monsters-bosses']
+    paths:
+      - 'ci/phase4b_render_monsters.py'
+      - '.github/workflows/phase4b-monster-render.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render-approved-monsters:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender and image tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender python3-pil python3-pip ca-certificates
+          python3 -m pip install --break-system-packages --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          blender --version
+          mkdir -p artifacts/monster_png assets/phase3b
+      - name: Restore and SHA256-verify approved Phase 3B GLBs
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, shutil
+          from huggingface_hub import snapshot_download
+          if not os.environ.get("HF_TOKEN"): raise SystemExit("HF_TOKEN secret is required")
+          root=pathlib.Path(snapshot_download(repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets",repo_type="dataset",token=os.environ["HF_TOKEN"],allow_patterns=["phase3b/monsters/**","phase3b/phase3b_manifest.json"]))
+          source=root/"phase3b"; manifest_path=source/"phase3b_manifest.json"
+          if not manifest_path.is_file(): raise SystemExit("Phase 3B manifest missing")
+          manifest=json.loads(manifest_path.read_text()); assets=[x for x in manifest.get("assets",[]) if x.get("category") in {"normal_mob","boss"}]
+          if len(assets)!=20 or sum(x.get("category")=="normal_mob" for x in assets)!=15 or sum(x.get("category")=="boss" for x in assets)!=5: raise SystemExit("Expected exactly 15 normal and 5 boss models")
+          for item in assets:
+           src=source/item["file"]; data=src.read_bytes()
+           if len(data)!=int(item["bytes"]) or hashlib.sha256(data).hexdigest()!=item["sha256"] or data[:4]!=b"glTF": raise SystemExit("GLB integrity failure: "+item["file"])
+           dest=pathlib.Path("assets/phase3b")/item["file"]; dest.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,dest)
+          print("PHASE4B_RENDER_HF_ASSETS_VERIFIED: normal=15 bosses=5 sha256=20")
+          PY
+      - name: Render twenty 1200px PNGs
+        run: |
+          set -euo pipefail
+          blender --background --python ci/phase4b_render_monsters.py -- assets/phase3b artifacts/monster_png 2>&1 | tee artifacts/monster_png/render.log
+          grep -q "PHASE4B_MONSTER_RENDER_COMPLETE: png_count=20" artifacts/monster_png/render.log
+          test "$(find artifacts/monster_png -maxdepth 1 -name '*.png' | wc -l)" -eq 20
+      - name: Build labeled contact sheet and verify output
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+          from pathlib import Path
+          root=Path("artifacts/monster_png"); files=sorted(root.glob("*.png"))
+          if len(files)!=20: raise SystemExit(f"Expected 20 PNGs, got {len(files)}")
+          tw,th,lh=360,360,54; cols,rows=4,5
+          sheet=Image.new("RGB",(cols*tw,rows*(th+lh)),(24,29,39)); draw=ImageDraw.Draw(sheet)
+          try: font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",20)
+          except OSError: font=ImageFont.load_default()
+          for i,path in enumerate(files):
+           im=Image.open(path).convert("RGBA")
+           if im.size!=(1200,1200): raise SystemExit(f"Bad dimensions: {path} {im.size}")
+           im.thumbnail((tw-16,th-16),Image.Resampling.LANCZOS); x=(i%cols)*tw; y=(i//cols)*(th+lh)
+           tile=Image.new("RGBA",(tw,th),(35,42,55,255)); tile.alpha_composite(im,((tw-im.width)//2,(th-im.height)//2))
+           sheet.paste(tile.convert("RGB"),(x,y)); draw.text((x+12,y+th+10),path.stem.replace("_"," "),fill=(245,238,218),font=font)
+          sheet.save(root/"MONSTERS_CONTACT_SHEET.png",optimize=True)
+          print("PHASE4B_MONSTER_CONTACT_SHEET_OK: images=20 dimensions=1200x1200")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4b-monster-png-showcase-${{ github.run_number }}
+          path: artifacts/monster_png/
+          if-no-files-found: error
+          retention-days: 30
