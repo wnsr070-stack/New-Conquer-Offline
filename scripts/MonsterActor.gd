@@ -33,6 +33,7 @@ var _procedural_clock := 0.0
 var _model_rest_position := Vector3.ZERO
 var _model_rest_scale := Vector3.ONE
 var _model_height := 1.8
+var empty_mesh_nodes_removed := 0
 
 func configure(data: Dictionary, model_path: String, king: bool, boss: bool, center: Vector3) -> bool:
 	definition = data.duplicate(true)
@@ -56,6 +57,9 @@ func configure(data: Dictionary, model_path: String, king: bool, boss: bool, cen
 	if _model == null:
 		push_error("MonsterActor: GLB root is not Node3D: " + model_path)
 		return false
+	empty_mesh_nodes_removed = _prune_empty_mesh_instances(_model)
+	if empty_mesh_nodes_removed > 0:
+		print("PHASE4B_EMPTY_GLTF_MESH_NODES_PRUNED: model=", definition.get("id", ""), " count=", empty_mesh_nodes_removed)
 	add_child(_model)
 
 	_model_height = _target_height(String(definition.get("id", "")))
@@ -92,6 +96,17 @@ func configure(data: Dictionary, model_path: String, king: bool, boss: bool, cen
 	global_position = camp_center
 	_play_idle()
 	return true
+
+func _prune_empty_mesh_instances(root: Node) -> int:
+	var removed := 0
+	for child in root.get_children():
+		if child is MeshInstance3D and (child as MeshInstance3D).mesh == null:
+			root.remove_child(child)
+			child.free()
+			removed += 1
+		else:
+			removed += _prune_empty_mesh_instances(child)
+	return removed
 
 func _target_height(monster_id: String) -> float:
 	var normal_ids := ["Chicken", "Pigeon", "Birb", "Ghost", "Blob", "Bunny", "Dog", "Frog", "Orc", "Yeti", "Cactoro", "Dino", "Armabee", "Demon", "Alien"]
@@ -131,6 +146,7 @@ func _build_nameplate() -> void:
 	if is_king:
 		display_name = "King " + display_name
 	_nameplate.text = "[Lv.%d] %s" % [level, display_name]
+	_nameplate.font = ThemeDB.fallback_font
 	_nameplate.font_size = 48
 	_nameplate.pixel_size = 0.004
 	_nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
