@@ -214,6 +214,7 @@ def write_blender_batch(jobs, preview_dir):
     config.write_text(json.dumps({"jobs": jobs, "preview_dir": str(preview_dir)}, indent=2), encoding="utf-8")
     script.write_text(r'''
 import bpy, json, sys, os, math
+import bmesh
 from mathutils import Vector
 args = sys.argv[sys.argv.index("--") + 1:]
 cfg = json.load(open(args[0], encoding="utf-8"))
@@ -348,18 +349,47 @@ def _head_bone(armature):
     return matches[0]
 
 def add_quaternius_head_hair(source_path, gender):
-    # The body model was imported before this function; retain its actual rig explicitly.
+    # Keep the target hero rig; import the independent Quaternius Adventurer source.
     target_armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
     if not target_armatures:
         raise RuntimeError("Target hero GLB has no Armature object for head attachment")
     target_armature = target_armatures[0]
     target_head = _head_bone(target_armature)
+
     imported_before = set(bpy.context.scene.objects)
     bpy.ops.import_scene.gltf(filepath=source_path)
-    imported_head_objects = set(bpy.context.scene.objects) - imported_before
+    imported_head_objects = list(set(bpy.context.scene.objects) - imported_before)
     source_armatures = [obj for obj in imported_head_objects if obj.type == "ARMATURE"]
     if not source_armatures:
         raise RuntimeError("Quaternius " + gender + " head source has no source Armature")
+    source_armature = source_armatures[0]
+    source_head = _head_bone(source_armature)
+
+    def find_neck_bone(armature):
+        matches = [bone for bone in armature.data.bones
+                   if "neck" in "".join(ch.lower() for ch in bone.name if ch.isalnum())]
+        if not matches:
+            raise RuntimeError("Quaternius " + gender + " Adventurer source has no Neck bone")
+        return matches[0]
+
+    source_neck = find_neck_bone(source_armature)
+
+    # Normalize every imported source object before measuring or filtering any geometry.
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in imported_head_objects:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = imported_head_objects[0]
+    bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    source_armature_eval = source_armature
+    src_neck_world = source_armature_eval.matrix_world @ source_neck.head
+    src_head_pos = source_armature.matrix_world @ source_head.head
+    tgt_head_pos = target_armature.matrix_world @ target_head.head
+    src_neck_z = src_neck_world.z
+    scale_ratio = target_armature.dimensions.z / max(source_armature.dimensions.z, 0.001)
+    vertex_floor_z = src_head_pos.z - 0.12 * source_armature.dimensions.z
+
     head_terms = ("head", "face", "hair", "eyes", "eyebrows", "beard", "ears")
     excluded_terms = ("backpack", "bag", "quiver", "cape", "shield", "weapon")
     head_meshes = []
@@ -367,66 +397,104 @@ def add_quaternius_head_hair(source_path, gender):
         if obj.type != "MESH":
             continue
         object_name = obj.name.casefold()
-        excluded_match = any(term in object_name for term in excluded_terms)
-        name_match = any(term in object_name for term in head_terms)
-        world_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-        bbox_center_z = (min(v.z for v in world_corners) + max(v.z for v in world_corners)) * 0.5 if world_corners else float("-inf")
-        if not excluded_match and (name_match or bbox_center_z > 1.3):
-            head_meshes.append(obj)
-            print("PHASE3B_QUATERNIUS_HEAD_MESH_DETECTED:",
-                  "gender=", gender, "name=", obj.name,
-                  "name_match=", name_match, "excluded_match=", excluded_match,
-                  "bbox_center_z=", round(bbox_center_z, 4),
-                  "materials=", [mat.name for mat in obj.data.materials if mat],
-                  flush=True)
-        elif excluded_match:
+        if any(term in object_name for term in excluded_terms):
             print("PHASE3B_QUATERNIUS_HEAD_MESH_EXCLUDED:",
-                  "gender=", gender, "name=", obj.name,
-                  "excluded_terms=", excluded_terms, flush=True)
-    if len(head_meshes) < 1:
+                  "gender=", gender, "name=", obj.name, flush=True)
+            continue
+        # Select likely head-bearing meshes, then retain only polygons above the source neck.
+        world_centers_z = [
+            (obj.matrix_world @ Vector(corner)).z for corner in obj.bound_box
+        ]
+        bbox_center_z = (min(world_centers_z) + max(world_centers_z)) * 0.5 if world_centers_z else float("-inf")
+        if any(term in object_name for term in head_terms) or bbox_center_z > src_neck_z:
+            head_meshes.append(obj)
+
+    if not head_meshes:
         imported_mesh_names = [obj.name for obj in imported_head_objects if obj.type == "MESH"]
-        raise RuntimeError("Quaternius " + gender + " head source produced no head meshes; imported meshes=" + repr(imported_mesh_names))
-    head_parts = head_meshes
-    material_names = {m.name for obj in head_parts for m in obj.data.materials if m}
-    print("PHASE3B_QUATERNIUS_HEAD_MESHES_SELECTED:",
-          "gender=", gender, "count=", len(head_parts),
-          "names=", [obj.name for obj in head_parts], flush=True)
-    source_armature = source_armatures[0]
-    source_head = _head_bone(source_armature)
-    src_head_pos = source_armature.matrix_world @ source_head.head
-    tgt_head_pos = target_armature.matrix_world @ target_head.head
-    offset = tgt_head_pos - src_head_pos
+        raise RuntimeError("Quaternius " + gender + " source produced no candidate head meshes; imported meshes=" + repr(imported_mesh_names))
+
+    import bmesh
+    retained_meshes = []
     for obj in head_meshes:
-        if len(obj.data.vertices) == 0:
-            raise RuntimeError("Quaternius head mesh is empty: " + obj.name)
+        if len(obj.data.vertices) == 0 or len(obj.data.polygons) == 0:
+            continue
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
+        bm.verts.ensure_lookup_table()
+        # Polygon centers are evaluated in world space against the Adventurer neck height.
+        remove_faces = []
+        for face in bm.faces:
+            center_world = obj.matrix_world @ face.calc_center_median()
+            if center_world.z <= src_neck_z:
+                remove_faces.append(face)
+        if remove_faces:
+            bmesh.ops.delete(bm, geom=remove_faces, context="FACES")
+        # Also remove every vertex below the specified world-space neck cutoff.
+        remove_verts = [
+            vert for vert in bm.verts
+            if (obj.matrix_world @ vert.co).z < vertex_floor_z
+        ]
+        if remove_verts:
+            bmesh.ops.delete(bm, geom=remove_verts, context="VERTS")
+        loose_verts = [vert for vert in bm.verts if not vert.link_faces]
+        if loose_verts:
+            bmesh.ops.delete(bm, geom=loose_verts, context="VERTS")
+        bm.to_mesh(obj.data)
+        bm.free()
+        obj.data.update()
+        if len(obj.data.vertices) == 0 or len(obj.data.polygons) == 0:
+            print("PHASE3B_QUATERNIUS_HEAD_MESH_EMPTY_AFTER_NECK_CUT:",
+                  "gender=", gender, "name=", obj.name, flush=True)
+            continue
+
+        # Match the hero's rig scale, apply it, then place the mesh bounds center on Head.
+        obj.scale *= scale_ratio
         bpy.ops.object.select_all(action="DESELECT")
         bpy.context.view_layer.objects.active = obj
         obj.select_set(True)
-        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
-        obj.location += offset
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        world_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        mesh_center = sum(world_corners, Vector((0.0, 0.0, 0.0))) / len(world_corners)
+        obj.location += (tgt_head_pos - mesh_center)
+
         head_group = obj.vertex_groups.get(target_head.name) or obj.vertex_groups.new(name=target_head.name)
-        head_group.add(list(range(len(obj.data.vertices))), 1.0, "REPLACE")
+        head_group.add([vertex.index for vertex in obj.data.vertices], 1.0, "REPLACE")
         obj.parent = target_armature
+        obj.parent_type = "BONE"
+        obj.parent_bone = target_head.name
         armature_modifier = obj.modifiers.new(name="Phase3B_HeadBoneSkin", type="ARMATURE")
         armature_modifier.object = target_armature
         obj.select_set(False)
+        retained_meshes.append(obj)
+        print("PHASE3B_QUATERNIUS_HEAD_MESH_RETAINED:",
+              "gender=", gender, "name=", obj.name,
+              "vertices=", len(obj.data.vertices), "polygons=", len(obj.data.polygons),
+              "scale_ratio=", round(scale_ratio, 6),
+              "neck_z=", round(src_neck_z, 4),
+              "target_head_world=", tuple(round(v, 4) for v in tgt_head_pos),
+              flush=True)
+
+    if not retained_meshes:
+        raise RuntimeError("Quaternius " + gender + " head extraction removed every mesh")
+
+    # Remove the source rig and all unused imported Adventurer objects before export.
+    for obj in imported_head_objects:
+        if obj not in retained_meshes and obj.name in bpy.data.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+
     world_centers = []
-    for obj in head_meshes:
+    for obj in retained_meshes:
         corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-        if corners:
-            center = sum(corners, Vector((0.0, 0.0, 0.0))) / len(corners)
-            world_centers.append((obj.name, tuple(round(v, 4) for v in center)))
+        center = sum(corners, Vector((0.0, 0.0, 0.0))) / len(corners)
+        world_centers.append((obj.name, tuple(round(v, 4) for v in center)))
     print("PHASE3B_HEAD_PRE_EXPORT_CHECK:",
-          "gender=", gender, "head_count=", len(head_meshes),
+          "gender=", gender, "head_count=", len(retained_meshes),
+          "source_neck_z=", round(src_neck_z, 4),
+          "scale_ratio=", round(scale_ratio, 6),
           "world_centers=", world_centers, flush=True)
-    for obj in list(imported_head_objects):
-        if obj not in head_meshes and obj.name in bpy.data.objects:
-            bpy.data.objects.remove(obj, do_unlink=True)
-    for obj in list(bpy.context.scene.objects):
-        if obj.type == "MESH" and "head_hood" in obj.name.lower():
-            bpy.data.objects.remove(obj, do_unlink=True)
-    print("PHASE3B_HEAD_HAIR_ATTACHED:", gender, "parts=", len(head_meshes), "bone=", target_head.name,
-          "materials=", sorted(material_names), "source=", source_path, flush=True)
+    print("PHASE3B_HEAD_HAIR_ATTACHED:", gender, "parts=", len(retained_meshes),
+          "bone=", target_head.name, "source=", source_path, flush=True)
 
 def render_preview(job, index):
     scene = bpy.context.scene
