@@ -81,7 +81,7 @@ func _run() -> void:
 			_fail("PHASE4B_STEP2_NAMEPLATE_FAILED: " + monster_id)
 			return
 		if is_boss:
-			if absf(actor.get_model_height() - 4.4) > 0.02:
+			if absf(actor.get_model_height() - 5.0) > 0.02:
 				_fail("PHASE4B_STEP2_BOSS_SCALE_FAILED: " + monster_id + " height=" + str(actor.get_model_height()))
 				return
 			if not actor.get_nameplate().modulate.is_equal_approx(Color(1.0, 0.72, 0.12, 1.0)):
