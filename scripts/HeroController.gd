@@ -80,6 +80,7 @@ func _load_approved_ranger() -> void:
    return
   animation_player.play("Idle")
   print("HERO_ANIMATION_LIBRARY_LOADED: clips=",library.get_animation_list())
+  print("HERO_ANIMATION_IDLE_PLAYING: current=", animation_player.current_animation)
  else:
   print("PHASE4A_ANIMATION_RESOURCE_PRESERVED: generated .res not rebuilt, loaded or modified")
 
@@ -221,17 +222,17 @@ func _apply_approved_palette() -> void:
 
 func _attach_class_weapons() -> void:
  match active_class:
-  "archer": _attach_weapon("hand_l","bow")
+  "archer": _attach_weapon("l","bow")
   "oriental_assassin":
-   _attach_weapon("hand_l","dual_knives")
-   _attach_weapon("hand_r","dual_knives")
+   _attach_weapon("l","dual_knives")
+   _attach_weapon("r","dual_knives")
   "trojan":
-   _attach_weapon("hand_l","dual_blades")
-   _attach_weapon("hand_r","dual_blades")
+   _attach_weapon("l","dual_blades")
+   _attach_weapon("r","dual_blades")
   "warrior":
-   _attach_weapon("hand_l","shield")
-   _attach_weapon("hand_r","greatsword")
-  "taoist": _attach_weapon("hand_r","magic_staff")
+   _attach_weapon("l","shield")
+   _attach_weapon("r","greatsword")
+  "taoist": _attach_weapon("r","magic_staff")
 
 func _resolve_hand_bone(side: String) -> int:
  if skeleton == null:
