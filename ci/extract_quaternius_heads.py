@@ -127,8 +127,8 @@ def render(male,female):
   log("HEAD_QA_VISUAL_CONTENT_OK",view_name,"non_background_pixels",int(len(xs)),"bbox",(int(xs.min()),int(ys.min()),int(xs.max()),int(ys.max())))
   bpy.data.images.remove(preview)
   log("HEAD_QA_RENDER_OK",view_name,dest,dest.stat().st_size)
- render_view("front",(0,-1,0.04))
- render_view("three_quarter",(0.65,-1,0.28))
+ render_view("front",(0,1,0.04))
+ render_view("three_quarter",(0.65,1,0.28))
 
 male=extract("male",source("male")); female=extract("female",source("female")); render(male,female)
 (OUT/"heads_manifest.json").write_text(json.dumps({"source":REPO,"revision":REV,"license":"CC0-1.0","cut":{"male":"none; independent head mesh","female":"remove vertices below min_z + 0.15 * source_head_height"},"normalization":{"neck_base":[0,0,0],"height_m":0.26},"files":[{"name":p.name,"bytes":p.stat().st_size,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()} for p in (male,female)],"previews":["heads_front_preview.png","heads_three_quarter_preview.png"]},indent=2)+"\n")
