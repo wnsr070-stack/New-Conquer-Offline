@@ -273,7 +273,8 @@ func _resolve_hand_bone(side: String) -> int:
  for i in range(skeleton.get_bone_count()):
   var actual := skeleton.get_bone_name(i)
   var normalized := actual.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
-  if normalized.contains("hand") and normalized.contains(required_side):
+  var matches_side := normalized.contains(required_side + "hand") or normalized.ends_with("hand" + ("r" if side == "r" else "l"))
+  if normalized.contains("hand") and matches_side:
    print("HERO_HAND_BONE_NAME_MATCH: side=", side, " index=", i, " name=", actual)
    return i
  var available: Array[String] = []
