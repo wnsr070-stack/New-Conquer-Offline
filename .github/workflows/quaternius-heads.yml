@@ -1,4 +1,5 @@
 name: Quaternius Standalone Head Extraction
+# Runs the standalone extractor against the exact branch revision.
 on:
   push:
     branches: ['test/phase3b-characters-weapons']
