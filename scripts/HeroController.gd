@@ -111,8 +111,17 @@ func _load_approved_ranger() -> void:
    return
   animation_player.play("Idle")
   await get_tree().process_frame
-  print("HERO_ANIMATION_LIBRARY_LOADED: clips=",library.get_animation_list())
+  var approved_clips := ["Idle", "Run", "Jump", "Attack_Bow", "Attack_Assassin", "Attack_Trojan", "Attack_SwordShield", "Attack_Staff", "Hit", "Death"]
+  var missing_clips: Array[String] = []
+  for clip_name in approved_clips:
+   if not animation_player.has_animation(clip_name):
+    missing_clips.append(clip_name)
+  if not missing_clips.is_empty() or animation_player.current_animation != "Idle":
+   push_error("HERO_APPROVED_ANIMATION_LIBRARY_INCOMPLETE: missing=" + str(missing_clips) + " current=" + animation_player.current_animation)
+   return
+  print("HERO_ANIMATION_LIBRARY_LOADED: clips=", library.get_animation_list())
   print("HERO_ANIMATION_IDLE_PLAYING: current=", animation_player.current_animation, " root_node=", animation_player.root_node, " skeleton_path=", animation_player.get_path_to(skeleton))
+  print("PHASE4A_ANIMATION_RESOURCE_PRESERVED: approved_builder_invoked_unchanged=true all_10_clips_loaded=true idle_playing=true resource_runtime_read_only=true")
  else:
   print("PHASE4A_ANIMATION_RESOURCE_PRESERVED: generated .res not rebuilt, loaded or modified")
 
