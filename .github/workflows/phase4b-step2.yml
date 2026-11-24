@@ -94,3 +94,5 @@ jobs:
 # Final city-scene resource and per-city spawn-count validation pass.
 
 # Validate final measured scale, ground fit, King styling and respawn lifecycle.
+
+# Recheck GLB empty-node cleanup and explicit Label3D fallback font.
