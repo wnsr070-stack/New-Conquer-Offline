@@ -102,3 +102,5 @@ func _fail(message: String) -> void:
 	quit(1)
 
 # Include runtime scene-spawner integration in the validation pass.
+
+# Final validation includes explicit cleanup and zero engine ERROR lines.
