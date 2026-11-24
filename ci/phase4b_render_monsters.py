@@ -41,7 +41,7 @@ def render_one(label,relpath,height,category):
  scene=bpy.context.scene
  if scene.world is None: scene.world=bpy.data.worlds.new("Monster_Showcase_World")
  scene.render.engine="BLENDER_EEVEE_NEXT" if hasattr(bpy.types,"BLENDER_EEVEE_NEXT") else "BLENDER_EEVEE"
- if hasattr(scene,"eevee"): scene.eevee.taa_render_samples=64
+ if hasattr(scene,"eevee"): scene.eevee.taa_render_samples=8
  scene.render.resolution_x=1200; scene.render.resolution_y=1200; scene.render.resolution_percentage=100
  scene.render.image_settings.file_format="PNG"; scene.render.image_settings.color_mode="RGBA"; scene.world.color=(.035,.045,.065)
  scene.view_settings.view_transform="Standard"; scene.render.filepath=os.path.join(OUTPUT_DIR,label+".png")
