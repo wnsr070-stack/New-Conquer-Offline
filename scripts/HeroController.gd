@@ -39,6 +39,7 @@ var jump_origin := Vector3.ZERO
 var jump_destination := Vector3.ZERO
 var is_jumping := false
 var weapon_nodes: Array[Node] = []
+var measured_model_height := 0.0
 
 func _ready() -> void:
  name = "PlayableHero"
@@ -49,6 +50,33 @@ func _ready() -> void:
  _ensure_input_actions()
  set_process_unhandled_input(true)
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
+
+func _normalize_hero_scale() -> void:
+ if hero_model == null:
+  return
+ var min_y := INF
+ var max_y := -INF
+ for node in hero_model.find_children("*", "MeshInstance3D", true, false):
+  var mesh_instance := node as MeshInstance3D
+  if mesh_instance.mesh == null:
+   continue
+  var local_box := mesh_instance.get_aabb()
+  var to_model := hero_model.global_transform.affine_inverse() * mesh_instance.global_transform
+  for x in range(2):
+   for y in range(2):
+    for z in range(2):
+     var corner := local_box.position + Vector3(local_box.size.x * x, local_box.size.y * y, local_box.size.z * z)
+     var point := to_model * corner
+     min_y = minf(min_y, point.y)
+     max_y = maxf(max_y, point.y)
+ if not is_finite(min_y) or max_y <= min_y:
+  push_error("HERO_AABB_HEIGHT_MEASUREMENT_FAILED")
+  return
+ measured_model_height = max_y - min_y
+ var factor := 2.2 / measured_model_height
+ hero_model.scale = Vector3.ONE * factor
+ hero_model.position.y = -min_y * factor
+ print("HERO_AABB_SCALE_APPLIED: source_height=", measured_model_height, " target_world_height=2.2 scale=", factor, " bounds_y=", min_y, "..", max_y)
 
 func _load_approved_ranger() -> void:
  if not ResourceLoader.exists(RANGER_MALE):
@@ -65,6 +93,8 @@ func _load_approved_ranger() -> void:
   return
  hero_model.name = "ApprovedRanger"
  add_child(hero_model)
+ await get_tree().process_frame
+ _normalize_hero_scale()
  var found := hero_model.find_children("*","Skeleton3D",true,false)
  if found.is_empty():
   push_error("HERO_RANGER_SKELETON_MISSING")
@@ -74,13 +104,15 @@ func _load_approved_ranger() -> void:
   animation_player = AnimationPlayer.new()
   animation_player.name = "AnimationPlayer"
   hero_model.add_child(animation_player)
+  animation_player.root_node = NodePath("..")
   var library := load(ANIMS) as AnimationLibrary
   if library == null or animation_player.add_animation_library("",library) != OK:
    push_error("HERO_ANIMATION_LIBRARY_ATTACH_FAILED")
    return
   animation_player.play("Idle")
+  await get_tree().process_frame
   print("HERO_ANIMATION_LIBRARY_LOADED: clips=",library.get_animation_list())
-  print("HERO_ANIMATION_IDLE_PLAYING: current=", animation_player.current_animation)
+  print("HERO_ANIMATION_IDLE_PLAYING: current=", animation_player.current_animation, " root_node=", animation_player.root_node, " skeleton_path=", animation_player.get_path_to(skeleton))
  else:
   print("PHASE4A_ANIMATION_RESOURCE_PRESERVED: generated .res not rebuilt, loaded or modified")
 
@@ -237,21 +269,17 @@ func _attach_class_weapons() -> void:
 func _resolve_hand_bone(side: String) -> int:
  if skeleton == null:
   return -1
- var aliases := ["hand_" + side, "hand" + side, side + "hand", side + "handjoint"]
- var prefix_aliases := ["mixamorig:" + ("RightHand" if side == "r" else "LeftHand"), "RightHand" if side == "r" else "LeftHand"]
+ var required_side := "right" if side == "r" else "left"
  for i in range(skeleton.get_bone_count()):
   var actual := skeleton.get_bone_name(i)
-  var normalized := actual.to_lower().replace("_","").replace("-","").replace(" ","")
-  for alias in aliases:
-   if normalized == alias.to_lower().replace("_","").replace("-","").replace(" ",""):
-    return i
-  for alias in prefix_aliases:
-   if actual.to_lower() == alias.to_lower():
-    return i
-  if normalized.ends_with("righthand") and side == "r":
+  var normalized := actual.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
+  if normalized.contains("hand") and normalized.contains(required_side):
+   print("HERO_HAND_BONE_NAME_MATCH: side=", side, " index=", i, " name=", actual)
    return i
-  if normalized.ends_with("lefthand") and side == "l":
-   return i
+ var available: Array[String] = []
+ for i in range(skeleton.get_bone_count()):
+  available.append(skeleton.get_bone_name(i))
+ push_error("HERO_STRICT_HAND_BONE_NOT_FOUND: side=" + side + " available=" + str(available))
  return -1
 
 func _attach_weapon(hand_side: String,family: String) -> void:
@@ -289,7 +317,7 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  socket.set_meta("phase4a_weapon_socket_id", socket_id)
  socket.set_meta("phase4a_actual_bone_name", actual_bone)
  socket.add_child(weapon)
- var family_scale := 0.32 if family == "dual_knives" else (0.46 if family == "bow" else 0.52)
+ var family_scale := 0.18 if family == "dual_knives" else (0.26 if family == "bow" else 0.30)
  weapon.scale = Vector3.ONE * family_scale
  var mesh_points: Array[Vector3] = []
  for child in weapon.get_children():
@@ -312,6 +340,8 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  weapon.set_meta("phase4a_grip_local", grip)
  weapon.set_meta("phase4a_mesh_count", _count_weapon_meshes(weapon))
  weapon_nodes.append(socket)
+ skeleton.force_update_all_bone_transforms()
+ await get_tree().process_frame
  skeleton.force_update_all_bone_transforms()
  print("HERO_REAL_HAND_BONE_RESOLVED: side=", hand_side, " bone_index=", bone, " bone_name=", actual_bone)
  print("HERO_WEAPON_BONE_ATTACHMENT_CREATED: ", socket_id, " parent=Skeleton3D bone=", actual_bone)
