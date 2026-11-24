@@ -23,7 +23,7 @@ const WEAPON_FILES := {
 @export var stamina_regen := 12.0
 @export var jump_duration := 0.82
 @export var jump_height := 2.8
-var stamina := 100.0
+@export var character_level := 40 # QA spawn level enables the documented level-40 Assassin swap\nvar stamina := 100.0
 var active_class := "archer"
 var archer_dual_knives := false
 var hero_model: Node3D
@@ -45,7 +45,7 @@ func _ready() -> void:
  _load_approved_ranger()
  _setup_camera()
  _switch_class("archer")
- set_process_unhandled_input(true)
+ _ensure_input_actions()\n set_process_unhandled_input(true)
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
 
 func _load_approved_ranger() -> void:
@@ -139,7 +139,7 @@ func _unhandled_input(event: InputEvent) -> void:
    KEY_4: _switch_class("taoist")
    KEY_Q:
     if active_class in ["archer","oriental_assassin"]:
-     if active_class == "archer" and ClassSystem.player_level < 40:
+     if active_class == "archer" and character_level < 40:
       print("HERO_ASSASSIN_WEAPON_LOCKED_UNTIL_LEVEL_40")
      else:
       archer_dual_knives = not archer_dual_knives
@@ -174,7 +174,7 @@ func _try_jump() -> void:
  print("HERO_CONQUER_JUMP: stamina=",stamina)
 
 func _switch_class(class_id: String) -> void:
- if class_id == "oriental_assassin" and ClassSystem.player_level < 40:
+ if class_id == "oriental_assassin" and character_level < 40:
   print("HERO_ASSASSIN_LOCKED_LEVEL_40")
   return
  if not CLASS_CLIPS.has(class_id): return
@@ -259,3 +259,18 @@ func _update_animation() -> void:
   if animation_player.current_animation != "Run": animation_player.play("Run")
  elif animation_player.current_animation != "Idle":
   animation_player.play("Idle")
+
+func _ensure_input_actions() -> void:
+ var bindings := {
+  "move_left":[KEY_A,KEY_LEFT],
+  "move_right":[KEY_D,KEY_RIGHT],
+  "move_forward":[KEY_W,KEY_UP],
+  "move_back":[KEY_S,KEY_DOWN]
+ }
+ for action in bindings:
+  if not InputMap.has_action(action):
+   InputMap.add_action(action)
+  for keycode in bindings[action]:
+   var key := InputEventKey.new()
+   key.physical_keycode = keycode
+   InputMap.action_add_event(action,key)
