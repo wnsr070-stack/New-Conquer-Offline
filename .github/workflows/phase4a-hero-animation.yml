@@ -100,7 +100,7 @@ jobs:
       - name: Import models and validate exact Ranger skeleton and weapon inventory
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/godot_import.log
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --editor --quit 2>&1 | tee artifacts/godot_import.log
           python3 - <<'PY'
           import json, pathlib, struct
           required = {"hand_l", "hand_r"}
