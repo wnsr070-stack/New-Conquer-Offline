@@ -36,11 +36,11 @@ const WORLD_BOSSES := [
 # Each city has its own scene-local coordinate frame; these are the authored scene origins.
 # Bird Island's authored island surface is elevated; its center is the midpoint between its two landmasses.
 const CITY_CENTER_FALLBACKS := {
-    "TwinCity": Vector3(0.0, 0.0, 0.0),
+    "TwinCity": Vector3(0.0, -1.35, 0.0),
     "PhoenixCastle": Vector3(0.0, 0.0, 0.0),
     "ApeMountain": Vector3(0.0, 0.0, 0.0),
     "DesertCity": Vector3(0.0, 0.0, 0.0),
-    "BirdIsland": Vector3(-70.0, 4.6, 0.0)
+    "BirdIsland": Vector3(0.0, 4.6, 0.0)
 }
 
 # Stable local offsets, 45-160m from each city center. Every camp is 40m x 40m.
@@ -49,7 +49,7 @@ const CITY_GATE_POSITIONS := {
     "PhoenixCastle": [Vector3(0,0,145),Vector3(18,0,145)],
     "ApeMountain": [Vector3(-130,0,145),Vector3(130,0,145)],
     "DesertCity": [Vector3(-135,0,150),Vector3(135,0,150)],
-    "BirdIsland": [Vector3(-95,4.6,30),Vector3(48,4.6,30)]
+    "BirdIsland": [Vector3(-120,4.6,-15),Vector3(15,4.6,-15)]
 }
 const CAMP_OFFSETS := {
     "TwinCity": [
