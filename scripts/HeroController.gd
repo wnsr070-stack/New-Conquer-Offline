@@ -73,11 +73,11 @@ func _normalize_hero_scale() -> void:
   push_error("HERO_AABB_HEIGHT_MEASUREMENT_FAILED")
   return
  measured_model_height = max_y - min_y
- var target_world_height := 4.2
-  var factor := target_world_height / measured_model_height
+ var target_world_height := 2.8
+ var factor := target_world_height / measured_model_height
  hero_model.scale = Vector3.ONE * factor
  hero_model.position.y = -min_y * factor
- print("HERO_AABB_SCALE_APPLIED: source_height=", measured_model_height, " target_world_height=4.2 scale=", factor, " bounds_y=", min_y, "..", max_y)
+ print("HERO_AABB_SCALE_APPLIED: source_height=", measured_model_height, " target_world_height=2.8 scale=", factor, " bounds_y=", min_y, "..", max_y)
 
 func _load_approved_ranger() -> void:
  if not ResourceLoader.exists(RANGER_MALE):
