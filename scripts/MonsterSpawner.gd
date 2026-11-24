@@ -1,6 +1,6 @@
 extends Node3D
 class_name MonsterSpawner
-## Phase 4B Step 2: lazily instantiates the exact Phase 3B GLBs within active camps.
+## Phase 4B Steps 2-3: runtime instances, five-city ground placement and real scene activation.
 
 const TABLE = preload("res://scripts/MonsterGeneratorTable.gd")
 const MonsterActorScript = preload("res://scripts/MonsterActor.gd")
