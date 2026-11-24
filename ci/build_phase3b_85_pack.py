@@ -129,40 +129,31 @@ def fetch_complete_outfits():
     print("PHASE3B_COMPLETE_CC0_OUTFITS_READY:", len(result), "models;", len(downloaded), "files; source=", MODULAR_REPO, "revision=", MODULAR_REV, flush=True)
     return result
 
-def fetch_quaternius_modular_heads():
-    """Fetch only verified Adventurer head/face/hair meshes from the independent CC0 Men/Women packs.
-
-    Source allowlist is limited to the two pinned public/glb/modular_{men,women}/Adventurer.glb files.
-    This source remains independent of the forbidden Modular Parts/ directory.
-    """
-    target = CACHE / "quaternius_modular_heads"
-    target.mkdir(parents=True, exist_ok=True)
-    specs = {
-        "male": {"path": "public/glb/modular_men/Adventurer.glb", "size": 1272560, "blob_sha": "14456cd24345ad437840365396b60e82af653507", "license_url": "https://quaternius.com/packs/ultimatemodularcharacters.html"},
-        "female": {"path": "public/glb/modular_women/Adventurer.glb", "size": 894392, "blob_sha": "1f7208c84d68a66527c12a1c541fcecb6d0e8953", "license_url": "https://quaternius.com/packs/ultimatemodularwomen.html"},
+def fetch_standalone_heads():
+    """Reuse approved standalone GLBs from HF; never regenerate or modify them."""
+    token = os.environ.get("HF_TOKEN", "").strip()
+    if not token: raise RuntimeError("HF_TOKEN is required for approved standalone heads")
+    from huggingface_hub import snapshot_download
+    root = pathlib.Path(snapshot_download(
+        repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets", repo_type="dataset", token=token,
+        allow_patterns=["heads/male_head.glb", "heads/female_head.glb"],
+        local_dir=str(CACHE / "hf_standalone_heads")
+    ))
+    expected = {
+        "male": ("heads/male_head.glb", 269204, "58f33673b06bdbc3c273dd79669de6bd4167a83822f516baf63d7ff865e04dc1"),
+        "female": ("heads/female_head.glb", 44852, "e114764171d1bf8b7b0b2d1f3636abef74082386533ed0715a59f86adb78046b"),
     }
     result = {}
-    for gender, spec in specs.items():
-        path = spec["path"]
-        if "Modular Parts/" in path:
-            raise RuntimeError("Forbidden Modular Parts source path was requested: " + path)
-        dest = target / (gender + "_Adventurer.glb")
-        def verify(data):
-            if len(data) != spec["size"] or data[:4] != b"glTF" or int.from_bytes(data[8:12], "little") != len(data):
-                return False
-            git_sha = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
-            return git_sha == spec["blob_sha"]
-        if not _valid_cached_file(dest) or not verify(dest.read_bytes()):
-            dest.unlink(missing_ok=True)
-            url = f"https://raw.githubusercontent.com/{QUATERNIUS_HEAD_REPO}/{QUATERNIUS_HEAD_REV}/{path}"
-            data = download(url)
-            if not verify(data):
-                raise RuntimeError("Pinned Quaternius " + gender + " head/hair GLB failed size, GLB-header or Git blob SHA validation")
-            tmp = dest.with_suffix(".part.glb")
-            tmp.write_bytes(data)
-            tmp.replace(dest)
-        result[gender] = dest
-        print("PHASE3B_QUATERNIUS_CC0_HEAD_SOURCE_VERIFIED:", gender, "bytes=", dest.stat().st_size, "git_blob=", spec["blob_sha"], flush=True)
+    for gender, (relative, size, digest) in expected.items():
+        source = root / relative
+        if not source.is_file(): raise RuntimeError("Approved HF head is missing: " + relative)
+        data = source.read_bytes()
+        if len(data) != size or data[:4] != b"glTF" or int.from_bytes(data[8:12], "little") != len(data):
+            raise RuntimeError("Approved head failed GLB validation: " + relative)
+        if hashlib.sha256(data).hexdigest() != digest:
+            raise RuntimeError("Approved head SHA256 mismatch; refusing replacement: " + relative)
+        result[gender] = source
+        print("PHASE3B_APPROVED_STANDALONE_HEAD_VERIFIED:", gender, size, digest, flush=True)
     return result
 
 def restore_hf_seed():
@@ -338,184 +329,84 @@ def add_secondary(path):
         if obj.parent is None:
             obj.location.x += 0.22
 
-def _head_bone(armature):
+def _target_head_bone(armature):
     def normalized(name):
         return "".join(ch.lower() for ch in name if ch.isalnum())
     matches = [bone for bone in armature.data.bones if normalized(bone.name) in {"head", "headjoint"}]
-    if not matches:
-        matches = [bone for bone in armature.data.bones if normalized(bone.name).endswith("head")]
-    if not matches:
-        raise RuntimeError("Quaternius head integration requires a real Head bone on armature " + armature.name)
+    if not matches: matches = [bone for bone in armature.data.bones if normalized(bone.name).endswith("head")]
+    if not matches: raise RuntimeError("Target hero rig has no Head bone: " + armature.name)
     return matches[0]
 
-def add_quaternius_head_hair(source_path, gender):
-    # Keep the target hero rig; import the independent Quaternius Adventurer source.
-    target_armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
-    if not target_armatures:
-        raise RuntimeError("Target hero GLB has no Armature object for head attachment")
-    target_armature = target_armatures[0]
-    target_head = _head_bone(target_armature)
+def add_standalone_head(source_path, gender):
+    """Attach an immutable standalone GLB to the target Head bone."""
+    armatures = [obj for obj in bpy.context.scene.objects if obj.type == "ARMATURE"]
+    if not armatures: raise RuntimeError("Target hero has no Armature")
+    armature = armatures[0]
+    head = _target_head_bone(armature)
+    neck_base_world = armature.matrix_world @ head.head
 
-    imported_before = set(bpy.context.scene.objects)
+    # Source Head-bone forward axes were measured in the extraction run:
+    # male=(+Y), female=(-Y); both have +Z up after standalone normalization.
+    source_forward = Vector((0.0, 1.0 if gender == "male" else -1.0, 0.0))
+    target_basis = armature.matrix_world.to_3x3() @ head.matrix_local.to_3x3()
+    target_forward = (target_basis @ Vector((0.0, 0.0, 1.0))).normalized()
+    target_forward.z = 0.0
+    if target_forward.length < 1e-5: raise RuntimeError("Target Head bone forward axis is degenerate")
+    target_forward.normalize()
+    yaw = math.atan2(target_forward.y, target_forward.x) - math.atan2(source_forward.y, source_forward.x)
+
+    before = set(bpy.context.scene.objects)
     bpy.ops.import_scene.gltf(filepath=source_path)
-    imported_head_objects = list(set(bpy.context.scene.objects) - imported_before)
-    source_armatures = [obj for obj in imported_head_objects if obj.type == "ARMATURE"]
-    if not source_armatures:
-        raise RuntimeError("Quaternius " + gender + " head source has no source Armature")
-    source_armature = source_armatures[0]
-    source_head = _head_bone(source_armature)
+    imported = [obj for obj in bpy.context.scene.objects if obj not in before]
+    meshes = [obj for obj in imported if obj.type == "MESH"]
+    if not meshes: raise RuntimeError("Approved " + gender + " standalone GLB has no mesh")
+    extras = [obj.name for obj in imported if obj.type not in {"MESH", "EMPTY"}]
+    if extras: raise RuntimeError("Standalone head unexpectedly contains rig objects: " + repr(extras))
 
-    def find_neck_bone(armature):
-        matches = [bone for bone in armature.data.bones
-                   if "neck" in "".join(ch.lower() for ch in bone.name if ch.isalnum())]
-        if not matches:
-            raise RuntimeError("Quaternius " + gender + " Adventurer source has no Neck bone")
-        return matches[0]
+    for obj in meshes:
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True); bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        obj.rotation_euler.z = yaw
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
 
-    source_neck = find_neck_bone(source_armature)
+    points = [obj.matrix_world @ vertex.co for obj in meshes for vertex in obj.data.vertices]
+    if not points: raise RuntimeError("Standalone head geometry is empty")
+    source_height = max(p.z for p in points) - min(p.z for p in points)
+    if source_height <= 1e-5: raise RuntimeError("Standalone head height is invalid")
+    scale_ratio = 0.25 / source_height
 
-    # Normalize every imported source object before measuring or filtering any geometry.
-    bpy.ops.object.select_all(action="DESELECT")
-    for obj in imported_head_objects:
-        obj.select_set(True)
-    bpy.context.view_layer.objects.active = imported_head_objects[0]
-    bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
-    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-
-    source_armature_eval = source_armature
-    src_neck_world = source_armature_eval.matrix_world @ source_neck.head
-    src_head_pos = source_armature.matrix_world @ source_head.head
-    tgt_head_pos = target_armature.matrix_world @ target_head.head
-    src_neck_z = src_neck_world.z
-    scale_ratio = target_armature.dimensions.z / max(source_armature.dimensions.z, 0.001)
-    # The imported Adventurer rig and mesh may use different object-space origins.
-    # Keep the rig neck as the preferred cut reference, but validate it against each
-    # mesh's actual world-space bounds before using it.
-
-    head_terms = ("head", "face", "hair", "eyes", "eyebrows", "beard", "ears")
-    excluded_terms = ("backpack", "bag", "quiver", "cape", "shield", "weapon")
-    head_meshes = []
-    for obj in imported_head_objects:
-        if obj.type != "MESH":
-            continue
-        object_name = obj.name.casefold()
-        if any(term in object_name for term in excluded_terms):
-            print("PHASE3B_QUATERNIUS_HEAD_MESH_EXCLUDED:",
-                  "gender=", gender, "name=", obj.name, flush=True)
-            continue
-        # Select likely head-bearing meshes, then retain only polygons above the source neck.
-        world_centers_z = [
-            (obj.matrix_world @ Vector(corner)).z for corner in obj.bound_box
-        ]
-        bbox_center_z = (min(world_centers_z) + max(world_centers_z)) * 0.5 if world_centers_z else float("-inf")
-        if any(term in object_name for term in head_terms) or bbox_center_z > src_neck_z:
-            head_meshes.append(obj)
-
-    if not head_meshes:
-        imported_mesh_names = [obj.name for obj in imported_head_objects if obj.type == "MESH"]
-        raise RuntimeError("Quaternius " + gender + " source produced no candidate head meshes; imported meshes=" + repr(imported_mesh_names))
-
-    import bmesh
-    retained_meshes = []
-    for obj in head_meshes:
-        if len(obj.data.vertices) == 0 or len(obj.data.polygons) == 0:
-            continue
-        # Compute a mesh-local, world-space-safe neck plane. A rig bone can sit
-        # outside the mesh bounds after glTF parent normalization; in that case
-        # use a conservative 8% bottom trim rather than deleting the whole head.
-        mesh_world_z = [(obj.matrix_world @ vertex.co).z for vertex in obj.data.vertices]
-        mesh_min_z, mesh_max_z = min(mesh_world_z), max(mesh_world_z)
-        mesh_height = max(mesh_max_z - mesh_min_z, 0.001)
-        if mesh_min_z < src_neck_z < mesh_max_z:
-            mesh_cut_z = src_neck_z
-            cut_mode = "source_neck_bone"
-        else:
-            mesh_cut_z = mesh_min_z + 0.08 * mesh_height
-            cut_mode = "mesh_bounds_fallback"
-        print("PHASE3B_QUATERNIUS_HEAD_CUT_PLANE:",
-              "gender=", gender, "name=", obj.name,
-              "mesh_min_z=", round(mesh_min_z, 4),
-              "mesh_max_z=", round(mesh_max_z, 4),
-              "source_neck_z=", round(src_neck_z, 4),
-              "cut_z=", round(mesh_cut_z, 4), "mode=", cut_mode, flush=True)
-
-        bm = bmesh.new()
-        bm.from_mesh(obj.data)
-        bm.faces.ensure_lookup_table()
-        bm.verts.ensure_lookup_table()
-        # Polygon centers are evaluated in world space against the validated cut plane.
-        remove_faces = []
-        for face in bm.faces:
-            center_world = obj.matrix_world @ face.calc_center_median()
-            if center_world.z <= mesh_cut_z:
-                remove_faces.append(face)
-        if remove_faces:
-            bmesh.ops.delete(bm, geom=remove_faces, context="FACES")
-        # Also remove every vertex below the specified world-space neck cutoff.
-        remove_verts = [
-            vert for vert in bm.verts
-            if (obj.matrix_world @ vert.co).z < mesh_cut_z
-        ]
-        if remove_verts:
-            bmesh.ops.delete(bm, geom=remove_verts, context="VERTS")
-        loose_verts = [vert for vert in bm.verts if not vert.link_faces]
-        if loose_verts:
-            bmesh.ops.delete(bm, geom=loose_verts, context="VERTS")
-        bm.to_mesh(obj.data)
-        bm.free()
-        obj.data.update()
-        if len(obj.data.vertices) == 0 or len(obj.data.polygons) == 0:
-            print("PHASE3B_QUATERNIUS_HEAD_MESH_EMPTY_AFTER_NECK_CUT:",
-                  "gender=", gender, "name=", obj.name, flush=True)
-            continue
-
-        # Match the hero's rig scale, apply it, then place the mesh bounds center on Head.
+    for obj in meshes:
         obj.scale *= scale_ratio
         bpy.ops.object.select_all(action="DESELECT")
-        bpy.context.view_layer.objects.active = obj
-        obj.select_set(True)
+        obj.select_set(True); bpy.context.view_layer.objects.active = obj
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        world_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-        mesh_center = sum(world_corners, Vector((0.0, 0.0, 0.0))) / len(world_corners)
-        obj.location += (tgt_head_pos - mesh_center)
-
-        head_group = obj.vertex_groups.get(target_head.name) or obj.vertex_groups.new(name=target_head.name)
-        head_group.add([vertex.index for vertex in obj.data.vertices], 1.0, "REPLACE")
-        preserved_world = obj.matrix_world.copy()
-        obj.parent = target_armature
-        obj.matrix_world = preserved_world
-        armature_modifier = obj.modifiers.new(name="Phase3B_HeadBoneSkin", type="ARMATURE")
-        armature_modifier.object = target_armature
+        # Manifest guarantees neck_base=(0,0,0): place that origin on target_head.head.
+        obj.location += neck_base_world
+        group = obj.vertex_groups.get(head.name) or obj.vertex_groups.new(name=head.name)
+        group.add([v.index for v in obj.data.vertices], 1.0, "REPLACE")
+        world = obj.matrix_world.copy()
+        obj.parent = armature
+        obj.matrix_world = world
+        mod = obj.modifiers.new(name="Phase3B_StandaloneHead_Armature", type="ARMATURE")
+        mod.object = armature
+        mod.use_vertex_groups = True
+        if hasattr(mod, "use_deform_preserve_volume"): mod.use_deform_preserve_volume = True
         obj.select_set(False)
-        retained_meshes.append(obj)
-        print("PHASE3B_QUATERNIUS_HEAD_MESH_RETAINED:",
-              "gender=", gender, "name=", obj.name,
-              "vertices=", len(obj.data.vertices), "polygons=", len(obj.data.polygons),
-              "scale_ratio=", round(scale_ratio, 6),
-              "neck_z=", round(src_neck_z, 4),
-              "target_head_world=", tuple(round(v, 4) for v in tgt_head_pos),
-              flush=True)
 
-    if not retained_meshes:
-        raise RuntimeError("Quaternius " + gender + " head extraction removed every mesh")
-
-    # Remove the source rig and all unused imported Adventurer objects before export.
-    for obj in imported_head_objects:
-        if obj not in retained_meshes and obj.name in bpy.data.objects:
-            bpy.data.objects.remove(obj, do_unlink=True)
-
-    world_centers = []
-    for obj in retained_meshes:
-        corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-        center = sum(corners, Vector((0.0, 0.0, 0.0))) / len(corners)
-        world_centers.append((obj.name, tuple(round(v, 4) for v in center)))
-    print("PHASE3B_HEAD_PRE_EXPORT_CHECK:",
-          "gender=", gender, "head_count=", len(retained_meshes),
-          "source_neck_z=", round(src_neck_z, 4),
-          "scale_ratio=", round(scale_ratio, 6),
-          "world_centers=", world_centers, flush=True)
-    print("PHASE3B_HEAD_HAIR_ATTACHED:", gender, "parts=", len(retained_meshes),
-          "bone=", target_head.name, "source=", source_path, flush=True)
+    final_points = [obj.matrix_world @ vertex.co for obj in meshes for vertex in obj.data.vertices]
+    final_height = max(p.z for p in final_points) - min(p.z for p in final_points)
+    if not 0.245 <= final_height <= 0.255:
+        raise RuntimeError("Head final height outside 0.25m tolerance: " + str(final_height))
+    for obj in meshes:
+        if obj.vertex_groups.get(head.name) is None or not any(m.type == "ARMATURE" and m.object == armature for m in obj.modifiers):
+            raise RuntimeError("Head attachment verification failed: " + obj.name)
+    print("PHASE3B_STANDALONE_HEAD_ATTACHED:", gender, "bone=", head.name,
+          "neck_base_world=", tuple(round(v,5) for v in neck_base_world),
+          "source_forward=", tuple(round(v,4) for v in source_forward),
+          "target_forward=", tuple(round(v,4) for v in target_forward),
+          "yaw_deg=", round(math.degrees(yaw),3), "height_m=", round(final_height,5),
+          "parts=", len(meshes), "vertex_group_weight=1.0", flush=True)
 
 def render_preview(job, index):
     scene = bpy.context.scene
@@ -577,7 +468,7 @@ for index, job in enumerate(jobs, 1):
     clear_scene()
     import_model(job["source"])
     if job.get("head_source"):
-        add_quaternius_head_hair(job["head_source"], job.get("gender", "male"))
+        add_standalone_head(job["head_source"], job.get("gender", "male"))
     if job.get("secondary"):
         add_secondary(job["secondary"])
     if job.get("dual"):
@@ -667,7 +558,7 @@ def build():
             })
 
     outfits = fetch_complete_outfits()
-    modular_head_sources = fetch_quaternius_modular_heads()
+    standalone_head_sources = fetch_standalone_heads()
     outfit_glbs = {}
     for filename, source in outfits.items():
         dest = CACHE / "complete_outfit_glb" / (pathlib.Path(filename).stem + ".glb")
@@ -716,7 +607,7 @@ def build():
         "source_license": "CC0-1.0",
         "source_license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
         "source_pack_url": "https://quaternius.itch.io/modular-character-outfits-fantasy",
-        "head_hair_source": {"pack": "Ultimate Modular Men / Ultimate Modular Women", "repository": QUATERNIUS_HEAD_REPO, "revision": QUATERNIUS_HEAD_REV, "license": "CC0-1.0", "male_source": "public/glb/modular_men/Adventurer.glb", "female_source": "public/glb/modular_women/Adventurer.glb", "male_license_url": "https://quaternius.com/packs/ultimatemodularcharacters.html", "female_license_url": "https://quaternius.com/packs/ultimatemodularwomen.html"},
+        "head_hair_source": {"pack": "Quaternius approved standalone heads", "repository": "ZzwahwahzZ/clash-of-legends-terrain-assets", "revision": "immutable approved files", "license": "CC0-1.0", "male_source": "heads/male_head.glb", "female_source": "heads/female_head.glb", "male_sha256": "58f33673b06bdbc3c273dd79669de6bd4167a83822f516baf63d7ff865e04dc1", "female_sha256": "e114764171d1bf8b7b0b2d1f3636abef74082386533ed0715a59f86adb78046b"},
         "forbidden_source_paths": ["Modular Parts/"],
         "rig": "Humanoid",
         "profiles": []
@@ -738,7 +629,7 @@ def build():
         asset_id = f"hero_{key}_{gender}"
         preview = f"previews/{asset_id}.png"
         tint = class_tints[key]
-        hero_jobs.append({"id": asset_id, "source": str(outfit_glbs[source_key]), "head_source": str(modular_head_sources[gender]),
+        hero_jobs.append({"id": asset_id, "source": str(outfit_glbs[source_key]), "head_source": str(standalone_head_sources[gender]),
                           "gender": gender, "tier": "natural", "dest": str(destination), "class_tint": tint})
         records.append({
             "id": asset_id, "name": f"{display} — {'Male' if gender == 'male' else 'Female'}",
@@ -755,8 +646,8 @@ def build():
             "skin_count": len(skins), "humanoid_joint_count": len(skins[0]["joints"]),
             "right_hand_bone": right_hand, "left_hand_bone": left_hand,
             "clothing_albedo_tint": list(tint), "head_source_pack": "Quaternius Ultimate Modular Men/Women",
-            "head_source_model": "Adventurer.glb", "head_attachment_bone": "Head",
-            "expected_head_face_hair_mesh_parts": 4 if gender == "male" else 3,
+            "head_source_model": "heads/male_head.glb" if gender == "male" else "heads/female_head.glb", "head_attachment_bone": "Head",
+            "expected_head_height_m": 0.25, "attachment": "Vertex Group + Armature Modifier",
             "bytes": 0, "status": "validated"
         })
     if len(character_report["profiles"]) != 10:
