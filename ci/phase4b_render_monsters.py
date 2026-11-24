@@ -57,3 +57,5 @@ print("PHASE4B_MONSTER_RENDER_COMPLETE: png_count=20")
 # Retry trigger after adding python3-numpy to the runner packages.
 
 # Execute with Xvfb to provide the off-screen render display in CI.
+
+# Contact sheet generation now supports the runner's Pillow 9 package.
