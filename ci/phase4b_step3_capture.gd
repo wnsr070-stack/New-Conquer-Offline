@@ -67,7 +67,7 @@ func _run() -> void:
  var hero: CharacterBody3D
  var spawner: MonsterSpawner
  print("PHASE4B_STEP3_TRACE: MAIN_SCENE_HERO_SPAWNER_LOOKUP")
- var hero_node := city.find_child("TwinCityPlayableHero", true, false)
+ var hero_node := city.find_child("PlayableHero", true, false)
  var spawner_node := city.find_child("MonsterSpawner", true, false)
  if hero_node is CharacterBody3D:
   hero = hero_node as CharacterBody3D
@@ -270,7 +270,7 @@ func _capture_boss(city:Node3D,hero:CharacterBody3D,boss:MonsterActor)->void:
 
 func _save_png(camera:Camera3D,file_name:String)->void:
  print("PHASE4B_STEP3_TRACE: PNG_SAVE_ENTER ",file_name)
- var proof_hero := get_root().find_child("TwinCityPlayableHero",true,false) as CharacterBody3D
+ var proof_hero := get_root().find_child("PlayableHero",true,false) as CharacterBody3D
  if proof_hero == null:
   _fail("PHASE4B_STEP3_PNG_HERO_REFERENCE_MISSING: "+file_name); return
  var camera_distance := camera.global_position.distance_to(proof_hero.global_position)
