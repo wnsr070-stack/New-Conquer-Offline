@@ -64,7 +64,7 @@ jobs:
           for i,path in enumerate(files):
            im=Image.open(path).convert("RGBA")
            if im.size!=(1200,1200): raise SystemExit(f"Bad dimensions: {path} {im.size}")
-           im.thumbnail((tw-16,th-16),Image.Resampling.LANCZOS); x=(i%cols)*tw; y=(i//cols)*(th+lh)
+           im.thumbnail((tw-16,th-16),Image.LANCZOS); x=(i%cols)*tw; y=(i//cols)*(th+lh)
            tile=Image.new("RGBA",(tw,th),(35,42,55,255)); tile.alpha_composite(im,((tw-im.width)//2,(th-im.height)//2))
            sheet.paste(tile.convert("RGB"),(x,y)); draw.text((x+12,y+th+10),path.stem.replace("_"," "),fill=(245,238,218),font=font)
           sheet.save(root/"MONSTERS_CONTACT_SHEET.png",optimize=True)
