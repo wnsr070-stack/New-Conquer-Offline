@@ -157,9 +157,12 @@ jobs:
           grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_shield_hand_l" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_greatsword_hand_r" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_magic_staff_hand_r" artifacts/phase4a_twin_city.log
+          grep -q "HERO_ANIMATION_LIBRARY_LOADED:" artifacts/phase4a_twin_city.log
+          grep -q "HERO_ANIMATION_IDLE_PLAYING:" artifacts/phase4a_twin_city.log
+          grep -q "HERO_REAL_HAND_BONE_WORLD:" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_ANIMATION_RESOURCE_PRESERVED:" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_ALL_FOUR_PROOFS_COMPLETE" artifacts/phase4a_twin_city.log
-          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4A_.*FAILED|HERO_.*MISSING" artifacts/phase4a_twin_city.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4A_.*FAILED|HERO_.*MISSING|HERO_ANIMATION_LIBRARY_MISSING" artifacts/phase4a_twin_city.log
       - name: Upload four proof images and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
