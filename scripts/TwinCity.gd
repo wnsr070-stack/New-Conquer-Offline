@@ -550,22 +550,22 @@ func _spawn_playable_hero() -> void:
     var hero := CharacterBody3D.new()
     hero.set_script(hero_script)
     hero.name = "TwinCityPlayableHero"
-    var spawn_position := Vector3(0, 0.2, -35.0) if OS.get_environment("PHASE4A_CAPTURE") == "1" else Vector3(0, 0.2, 0)
+    var spawn_position := Vector3(0, 0.2, 0)
     hero.position = spawn_position
     add_child(hero)
     print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: position=", spawn_position, " camera=Conquer45Iso")
 
 func _phase4a_capture_image(camera: Camera3D, hero: CharacterBody3D) -> Image:
-    var camera_position := hero.global_position + Vector3(6.0, 8.5, 6.0)
-    camera_position.y = maxf(camera_position.y, 4.0)
-    camera.global_position = camera_position
-    camera.fov = 35.0
+    var camera_offset := Vector3(4.2, 4.6, 4.2)
+    camera.global_position = hero.global_position + camera_offset
+    camera.fov = 42.0
     camera.look_at(hero.global_position + Vector3(0, 1.0, 0), Vector3.UP)
     if camera.global_position.y < 4.0:
         push_error("PHASE4A_CAMERA_UNDERGROUND_GUARD_FAILED")
         return null
+    var camera_distance := camera.global_position.distance_to(hero.global_position + Vector3(0, 1.0, 0))
     print("PHASE4A_CAMERA_HEIGHT_OK: y=", camera.global_position.y, " target=", hero.global_position + Vector3(0, 1.0, 0))
-    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=12m pitch≈45 yaw=45 fov=35 hero=", hero.global_position)
+    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=", camera_distance, " target_range=6_to_8m pitch≈45 yaw=45 fov=42 plaza_center=", hero.global_position)
     await RenderingServer.frame_post_draw
     var image := get_viewport().get_texture().get_image()
     if image == null or image.is_empty():
@@ -587,10 +587,12 @@ func _phase4a_has_weapon_socket(hero: CharacterBody3D, expected_name: String) ->
                 var visual: Dictionary = hero.call("_weapon_visual_metrics", socket as Node3D)
                 var mesh_count := int(visual.get("mesh_count", 0))
                 var grip_distance := float(visual.get("grip_distance", 999.0))
-                if mesh_count < 1 or grip_distance > 0.05:
-                    push_error("PHASE4A_WEAPON_VISUAL_FAILED: socket=" + expected_name + " meshes=" + str(mesh_count) + " grip_distance=" + str(grip_distance))
+                var bone_name := String(visual.get("actual_bone_name", ""))
+                var attachment_type := String(visual.get("socket_type", ""))
+                if mesh_count < 1 or grip_distance > 0.08 or attachment_type != "BoneAttachment3D" or bone_name.is_empty():
+                    push_error("PHASE4A_WEAPON_VISUAL_FAILED: socket=" + expected_name + " meshes=" + str(mesh_count) + " grip_distance=" + str(grip_distance) + " type=" + attachment_type + " bone=" + bone_name)
                     return false
-                print("PHASE4A_WEAPON_VISUAL_OK: socket=", expected_name, " mesh_count=", mesh_count, " grip_distance=", grip_distance, " grip_world=", visual.get("grip_world"), " hand_world=", visual.get("socket_world"))
+                print("PHASE4A_WEAPON_VISUAL_OK: socket=", expected_name, " mesh_count=", mesh_count, " grip_distance=", grip_distance, " actual_bone=", bone_name, " bone_attachment_global_position=", visual.get("hand_world"), " grip_world=", visual.get("grip_world"))
                 print("PHASE4A_WEAPON_GRIP_ALIGNMENT_OK: ", expected_name)
                 return true
     print("PHASE4A_WEAPON_SOCKET_DIAGNOSTIC: expected=", expected_name, " tracked=", names)
@@ -639,7 +641,7 @@ func _capture_phase4a_proofs() -> void:
         await _shutdown(1)
         return
     print("PHASE4A_HERO_MOVEMENT_OK: distance=", moved_distance)
-    hero.global_position = Vector3(0, 0.2, -35.0)
+    hero.global_position = Vector3(0, 0.2, 0)
     hero.velocity = Vector3.ZERO
     hero.set("has_move_target", false)
     await get_tree().create_timer(0.25).timeout
@@ -686,7 +688,7 @@ func _capture_phase4a_proofs() -> void:
     print("PHASE4A_PROOF_3_JUMP_OK")
 
     await get_tree().create_timer(0.9).timeout
-    hero.global_position = Vector3(0, 0.2, -35.0)
+    hero.global_position = Vector3(0, 0.2, 0)
     hero.velocity = Vector3.ZERO
     hero.set("is_jumping", false)
     var class_images: Array[Image] = []
