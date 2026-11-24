@@ -65,6 +65,7 @@ jobs:
           if [ ! -x .cache/tools/bin/gltfpack ]; then
             npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack
           fi
+          export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
           echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
           command -v gltfpack
       - name: Install asset fetch dependencies
