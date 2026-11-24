@@ -566,4 +566,4 @@ func _capture_hero_preview() -> void:
     if error != OK:
         push_error("TWIN_CITY_HERO_CAPTURE_SAVE_FAILED: " + str(error))
         return
-    print("TWIN_CITY_HERO_ISOMETRIC_RENDER_OK: ", path, " bytes=", FileAccess.get_file_as_bytes(path).size())
+    print("TWIN_CITY_HERO_ISOMETRIC_RENDER_OK: ", path, " bytes=", FileAccess.get_file_as_bytes(path).size())\n    _capture.call_deferred()
