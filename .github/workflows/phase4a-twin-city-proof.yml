@@ -1,4 +1,5 @@
 name: Phase 4A Twin City Hero Movement Proof
+# Ensure the cached gltfpack directory is also on PATH within the install step.
 on:
   workflow_dispatch:
   push:
