@@ -55,7 +55,7 @@ func _ready() -> void:
 	for item in TABLE.WORLD_BOSSES:
 		_definitions[String(item.id)] = item
 	build_spawn_points()
-	var initial_hero := get_tree().get_first_node_in_group("player")
+	var initial_hero := _find_hero()
 	if initial_hero is Node3D:
 		hero = initial_hero
 	_update_distance_activation()
@@ -142,9 +142,18 @@ func set_hero(target: Node3D) -> void:
 	hero = target
 	_update_distance_activation()
 
+func _find_hero() -> Node3D:
+	var candidate := get_tree().get_first_node_in_group("player")
+	if candidate is Node3D:
+		return candidate as Node3D
+	var named_hero := get_tree().root.find_child("TwinCityPlayableHero", true, false)
+	if named_hero is Node3D:
+		return named_hero as Node3D
+	return null
+
 func _process(_delta: float) -> void:
 	if not is_instance_valid(hero):
-		var candidate := get_tree().get_first_node_in_group("player")
+		var candidate := _find_hero()
 		if candidate is Node3D:
 			hero = candidate
 	if is_instance_valid(hero):
