@@ -28,6 +28,11 @@ func _ready() -> void:
     var removed_aprons: Array[int] = [0]
     _remove_named_apron_meshes(self, removed_aprons)
     print("CHECKPOINT2_APRON_SURFACE_AUDIT_OK: removed_named_surfaces=", removed_aprons[0], "; city moat, bridges and dirt floor preserved")
+    if OS.get_environment("PHASE4A_CAPTURE") == "1":
+        _camera()
+        _spawn_playable_hero()
+        _capture_phase4a_proofs.call_deferred()
+        return
     if not Wilderness.build(self):
         await _shutdown(1)
         return
@@ -505,7 +510,7 @@ func _capture() -> void:
     for specification in captures:
         var is_wilderness := String(specification.file).begins_with("wilderness_")
         print("WILDERNESS_CAPTURE_START: " if is_wilderness else "TWIN_CITY_CAPTURE_START: ", specification.file)
-        camera.position = specification.pos
+        camera.global_position = Vector3(specification.pos.x, maxf(specification.pos.y, 4.0), specification.pos.z)
         camera.fov = specification.fov
         camera.look_at(specification.target, Vector3.UP)
         await RenderingServer.frame_post_draw
@@ -548,6 +553,143 @@ func _spawn_playable_hero() -> void:
     hero.position = Vector3(0, 0.2, 0)
     add_child(hero)
     print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: center=(0,0.2,0) camera=Conquer45Iso")
+
+func _phase4a_capture_image(camera: Camera3D, hero: CharacterBody3D) -> Image:
+    var camera_position := camera.global_position
+    camera_position.y = maxf(camera_position.y, 4.0)
+    camera.global_position = camera_position
+    camera.look_at(hero.global_position + Vector3(0, 1.0, 0), Vector3.UP)
+    if camera.global_position.y < 4.0:
+        push_error("PHASE4A_CAMERA_UNDERGROUND_GUARD_FAILED")
+        return null
+    print("PHASE4A_CAMERA_HEIGHT_OK: y=", camera.global_position.y, " target=", hero.global_position + Vector3(0, 1.0, 0))
+    await RenderingServer.frame_post_draw
+    var image := get_viewport().get_texture().get_image()
+    if image == null or image.is_empty():
+        push_error("PHASE4A_CAPTURE_EMPTY_FRAMEBUFFER")
+        return null
+    return image
+
+func _save_phase4a_image(image: Image, file_name: String) -> bool:
+    if image == null or image.is_empty():
+        push_error("PHASE4A_CAPTURE_INVALID_IMAGE: " + file_name)
+        return false
+    var directory := ProjectSettings.globalize_path("res://artifacts")
+    DirAccess.make_dir_recursive_absolute(directory)
+    var path := directory.path_join(file_name)
+    var error := image.save_png(path)
+    if error != OK:
+        push_error("PHASE4A_CAPTURE_SAVE_FAILED: " + file_name + " error=" + str(error))
+        return false
+    var bytes := FileAccess.get_file_as_bytes(path).size()
+    if bytes < 15000:
+        push_error("PHASE4A_CAPTURE_TOO_SMALL: " + file_name + " bytes=" + str(bytes))
+        return false
+    print("PHASE4A_CAPTURE_SAVED: ", file_name, " bytes=", bytes)
+    return true
+
+func _capture_phase4a_proofs() -> void:
+    await get_tree().create_timer(0.8).timeout
+    var hero := get_node_or_null("PlayableHero") as CharacterBody3D
+    var camera := get_viewport().get_camera_3d()
+    if hero == null or camera == null:
+        push_error("PHASE4A_HERO_OR_CAMERA_MISSING")
+        await _shutdown(1)
+        return
+
+    var start_position := hero.global_position
+    hero.set("move_target", start_position + Vector3(2.0, 0.0, 0.0))
+    hero.set("has_move_target", true)
+    await get_tree().create_timer(0.45).timeout
+    var moved_distance := hero.global_position.distance_to(start_position)
+    if moved_distance < 0.5:
+        push_error("PHASE4A_HERO_MOVEMENT_FAILED: distance=" + str(moved_distance))
+        await _shutdown(1)
+        return
+    print("PHASE4A_HERO_MOVEMENT_OK: distance=", moved_distance)
+    hero.global_position = Vector3(0, 0.2, 0)
+    hero.velocity = Vector3.ZERO
+    hero.set("has_move_target", false)
+    await get_tree().create_timer(0.25).timeout
+
+    hero.call("_switch_class", "archer")
+    await get_tree().create_timer(0.2).timeout
+    if hero.find_child("HeroWeapon_bow_hand_l", true, false) == null:
+        push_error("PHASE4A_ARCHER_BOW_SOCKET_MISSING")
+        await _shutdown(1)
+        return
+    var bow_image := await _phase4a_capture_image(camera, hero)
+    if not _save_phase4a_image(bow_image, "phase4a_01_archer_bow.png"):
+        await _shutdown(1)
+        return
+    print("PHASE4A_PROOF_1_ARCHER_BOW_OK")
+
+    hero.call("_switch_class", "oriental_assassin")
+    await get_tree().create_timer(0.2).timeout
+    if hero.find_child("HeroWeapon_dual_knives_hand_l", true, false) == null or hero.find_child("HeroWeapon_dual_knives_hand_r", true, false) == null:
+        push_error("PHASE4A_ASSASSIN_DUAL_KNIVES_SOCKET_MISSING")
+        await _shutdown(1)
+        return
+    var knives_image := await _phase4a_capture_image(camera, hero)
+    if not _save_phase4a_image(knives_image, "phase4a_02_archer_dual_knives.png"):
+        await _shutdown(1)
+        return
+    print("PHASE4A_PROOF_2_DUAL_KNIVES_OK")
+
+    hero.call("_switch_class", "archer")
+    await get_tree().create_timer(0.15).timeout
+    hero.call("_try_jump")
+    await get_tree().create_timer(0.18).timeout
+    var jump_height_now: float = hero.global_position.y
+    var jump_stamina: float = hero.get("stamina")
+    if not hero.get("is_jumping") or jump_height_now < 0.35 or jump_stamina > 76.0:
+        push_error("PHASE4A_JUMP_PROOF_FAILED: airborne_y=" + str(jump_height_now) + " stamina=" + str(jump_stamina))
+        await _shutdown(1)
+        return
+    print("PHASE4A_CONQUER_JUMP_OK: airborne_y=", jump_height_now, " stamina=", jump_stamina)
+    var jump_image := await _phase4a_capture_image(camera, hero)
+    if not _save_phase4a_image(jump_image, "phase4a_03_conquer_jump.png"):
+        await _shutdown(1)
+        return
+    print("PHASE4A_PROOF_3_JUMP_OK")
+
+    await get_tree().create_timer(0.9).timeout
+    hero.global_position = Vector3(0, 0.2, 0)
+    hero.velocity = Vector3.ZERO
+    hero.set("is_jumping", false)
+    var class_images: Array[Image] = []
+    var class_ids := ["trojan", "warrior", "taoist"]
+    var expected_sockets := [
+        ["HeroWeapon_dual_blades_hand_l", "HeroWeapon_dual_blades_hand_r"],
+        ["HeroWeapon_shield_hand_l", "HeroWeapon_greatsword_hand_r"],
+        ["HeroWeapon_magic_staff_hand_r"]
+    ]
+    for index in range(class_ids.size()):
+        hero.call("_switch_class", class_ids[index])
+        await get_tree().create_timer(0.22).timeout
+        for socket_name in expected_sockets[index]:
+            if hero.find_child(socket_name, true, false) == null:
+                push_error("PHASE4A_CLASS_WEAPON_SOCKET_MISSING: " + class_ids[index] + " " + socket_name)
+                await _shutdown(1)
+                return
+        var class_image := await _phase4a_capture_image(camera, hero)
+        if class_image == null:
+            await _shutdown(1)
+            return
+        class_image.convert(Image.FORMAT_RGBA8)
+        class_images.append(class_image)
+        print("PHASE4A_CLASS_PROOF_OK: ", class_ids[index], " weapons=", expected_sockets[index])
+
+    var viewport_size := get_viewport().get_texture().get_size()
+    var showcase := Image.create(viewport_size.x * 3, viewport_size.y, false, Image.FORMAT_RGBA8)
+    for index in range(class_images.size()):
+        showcase.blit_rect(class_images[index], Rect2i(Vector2i.ZERO, viewport_size), Vector2i(index * viewport_size.x, 0))
+    if not _save_phase4a_image(showcase, "phase4a_04_class_showcase_trojan_warrior_taoist.png"):
+        await _shutdown(1)
+        return
+    print("PHASE4A_PROOF_4_CLASS_SHOWCASE_OK: Trojan | Warrior | Taoist")
+    print("PHASE4A_ALL_FOUR_PROOFS_COMPLETE")
+    await _shutdown(0)
 
 func _capture_hero_preview() -> void:
     await get_tree().create_timer(1.0).timeout

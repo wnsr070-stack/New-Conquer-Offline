@@ -1,0 +1,165 @@
+name: Phase 4A Twin City Hero Movement Proof
+on:
+  workflow_dispatch:
+  push:
+    branches: ['test/phase4a-hero-movement']
+    paths:
+      - 'scripts/TwinCity.gd'
+      - 'scripts/HeroController.gd'
+      - '.github/workflows/phase4a-twin-city-proof.yml'
+permissions:
+  contents: read
+concurrency:
+  group: phase4a-twin-city-proof-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GODOT_VERSION: "4.3"
+  GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
+  HF_HOME: ${{ github.workspace }}/.cache/huggingface
+  HF_ASSET_CACHE_DIR: ${{ github.workspace }}/.cache/hf-assets
+  PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
+  LIBGL_ALWAYS_SOFTWARE: "1"
+  CI_CAPTURE: "1"
+  PHASE4A_CAPTURE: "1"
+jobs:
+  render-phase4a-proof:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test/phase4a-hero-movement
+          fetch-depth: 1
+      - name: Install Godot 4.3, Xvfb and GLTF tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0 python3-pip python3-venv
+          sudo rm -rf /var/lib/apt/lists/*
+          mkdir -p .cache/godot .cache/tools .cache/hf-assets artifacts
+      - name: Restore Godot 4.3 cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/godot
+          key: godot-4.3-linux-x64-v1
+      - name: Restore gltfpack cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/tools
+          key: twin-city-tools-linux-v1
+      - name: Restore approved Twin City asset cache
+        id: assets
+        uses: actions/cache@v4
+        with:
+          path: .cache/hf-assets
+          key: wilderness-hf-assets-v6-${{ hashFiles('ci/fetch_assets.py', 'ci/prepare_wilderness.py') }}
+      - name: Install Godot and gltfpack if cache is empty
+        run: |
+          set -euo pipefail
+          if [ ! -x "$GODOT_BIN" ]; then
+            curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
+            unzip -o .cache/godot/godot.zip -d .cache/godot
+            chmod +x "$GODOT_BIN"
+          fi
+          "$GODOT_BIN" --version
+          if [ ! -x .cache/tools/bin/gltfpack ]; then
+            npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack
+          fi
+          echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
+          command -v gltfpack
+      - name: Install asset fetch dependencies
+        run: |
+          set -euo pipefail
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check --cache-dir "$PIP_CACHE_DIR" "huggingface_hub>=0.26,<1.0" hf_transfer requests
+      - name: Fetch approved Twin City runtime assets on cache miss
+        if: steps.assets.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_ENABLE_HF_TRANSFER: "1"
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
+          .venv/bin/python ci/fetch_assets.py 2>&1 | tee artifacts/city_asset_fetch.log
+          test -s .cache/hf-assets/twin_city_runtime_assets.json
+      - name: Verify prepared city asset cache
+        run: |
+          set -euo pipefail
+          test -s .cache/hf-assets/twin_city_runtime_assets.json
+          test -x "$GODOT_BIN"
+          test -x .cache/tools/bin/gltfpack
+          echo PHASE4A_CITY_ASSET_CACHE_READY
+      - name: Fetch approved Ranger and Phase 3B weapons
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
+          .venv/bin/python - <<'PY'
+          import pathlib, shutil, os
+          from huggingface_hub import hf_hub_download
+          repo = "ZzwahwahzZ/clash-of-legends-terrain-assets"
+          targets = {
+              "phase3b/characters/archer_male.glb": "assets/phase3b/characters/Male_Ranger.glb",
+              "phase3b/weapons/bow_beginner.glb": "assets/phase3b/weapons/bow_beginner.glb",
+              "phase3b/weapons/dual_knives_beginner.glb": "assets/phase3b/weapons/dual_knives_beginner.glb",
+              "phase3b/weapons/dual_blades_beginner.glb": "assets/phase3b/weapons/dual_blades_beginner.glb",
+              "phase3b/weapons/shield_beginner.glb": "assets/phase3b/weapons/shield_beginner.glb",
+              "phase3b/weapons/greatsword_beginner.glb": "assets/phase3b/weapons/greatsword_beginner.glb",
+              "phase3b/weapons/magic_staff_beginner.glb": "assets/phase3b/weapons/magic_staff_beginner.glb",
+          }
+          for source, target in targets.items():
+              downloaded = pathlib.Path(hf_hub_download(repo_id=repo, repo_type="dataset", filename=source, token=os.environ["HF_TOKEN"]))
+              destination = pathlib.Path(target)
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(downloaded, destination)
+              data = destination.read_bytes()
+              minimum = 1000000 if "characters/" in target else 10000
+              if len(data) < minimum or data[:4] != b"glTF":
+                  raise SystemExit("Invalid approved Ranger/weapon GLB: " + target)
+              print("PHASE4A_APPROVED_ASSET_OK:", target, "bytes=", len(data))
+          PY
+      - name: Import Godot project without rebuilding the protected animation resource
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/godot_import.log
+      - name: Render four Phase 4A proofs inside Twin City
+        run: |
+          set -euo pipefail
+          PHASE4A_CAPTURE=1 CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 300s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/phase4a_twin_city.log
+      - name: Verify the four real PNG proofs and movement, jump, weapons and camera guards
+        run: |
+          set -euo pipefail
+          for image in phase4a_01_archer_bow.png phase4a_02_archer_dual_knives.png phase4a_03_conquer_jump.png phase4a_04_class_showcase_trojan_warrior_taoist.png; do
+            test -s "artifacts/$image"
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 15000 ] || { echo "::error::Proof image too small: $image ($size bytes)"; exit 1; }
+          done
+          grep -q "PHASE4A_HERO_MOVEMENT_OK:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_CONQUER_JUMP_OK:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_PROOF_1_ARCHER_BOW_OK" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_PROOF_2_DUAL_KNIVES_OK" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_PROOF_3_JUMP_OK" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_PROOF_4_CLASS_SHOWCASE_OK" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_CLASS_PROOF_OK: trojan" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_CLASS_PROOF_OK: warrior" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_CLASS_PROOF_OK: taoist" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_CAMERA_HEIGHT_OK:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_ANIMATION_RESOURCE_PRESERVED:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_ALL_FOUR_PROOFS_COMPLETE" artifacts/phase4a_twin_city.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4A_.*FAILED|HERO_.*MISSING" artifacts/phase4a_twin_city.log
+      - name: Upload four proof images and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4a-twin-city-proof-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            artifacts/phase4a_01_archer_bow.png
+            artifacts/phase4a_02_archer_dual_knives.png
+            artifacts/phase4a_03_conquer_jump.png
+            artifacts/phase4a_04_class_showcase_trojan_warrior_taoist.png
+            artifacts/phase4a_twin_city.log
+            artifacts/godot_import.log
+            artifacts/city_asset_fetch.log

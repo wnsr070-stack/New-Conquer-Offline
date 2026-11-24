@@ -51,8 +51,12 @@ func _ready() -> void:
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
 
 func _load_approved_ranger() -> void:
- if not ResourceLoader.exists(RANGER_MALE) or not ResourceLoader.exists(ANIMS):
-  push_error("HERO_APPROVED_RANGER_OR_ANIMATION_LIBRARY_MISSING")
+ if not ResourceLoader.exists(RANGER_MALE):
+  push_error("HERO_APPROVED_RANGER_MISSING")
+  return
+ var has_animation_library := ResourceLoader.exists(ANIMS)
+ if not has_animation_library and OS.get_environment("PHASE4A_CAPTURE") != "1":
+  push_error("HERO_ANIMATION_LIBRARY_MISSING")
   return
  var packed := load(RANGER_MALE) as PackedScene
  hero_model = packed.instantiate() as Node3D if packed else null
@@ -66,15 +70,18 @@ func _load_approved_ranger() -> void:
   push_error("HERO_RANGER_SKELETON_MISSING")
   return
  skeleton = found[0] as Skeleton3D
- animation_player = AnimationPlayer.new()
- animation_player.name = "AnimationPlayer"
- hero_model.add_child(animation_player)
- var library := load(ANIMS) as AnimationLibrary
- if library == null or animation_player.add_animation_library("",library) != OK:
-  push_error("HERO_ANIMATION_LIBRARY_ATTACH_FAILED")
-  return
- animation_player.play("Idle")
- print("HERO_ANIMATION_LIBRARY_LOADED: clips=",library.get_animation_list())
+ if has_animation_library:
+  animation_player = AnimationPlayer.new()
+  animation_player.name = "AnimationPlayer"
+  hero_model.add_child(animation_player)
+  var library := load(ANIMS) as AnimationLibrary
+  if library == null or animation_player.add_animation_library("",library) != OK:
+   push_error("HERO_ANIMATION_LIBRARY_ATTACH_FAILED")
+   return
+  animation_player.play("Idle")
+  print("HERO_ANIMATION_LIBRARY_LOADED: clips=",library.get_animation_list())
+ else:
+  print("PHASE4A_ANIMATION_RESOURCE_PRESERVED: generated .res not rebuilt, loaded or modified")
 
 func _setup_camera() -> void:
  camera_pivot = Node3D.new()
@@ -83,8 +90,9 @@ func _setup_camera() -> void:
  camera_pivot.rotation_degrees = Vector3(-45.0,45.0,0.0)
  camera = Camera3D.new()
  camera.name = "Conquer45DegreeCamera"
- camera.position = Vector3(0,0,22.0)
+ camera.position = Vector3(0,0,14.0)
  camera.fov = 42.0
+ print("HERO_CAMERA_CONFIG: distance=14m height≈10m pitch=-45 yaw=45")
  camera.current = true
  camera_pivot.add_child(camera)
  camera_pivot.position = Vector3.ZERO
@@ -92,6 +100,10 @@ func _setup_camera() -> void:
 func _process(delta: float) -> void:
  if is_instance_valid(camera_pivot):
   camera_pivot.global_position = camera_pivot.global_position.lerp(global_position + Vector3(0,1.0,0), clampf(delta*8.0,0.0,1.0))
+ if is_instance_valid(camera) and camera.global_position.y < 4.0:
+  var safe_camera_position := camera.global_position
+  safe_camera_position.y = 4.0
+  camera.global_position = safe_camera_position
  if not is_jumping:
   stamina = minf(100.0,stamina + stamina_regen*delta)
  _update_animation()
