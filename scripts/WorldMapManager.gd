@@ -1,5 +1,17 @@
 extends Node
 const CITY_SCENES={"TwinCity":"res://scenes/TwinCity.tscn","PhoenixCastle":"res://scenes/cities/PhoenixCastle.tscn","ApeMountain":"res://scenes/cities/ApeMountain.tscn","DesertCity":"res://scenes/cities/DesertCity.tscn","BirdIsland":"res://scenes/cities/BirdIsland.tscn"}
+
+# Scene-local city centers used by Phase 4B monster camps and world bosses.
+const CITY_CENTERS := {
+    "TwinCity": Vector3(0.0, 0.0, 0.0),
+    "PhoenixCastle": Vector3(0.0, 0.0, 0.0),
+    "ApeMountain": Vector3(0.0, 0.0, 0.0),
+    "DesertCity": Vector3(0.0, 0.0, 0.0),
+    "BirdIsland": Vector3(-70.0, 4.6, 0.0)
+}
+func get_city_center(city_id: String) -> Vector3:
+    return CITY_CENTERS.get(city_id, Vector3.ZERO)
+
 var current_city="TwinCity"
 var pending_spawn=Vector3.ZERO
 var transition_in_progress=false
