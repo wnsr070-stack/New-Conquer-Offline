@@ -12,7 +12,7 @@ const CITY_SIZE := 320.0
 const CITY_HALF := CITY_SIZE * 0.5
 const DIRT_TILE_SOURCE_SIZE := 11.8
 const DIRT_TILES_PER_SIDE := 28
-const HERO_PLAZA_SPAWN := Vector3(0, 0.2, -34)
+const HERO_PLAZA_SPAWN := Vector3(0, 0.2, -49)
 var captures := [
     {"file": "twin_city_overview.png", "pos": Vector3(330, 315, 350), "target": Vector3(0, 4, 0), "fov": 58.0},
     {"file": "twin_city_palace.png", "pos": Vector3(0, 25, -43), "target": Vector3(0, 12, -75), "fov": 39.0},
@@ -566,7 +566,7 @@ func _phase4a_capture_image(camera: Camera3D, hero: CharacterBody3D) -> Image:
         return null
     var camera_distance := camera.global_position.distance_to(hero.global_position + Vector3(0, 1.1, 0))
     print("PHASE4A_CAMERA_HEIGHT_OK: y=", camera.global_position.y, " target=", hero.global_position + Vector3(0, 1.0, 0))
-    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=", camera_distance, " target_range=12m pitch=45 yaw=45 fov=42 plaza=front_of_main_gate plaza_center=", hero.global_position)
+    print("PHASE4A_CAMERA_COMPOSITION_OK: distance=", camera_distance, " target_range=12m pitch=45 yaw=45 fov=42 plaza=central_main_street_front_of_imperial_palace_door hero_position=", hero.global_position)
     await get_tree().process_frame
     await RenderingServer.frame_post_draw
     var image := get_viewport().get_texture().get_image()
@@ -631,7 +631,7 @@ func _capture_phase4a_proofs() -> void:
     camera.fov = 35.0
     add_child(camera)
     camera.current = true
-    print("PHASE4A_DEDICATED_PROOF_CAMERA_READY: runtime_camera_kept_separate=true plaza_spawn=", HERO_PLAZA_SPAWN, " framing=main_gate_and_surrounding_buildings")
+    print("PHASE4A_DEDICATED_PROOF_CAMERA_READY: runtime_camera_kept_separate=true plaza_spawn=", HERO_PLAZA_SPAWN, " landmark=imperial_palace_entrance_stairs_z_minus_59_5 framing=central_main_street_and_palace_door")
 
     var start_position := hero.global_position
     hero.set("move_target", start_position + Vector3(2.0, 0.0, 0.0))
@@ -690,7 +690,7 @@ func _capture_phase4a_proofs() -> void:
     print("PHASE4A_PROOF_3_JUMP_OK")
 
     await get_tree().create_timer(0.9).timeout
-    hero.global_position = Vector3(0, 0.2, 0)
+    hero.global_position = HERO_PLAZA_SPAWN
     hero.velocity = Vector3.ZERO
     hero.set("is_jumping", false)
     var class_images: Array[Image] = []
