@@ -470,8 +470,8 @@ def render_preview(job, index):
     if background is not None:
         background.inputs["Color"].default_value = (0.11, 0.12, 0.14, 1.0)
     scene.view_settings.view_transform = "Standard"
-    available_looks = [item.identifier for item in scene.view_settings.bl_rna.properties["look"].enum_items]
-    scene.view_settings.look = "None" if "None" in available_looks else available_looks[0]
+    # Keep Blender 3.0.1's default Standard look. Its enum exposes "None"
+    # but assigning that identifier raises TypeError (enum "NONE" not found).
     scene.view_settings.exposure = 0.0
     scene.view_settings.gamma = 1.0
     scene.render.filepath = os.path.join(preview_dir, job["id"] + ".png")
