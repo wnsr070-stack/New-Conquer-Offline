@@ -32,19 +32,19 @@ const POSES := {
   {"t":0.34,"p":{"spine_01":Vector3(-4,0,0),"spine_02":Vector3(-4,0,0),"spine_03":Vector3(-4,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(18,0,0),"calf_r":Vector3(18,0,0),"upperarm_l":Vector3(-72,0,-28),"upperarm_r":Vector3(-72,0,28),"lowerarm_l":Vector3(-28,0,0),"lowerarm_r":Vector3(-28,0,0)}}
  ],
  "Attack_Trojan": [
-  {"t":0.0,"p":{"spine_01":Vector3(6,0,0),"spine_02":Vector3(6,0,0),"spine_03":Vector3(6,0,0),"thigh_l":Vector3(-10,0,0),"thigh_r":Vector3(-10,0,0),"upperarm_l":Vector3(-105,0,-42),"upperarm_r":Vector3(-105,0,42),"lowerarm_l":Vector3(-25,0,0),"lowerarm_r":Vector3(-25,0,0)}},
-  {"t":0.18,"p":{"spine_01":Vector3(6,0,0),"spine_02":Vector3(6,0,0),"spine_03":Vector3(6,0,0),"thigh_l":Vector3(-12,0,0),"thigh_r":Vector3(-12,0,0),"upperarm_l":Vector3(-72,0,-52),"upperarm_r":Vector3(-72,0,52),"lowerarm_l":Vector3(-18,0,0),"lowerarm_r":Vector3(-18,0,0)}},
-  {"t":0.42,"p":{"spine_01":Vector3(6,0,0),"spine_02":Vector3(6,0,0),"spine_03":Vector3(6,0,0),"thigh_l":Vector3(-10,0,0),"thigh_r":Vector3(-10,0,0),"upperarm_l":Vector3(-105,0,-42),"upperarm_r":Vector3(-105,0,42),"lowerarm_l":Vector3(-25,0,0),"lowerarm_r":Vector3(-25,0,0)}}
+  {"t":0.0,"p":{"spine_01":Vector3(6,0,0),"spine_02":Vector3(6,0,0),"spine_03":Vector3(6,0,0),"thigh_l":Vector3(-10,0,0),"thigh_r":Vector3(-10,0,0),"upperarm_l":Vector3(105,0,42),"upperarm_r":Vector3(105,0,-42),"lowerarm_l":Vector3(-25,0,0),"lowerarm_r":Vector3(-25,0,0)}},
+  {"t":0.18,"p":{"spine_01":Vector3(6,0,0),"spine_02":Vector3(6,0,0),"spine_03":Vector3(6,0,0),"thigh_l":Vector3(-12,0,0),"thigh_r":Vector3(-12,0,0),"upperarm_l":Vector3(72,0,52),"upperarm_r":Vector3(72,0,-52),"lowerarm_l":Vector3(-18,0,0),"lowerarm_r":Vector3(-18,0,0)}},
+  {"t":0.42,"p":{"spine_01":Vector3(6,0,0),"spine_02":Vector3(6,0,0),"spine_03":Vector3(6,0,0),"thigh_l":Vector3(-10,0,0),"thigh_r":Vector3(-10,0,0),"upperarm_l":Vector3(105,0,42),"upperarm_r":Vector3(105,0,-42),"lowerarm_l":Vector3(-25,0,0),"lowerarm_r":Vector3(-25,0,0)}}
  ],
  "Attack_SwordShield": [
-  {"t":0.0,"p":{"spine_01":Vector3(4,0,0),"spine_02":Vector3(4,0,0),"spine_03":Vector3(4,0,0),"upperarm_l":Vector3(-72,0,-42),"lowerarm_l":Vector3(-48,0,0),"upperarm_r":Vector3(-92,0,22),"lowerarm_r":Vector3(-22,0,0)}},
-  {"t":0.2,"p":{"spine_01":Vector3(4,0,0),"spine_02":Vector3(4,0,0),"spine_03":Vector3(4,0,0),"upperarm_l":Vector3(-62,0,-50),"lowerarm_l":Vector3(-42,0,0),"upperarm_r":Vector3(-55,0,22),"lowerarm_r":Vector3(-18,0,0)}},
-  {"t":0.45,"p":{"spine_01":Vector3(4,0,0),"spine_02":Vector3(4,0,0),"spine_03":Vector3(4,0,0),"upperarm_l":Vector3(-72,0,-42),"lowerarm_l":Vector3(-48,0,0),"upperarm_r":Vector3(-92,0,22),"lowerarm_r":Vector3(-22,0,0)}}
+  {"t":0.0,"p":{"spine_01":Vector3(4,0,0),"spine_02":Vector3(4,0,0),"spine_03":Vector3(4,0,0),"upperarm_l":Vector3(72,0,42),"lowerarm_l":Vector3(-48,0,0),"upperarm_r":Vector3(92,0,-22),"lowerarm_r":Vector3(-22,0,0)}},
+  {"t":0.2,"p":{"spine_01":Vector3(4,0,0),"spine_02":Vector3(4,0,0),"spine_03":Vector3(4,0,0),"upperarm_l":Vector3(62,0,50),"lowerarm_l":Vector3(-42,0,0),"upperarm_r":Vector3(55,0,-22),"lowerarm_r":Vector3(-18,0,0)}},
+  {"t":0.45,"p":{"spine_01":Vector3(4,0,0),"spine_02":Vector3(4,0,0),"spine_03":Vector3(4,0,0),"upperarm_l":Vector3(72,0,42),"lowerarm_l":Vector3(-48,0,0),"upperarm_r":Vector3(92,0,-22),"lowerarm_r":Vector3(-22,0,0)}}
  ],
  "Attack_Staff": [
-  {"t":0.0,"p":{"spine_01":Vector3(-2,0,0),"upperarm_l":Vector3(-60,0,-28),"lowerarm_l":Vector3(-25,0,0),"upperarm_r":Vector3(-75,0,28),"lowerarm_r":Vector3(-22,0,0)}},
-  {"t":0.32,"p":{"spine_01":Vector3(-5,0,0),"upperarm_l":Vector3(-105,0,-20),"lowerarm_l":Vector3(-12,0,0),"upperarm_r":Vector3(-112,0,20),"lowerarm_r":Vector3(-12,0,0)}},
-  {"t":0.62,"p":{"spine_01":Vector3(-2,0,0),"upperarm_l":Vector3(-60,0,-28),"lowerarm_l":Vector3(-25,0,0),"upperarm_r":Vector3(-75,0,28),"lowerarm_r":Vector3(-22,0,0)}}
+  {"t":0.0,"p":{"spine_01":Vector3(-2,0,0),"upperarm_l":Vector3(60,0,28),"lowerarm_l":Vector3(-25,0,0),"upperarm_r":Vector3(75,0,-28),"lowerarm_r":Vector3(-22,0,0)}},
+  {"t":0.32,"p":{"spine_01":Vector3(-5,0,0),"upperarm_l":Vector3(105,0,20),"lowerarm_l":Vector3(-12,0,0),"upperarm_r":Vector3(112,0,-20),"lowerarm_r":Vector3(-12,0,0)}},
+  {"t":0.62,"p":{"spine_01":Vector3(-2,0,0),"upperarm_l":Vector3(60,0,28),"lowerarm_l":Vector3(-25,0,0),"upperarm_r":Vector3(75,0,-28),"lowerarm_r":Vector3(-22,0,0)}}
  ],
  "Hit":[{"t":0.0,"p":{"spine_01":Vector3(-18,0,0),"upperarm_l":Vector3(30,0,-25),"upperarm_r":Vector3(30,0,25)}},{"t":0.2,"p":{"spine_01":Vector3(8,0,0),"upperarm_l":Vector3(-12,0,-18),"upperarm_r":Vector3(-12,0,18)}}],
  "Death":[{"t":0.0,"p":{"spine_01":Vector3(-8,0,0),"upperarm_l":Vector3(25,0,-35),"upperarm_r":Vector3(25,0,35)}},{"t":0.5,"p":{"spine_01":Vector3(55,0,0),"thigh_l":Vector3(-70,0,0),"thigh_r":Vector3(-70,0,0),"calf_l":Vector3(85,0,0),"calf_r":Vector3(85,0,0)}}]
