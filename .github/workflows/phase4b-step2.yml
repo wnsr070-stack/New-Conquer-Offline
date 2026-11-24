@@ -1,0 +1,88 @@
+name: Phase 4B Step 2 Monster Instances, Hybrid Animations and Respawn
+on:
+  push:
+    branches: ['test/phase4b-monsters-bosses']
+    paths:
+      - 'scripts/MonsterActor.gd'
+      - 'scripts/MonsterSpawner.gd'
+      - 'ci/phase4b_step2_test.gd'
+      - '.github/workflows/phase4b-step2.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-monster-instances:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    env:
+      GODOT_VERSION: "4.3"
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.3 and dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip python3-pip
+          mkdir -p .cache/godot assets/phase3b artifacts
+          curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -o /tmp/godot.zip -d .cache/godot
+          chmod +x .cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          .cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 --version
+      - name: Restore and verify the exact approved Phase 3B creature GLBs
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, shutil
+          from huggingface_hub import snapshot_download
+          if not os.environ.get("HF_TOKEN"):
+              raise SystemExit("HF_TOKEN secret is required to restore approved Phase 3B assets")
+          root = pathlib.Path(snapshot_download(
+              repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets",
+              repo_type="dataset",
+              token=os.environ["HF_TOKEN"],
+              allow_patterns=["phase3b/monsters/**", "phase3b/phase3b_manifest.json"]))
+          source = root / "phase3b"
+          manifest_path = source / "phase3b_manifest.json"
+          if not manifest_path.is_file():
+              raise SystemExit("Phase 3B manifest missing from Hugging Face")
+          manifest = json.loads(manifest_path.read_text())
+          creatures = [x for x in manifest.get("assets", []) if x.get("category") in {"normal_mob", "boss"}]
+          if len(creatures) != 20 or sum(x.get("category") == "normal_mob" for x in creatures) != 15 or sum(x.get("category") == "boss" for x in creatures) != 5:
+              raise SystemExit(f"Manifest creature count mismatch: {len(creatures)}")
+          target = pathlib.Path("assets/phase3b")
+          for item in creatures:
+              src = source / item["file"]
+              if not src.is_file():
+                  raise SystemExit("Manifest GLB missing: " + str(src))
+              data = src.read_bytes()
+              if len(data) != int(item["bytes"]) or hashlib.sha256(data).hexdigest() != item["sha256"] or data[:4] != b"glTF":
+                  raise SystemExit("Approved Phase 3B GLB integrity check failed: " + item["file"])
+              dest = target / item["file"]
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dest)
+          shutil.copy2(manifest_path, target / manifest_path.name)
+          copied = list((target / "monsters").rglob("*.glb"))
+          if len(copied) != 20:
+              raise SystemExit(f"Expected exactly 20 approved GLBs, got {len(copied)}")
+          print("PHASE4B_STEP2_HF_ASSETS_RESTORED: approved_models=20 manifest_sha256_verified=20")
+          PY
+      - name: Import exact GLBs and test hybrid animation, labels, scale and real respawn
+        run: |
+          set -euo pipefail
+          GODOT=.cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/phase4b_step2_import.log
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://ci/phase4b_step2_test.gd 2>&1 | tee artifacts/phase4b_step2_test.log
+          grep -q "PHASE4B_STEP2_MONSTER_INSTANCES_OK: models=20" artifacts/phase4b_step2_test.log
+          grep -q "PHASE4B_STEP2_ANIMATION_SOURCE_COUNTS:" artifacts/phase4b_step2_test.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4B_STEP2_.*FAILED" artifacts/phase4b_step2_test.log
+          echo "PHASE4B_STEP2_EXIT_CODE_0"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4b-step2-hybrid-monster-test-${{ github.run_number }}
+          path: |
+            artifacts/phase4b_step2_import.log
+            artifacts/phase4b_step2_test.log
+          retention-days: 14
