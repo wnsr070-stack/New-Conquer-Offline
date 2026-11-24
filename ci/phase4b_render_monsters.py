@@ -38,7 +38,9 @@ def render_one(label,relpath,height,category):
   bpy.ops.object.light_add(type="AREA",location=loc); ob=bpy.context.object; ob.name=name; ob.data.energy=power; ob.data.shape="DISK"; ob.data.size=size
   ob.rotation_euler=(target-ob.location).to_track_quat("-Z","Y").to_euler()
  light("Key",(height*1.1,-height*1.6,height*2.2),1500,height*1.4); light("Fill",(-height*1.8,-height*.7,height*1.1),900,height*1.7); light("Rim",(0,height*1.5,height*1.8),1800,height*1.2)
- scene=bpy.context.scene; scene.render.engine="BLENDER_EEVEE_NEXT" if hasattr(bpy.types,"BLENDER_EEVEE_NEXT") else "BLENDER_EEVEE"
+ scene=bpy.context.scene
+ if scene.world is None: scene.world=bpy.data.worlds.new("Monster_Showcase_World")
+ scene.render.engine="BLENDER_EEVEE_NEXT" if hasattr(bpy.types,"BLENDER_EEVEE_NEXT") else "BLENDER_EEVEE"
  if hasattr(scene,"eevee"): scene.eevee.taa_render_samples=64
  scene.render.resolution_x=1200; scene.render.resolution_y=1200; scene.render.resolution_percentage=100
  scene.render.image_settings.file_format="PNG"; scene.render.image_settings.color_mode="RGBA"; scene.world.color=(.035,.045,.065)
