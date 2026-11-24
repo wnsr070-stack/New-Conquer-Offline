@@ -30,7 +30,7 @@ func _render() -> void:
 
  var camera := Camera3D.new()
  camera.position = Vector3(2.0,2.55,5.8)
- camera.fov = 55.0
+ camera.fov = 68.0
  camera.current = true
  scene.add_child(camera)
  camera.look_at(Vector3(0,1.0,0),Vector3.UP)
@@ -113,16 +113,16 @@ func _attach_weapons(skeleton: Skeleton3D, pose: String) -> void:
   "Attack_Bow":
    _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/bow_beginner.glb",Vector3(0,0,90),0.85)
   "Attack_Assassin":
-   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/dual_knives_beginner.glb",Vector3(0,0,90),0.72)
-   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/dual_knives_beginner.glb",Vector3(0,0,-90),0.72)
+   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/dual_knives_beginner.glb",Vector3(0,0,90),0.40)
+   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/dual_knives_beginner.glb",Vector3(0,0,-90),0.40)
   "Attack_Trojan":
-   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,90),0.78)
-   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,-90),0.78)
+   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,90),0.30)
+   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/dual_blades_beginner.glb",Vector3(0,0,-90),0.30)
   "Attack_SwordShield":
-   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/shield_beginner.glb",Vector3(0,0,0),0.72)
-   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/greatsword_beginner.glb",Vector3(0,0,90),0.78)
+   _attach_weapon(skeleton,"hand_l","res://assets/phase3b/weapons/shield_beginner.glb",Vector3(0,0,0),0.34)
+   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/greatsword_beginner.glb",Vector3(0,0,90),0.34)
   "Attack_Staff":
-   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/magic_staff_beginner.glb",Vector3(0,0,90),0.82)
+   _attach_weapon(skeleton,"hand_r","res://assets/phase3b/weapons/magic_staff_beginner.glb",Vector3(0,0,90),0.42)
 
 func _attach_weapon(skeleton: Skeleton3D, bone: String, path: String, rotation: Vector3, size: float) -> void:
  var index := skeleton.find_bone(bone)
