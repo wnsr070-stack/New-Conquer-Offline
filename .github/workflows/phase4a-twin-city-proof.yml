@@ -121,6 +121,12 @@ jobs:
                   raise SystemExit("Invalid approved Ranger/weapon GLB: " + target)
               print("PHASE4A_APPROVED_ASSET_OK:", target, "bytes=", len(data))
           PY
+      - name: Build the approved AnimationLibrary using the unchanged project builder
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroAnimationBuilder.gd 2>&1 | tee artifacts/animation_builder.log
+          test -s assets/phase4/animations/conquer_hero_anims.res
+          echo PHASE4A_ANIMATION_LIBRARY_GENERATED_BY_APPROVED_BUILDER
       - name: Import Godot project without rebuilding the protected animation resource
         run: |
           set -euo pipefail
@@ -158,6 +164,7 @@ jobs:
           grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_greatsword_hand_r" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_WEAPON_VISUAL_OK: socket=HeroWeapon_magic_staff_hand_r" artifacts/phase4a_twin_city.log
           grep -q "HERO_ANIMATION_LIBRARY_LOADED:" artifacts/phase4a_twin_city.log
+          grep -q "PHASE4A_ANIMATION_LIBRARY_GENERATED_BY_APPROVED_BUILDER" artifacts/animation_builder.log
           grep -q "HERO_ANIMATION_IDLE_PLAYING:" artifacts/phase4a_twin_city.log
           grep -q "HERO_REAL_HAND_BONE_WORLD:" artifacts/phase4a_twin_city.log
           grep -q "PHASE4A_ANIMATION_RESOURCE_PRESERVED:" artifacts/phase4a_twin_city.log
@@ -175,6 +182,7 @@ jobs:
             artifacts/phase4a_02_archer_dual_knives.png
             artifacts/phase4a_03_conquer_jump.png
             artifacts/phase4a_04_class_showcase_trojan_warrior_taoist.png
+            artifacts/animation_builder.log
             artifacts/phase4a_twin_city.log
             artifacts/godot_import.log
             artifacts/city_asset_fetch.log
