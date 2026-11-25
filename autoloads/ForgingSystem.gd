@@ -132,56 +132,20 @@ func get_plus_aura_level(item: Dictionary) -> int:
  return 0 if plus < 3 else 1 if plus < 6 else 2 if plus < 9 else 3 if plus < 12 else 4
 
 func apply_equipped_weapon_aura(hero: Node3D) -> bool:
- if hero == null: return false
+ if hero == null or not is_instance_valid(hero): return false
  var gear := get_node_or_null("/root/GearSystem")
- if gear == null: return false
+ var vfx := get_node_or_null("/root/AuraAndVFXManager")
+ if gear == null or vfx == null: return false
  var item: Dictionary = gear.get_equipped("weapon")
- var aura_level := get_plus_aura_level(item)
+ var plus := int(item.get("plus",0))
  var weapon_nodes: Array = hero.get("weapon_nodes") if hero.get("weapon_nodes") is Array else []
- var applied := false
+ var attached := false
  for socket in weapon_nodes:
-  if not is_instance_valid(socket): continue
-  var weapon := socket.get_child(0) as Node3D if socket.get_child_count()>0 else null
-  if weapon == null: continue
-  _clear_aura(weapon)
-  if aura_level <= 0: continue
-  _apply_aura_to_meshes(weapon,aura_level)
-  var aura := OmniLight3D.new()
-  aura.name = "ForgingPlusAuraLight"
-  aura.light_color = Color(0.25,0.78,1.0) if aura_level < 3 else Color(0.7,0.28,1.0)
-  aura.light_energy = 0.12+float(aura_level)*0.055
-  aura.omni_range = 0.72+float(aura_level)*0.10
-  aura.position = Vector3.ZERO
-  weapon.add_child(aura)
-  var particles := GPUParticles3D.new()
-  particles.name = "ForgingPlusAuraParticles"
-  particles.amount = 24+aura_level*12
-  particles.lifetime = 0.8
-  particles.emitting = true
-  var process := ParticleProcessMaterial.new()
-  process.direction = Vector3(0,1,0)
-  process.spread = 180.0
-  process.initial_velocity_min = 0.12
-  process.initial_velocity_max = 0.45+float(aura_level)*0.16
-  process.gravity = Vector3(0,0,0)
-  process.scale_min = 0.045
-  process.scale_max = 0.085+float(aura_level)*0.018
-  particles.process_material = process
-  var sphere := SphereMesh.new()
-  sphere.radius = 0.035+float(aura_level)*0.008
-  sphere.height = sphere.radius*2.0
-  var particle_mat := StandardMaterial3D.new()
-  particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-  particle_mat.albedo_color = aura.light_color
-  particle_mat.emission_enabled = true
-  particle_mat.emission = aura.light_color
-  particle_mat.emission_energy_multiplier = 0.75+float(aura_level)*0.18
-  sphere.material = particle_mat
-  particles.draw_pass_1 = sphere
-  weapon.add_child(particles)
-  applied = true
- print("FORGE_AURA_APPLIED: plus=",item.get("plus",0)," level=",aura_level," applied=",applied)
- return applied
+  if not is_instance_valid(socket) or not socket is Node3D: continue
+  var mesh_root := socket.get_child(0) as Node3D if socket.get_child_count()>0 else socket as Node3D
+  if mesh_root != null and vfx.attach_equipment_aura(mesh_root,plus): attached = true
+ print("PHASE4D_FORGING_SPRITE_AURA_OK: plus=",plus," attached=",attached," particles=false")
+ return attached or plus < 3
 
 func _apply_aura_to_meshes(node: Node,level: int) -> void:
  for child in node.get_children():
