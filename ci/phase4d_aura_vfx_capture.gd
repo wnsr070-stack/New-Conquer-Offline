@@ -241,6 +241,14 @@ func _run_capture() -> void:
  print("PHASE4C_STEP3_CLOSEUP_PNG_OK: bytes=",detail_bytes)
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
+ # Clear autoload-held scene references and stop VFX processing before detaching the city.
+  var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem"]
+  for autoload_name in cache_autoloads:
+   var autoload := root.get_node_or_null(autoload_name)
+   if autoload == null or not autoload.has_method("clear_cache"):
+    _fail("required_autoload_clear_cache_missing: "+autoload_name)
+    return
+   autoload.clear_cache()
  current_scene = null
  var geometry_count := city.find_children("*","GeometryInstance3D",true,false).size() if is_instance_valid(city) else 0
  # Leave the scene tree first so every GeometryInstance3D receives its normal
@@ -277,13 +285,7 @@ func _run_capture() -> void:
  await RenderingServer.frame_post_draw
  RenderingServer.force_sync()
  print("PHASE4D_QUEUED_SCENE_RELEASE_FRAME_COMPLETE")
- var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem"]
- for autoload_name in cache_autoloads:
-  var autoload := root.get_node_or_null(autoload_name)
-  if autoload == null or not autoload.has_method("clear_cache"):
-   _fail("required_autoload_clear_cache_missing: "+autoload_name)
-   return
-  autoload.clear_cache()
+
  var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager"]
  for child in root.get_children():
   if child.name in autoload_names: continue
