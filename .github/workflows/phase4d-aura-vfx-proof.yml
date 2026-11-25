@@ -3,20 +3,23 @@ on:
   push:
     branches: ['test/phase4d-market-npcs-auras']
     paths:
-      - 'autoloads/AuraAndVFXManager.gd'\n      - 'autoloads/ForgingSystem.gd'
+      - 'autoloads/AuraAndVFXManager.gd'
+      - 'autoloads/ForgingSystem.gd'
       - 'autoloads/GearSystem.gd'
       - 'autoloads/GearDatabase.gd'
       - 'autoloads/GameState.gd'
       - 'scripts/CombatSystem.gd'
       - 'scripts/SkillSystem.gd'
       - 'project.godot'
-      - 'ci/phase4d_aura_vfx_capture.gd'\n      - 'ci/phase4c_step3_forging_capture.gd'
+      - 'ci/phase4d_aura_vfx_capture.gd'
+      - 'ci/phase4c_step3_forging_capture.gd'
       - 'ci/fetch_items_consumables.py'
       - 'scripts/HeroController.gd'
       - 'scripts/animation/ConquerHeroAnimationBuilder.gd'
       - 'scripts/MonsterActor.gd'
       - 'scripts/CombatSystem.gd'
-      - '.github/workflows/phase4c-step3-forging.yml'\n      - '.github/workflows/phase4d-aura-vfx-proof.yml'
+      - '.github/workflows/phase4c-step3-forging.yml'
+      - '.github/workflows/phase4d-aura-vfx-proof.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -184,7 +187,9 @@ jobs:
           set -euo pipefail
           xvfb-run -a -s "-screen 0 1600x1000x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x1000 --script res://ci/phase4d_aura_vfx_capture.gd 2>&1 | tee artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FORGING_FINAL_STATE_OK" artifacts/phase4c_step3_forging_capture.log
-          grep -q "PHASE4D_SPRITE_AURA_VISUAL_OK" artifacts/phase4c_step3_forging_capture.log\n          grep -q "PHASE4D_WEAPON_ARMOR_PLUS12_ANIMA_P18_OK" artifacts/phase4c_step3_forging_capture.log\n          grep -q "PHASE4D_AURA_VFX_RENDER_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4D_SPRITE_AURA_VISUAL_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4D_WEAPON_ARMOR_PLUS12_ANIMA_P18_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4D_AURA_VFX_RENDER_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FORGING_SCATTER_IN_CAMP_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FRAME1_STANCE_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FRAME2_ATTACK_HIT_OK" artifacts/phase4c_step3_forging_capture.log
