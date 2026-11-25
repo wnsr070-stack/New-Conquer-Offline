@@ -233,17 +233,30 @@ func _run() -> void:
  print("PHASE4C_STEP3_CLOSEUP_PNG_OK: bytes=",detail_bytes)
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
- var vfx_manager := root.get_node_or_null("AuraAndVFXManager")
- if vfx_manager != null and vfx_manager.has_method("cleanup_all"):
-  vfx_manager.cleanup_all()
- else:
-  _fail("aura_vfx_cleanup_method_missing")
-  return
- if current_scene != null and is_instance_valid(current_scene):
-  current_scene.free()
-  current_scene = null
+ var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager"]
+ for autoload_name in cache_autoloads:
+  var autoload := root.get_node_or_null(autoload_name)
+  if autoload == null or not autoload.has_method("clear_cache"):
+   _fail("required_autoload_clear_cache_missing: "+autoload_name)
+   return
+  autoload.clear_cache()
+ # The current scene is a non-autoload root child; clear the SceneTree pointer first.
+ current_scene = null
+ var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager"]
+ var freed_root_children := 0
+ for child in root.get_children():
+  if child.name in autoload_names:
+   continue
+  if is_instance_valid(child):
+   child.free()
+   freed_root_children += 1
+ print("PHASE4D_ROOT_CHILDREN_FREED: count=",freed_root_children)
+ # Flush two complete process/render frames so RenderingServer can retire scene-cull RIDs.
  await process_frame
- print("PHASE4D_CLEANUP_COMPLETE: current_scene_freed=true frame_waited=true")
+ await RenderingServer.frame_post_draw
+ await process_frame
+ await RenderingServer.frame_post_draw
+ print("PHASE4D_CLEANUP_COMPLETE: autoload_caches_cleared=true non_autoload_root_children_freed=",freed_root_children," render_frames_waited=2")
  print("PHASE4D_AURA_VFX_EXIT_CODE_0")
  quit(0)
 
