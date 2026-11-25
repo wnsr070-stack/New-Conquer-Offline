@@ -88,9 +88,10 @@ func apply_skill_damage(hero: Node3D,target: Node3D,skill_multiplier: float,skil
  if hero == null or not _is_alive_monster(target): return {"ok":false,"reason":"invalid_target"}
  var state := get_node_or_null("/root/GameState")
  var player_data: Dictionary = state.player_data if state != null else {}
- var attack := int(player_data.get("attack",100))+_gear_bonuses().attack
- var defense := int(target.definition.get("defense",0))
  var physical := skill_id not in ["thunder","tornado","chain_lightning","arrow_rain"]
+ var gear_stats: Dictionary = _gear_bonuses()
+ var attack: int = int(player_data.get("attack",100))+int(gear_stats.get("attack" if physical else "magic_attack",0))
+ var defense := int(target.definition.get("defense",0))
  var buff_multiplier := float(hero.get_meta("physical_damage_multiplier",1.0)) if physical else 1.0
  var damage := maxi(1,int(round(float(maxi(1,attack-defense))*skill_multiplier*buff_multiplier)))
  return _apply_damage(target,damage,false,hero,skill_id)
