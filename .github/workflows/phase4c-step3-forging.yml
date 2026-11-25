@@ -16,7 +16,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: phase4b-step3-proof-${{ github.ref }}
+  group: phase4c-step3-forging-${{ github.ref }}
   cancel-in-progress: true
 env:
   GODOT_VERSION: "4.3"
@@ -141,7 +141,7 @@ jobs:
           grep -q "PHASE4C_FORGING_SCATTER_IN_CAMP_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_STEP3_IN_GAME_PNG_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_STEP3_FORGING_OK" artifacts/phase4c_step3_forging_capture.log
-          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP3_FAILED|HERO_.*MISSING"
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP3_FAILED|HERO_.*MISSING" artifacts/phase4c_step3_forging_capture.log
       - name: Validate the real in-game forging PNG
         run: |
           set -euo pipefail
