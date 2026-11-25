@@ -1,0 +1,169 @@
+name: Phase 4C Step 3 Conquer Forging and In-Game Aura Proof
+on:
+  push:
+    branches: ['test/phase4c-combat-skills-forging']
+    paths:
+      - 'autoloads/ForgingSystem.gd'
+      - 'autoloads/GearSystem.gd'
+      - 'autoloads/GearDatabase.gd'
+      - 'autoloads/GameState.gd'
+      - 'scripts/CombatSystem.gd'
+      - 'scripts/SkillSystem.gd'
+      - 'project.godot'
+      - 'ci/phase4c_step3_forging_capture.gd'
+      - '.github/workflows/phase4c-step3-forging.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: phase4b-step3-proof-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GODOT_VERSION: "4.3"
+  GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
+  HF_HOME: ${{ github.workspace }}/.cache/huggingface
+  HF_ASSET_CACHE_DIR: ${{ github.workspace }}/.cache/hf-assets
+  LIBGL_ALWAYS_SOFTWARE: "1"
+jobs:
+  render-in-game-proofs:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test/phase4c-combat-skills-forging
+          fetch-depth: 1
+      - name: Install Godot, Xvfb, GLTF tools and Python
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0 python3-pip python3-venv
+          mkdir -p .cache/godot .cache/tools .cache/hf-assets assets/phase3b/characters assets/phase3b/weapons assets/phase3b/monsters artifacts
+          if [ ! -x "$GODOT_BIN" ]; then
+            curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o /tmp/godot.zip
+            unzip -o /tmp/godot.zip -d .cache/godot
+            chmod +x "$GODOT_BIN"
+          fi
+          "$GODOT_BIN" --version
+          if [ ! -x .cache/tools/bin/gltfpack ]; then
+            npm install --global --prefix "$GITHUB_WORKSPACE/.cache/tools" gltfpack
+          fi
+          echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
+          command -v .cache/tools/bin/gltfpack || test -x .cache/tools/bin/gltfpack
+      - name: Restore approved city runtime asset cache
+        id: city-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/hf-assets
+            .cache/tools
+          key: wilderness-hf-assets-v6-${{ hashFiles('ci/fetch_assets.py', 'ci/prepare_wilderness.py') }}
+      - name: Install asset fetch dependencies
+        run: |
+          set -euo pipefail
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0" hf_transfer requests
+      - name: Prepare the five real city scene asset catalog when cache misses
+        if: steps.city-cache.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_ENABLE_HF_TRANSFER: "1"
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_TOKEN secret is missing"; exit 1; }
+          export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
+          .venv/bin/python ci/fetch_assets.py 2>&1 | tee artifacts/city_asset_fetch.log
+          .venv/bin/python ci/prepare_phase4b_scene_assets.py 2>&1 | tee artifacts/city_scene_asset_prepare.log
+      - name: Verify city runtime catalog
+        run: |
+          set -euo pipefail
+          test -s .cache/hf-assets/twin_city_runtime_assets.json
+          grep -q '"leafy_grass_diffuse"' .cache/hf-assets/twin_city_runtime_assets.json
+          grep -q '"snow_02_diffuse"' .cache/hf-assets/twin_city_runtime_assets.json
+          echo PHASE4B_STEP3_CITY_ASSET_CATALOG_READY
+      - name: Restore the exact approved Phase 3B monster, Ranger and weapon assets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          .venv/bin/python - <<'PY'
+          import hashlib, json, os, pathlib, shutil
+          from huggingface_hub import hf_hub_download
+          repo="ZzwahwahzZ/clash-of-legends-terrain-assets"; token=os.environ.get("HF_TOKEN")
+          if not token: raise SystemExit("HF_TOKEN secret is required")
+          targets={
+            "phase3b/characters/archer_male.glb":"assets/phase3b/characters/Male_Ranger.glb",
+            "phase3b/weapons/bow_beginner.glb":"assets/phase3b/weapons/bow_beginner.glb",
+            "phase3b/weapons/dual_knives_beginner.glb":"assets/phase3b/weapons/dual_knives_beginner.glb",
+            "phase3b/weapons/dual_blades_beginner.glb":"assets/phase3b/weapons/dual_blades_beginner.glb",
+            "phase3b/weapons/shield_beginner.glb":"assets/phase3b/weapons/shield_beginner.glb",
+            "phase3b/weapons/greatsword_beginner.glb":"assets/phase3b/weapons/greatsword_beginner.glb",
+            "phase3b/weapons/magic_staff_beginner.glb":"assets/phase3b/weapons/magic_staff_beginner.glb"}
+          for source,dest in targets.items():
+            src=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename=source,token=token))
+            out=pathlib.Path(dest); out.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,out)
+            if out.stat().st_size<10000 or out.read_bytes()[:4]!=b"glTF": raise SystemExit("Invalid approved asset: "+dest)
+            print("PHASE4B_STEP3_APPROVED_ASSET_OK:",dest,out.stat().st_size)
+          root=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename="phase3b/phase3b_manifest.json",token=token)).parent
+          manifest_file=root/"phase3b_manifest.json"
+          if not manifest_file.exists():
+            manifest_file=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename="phase3b/phase3b_manifest.json",token=token))
+          manifest=json.loads(manifest_file.read_text())
+          assets=[x for x in manifest.get("assets",[]) if x.get("category") in {"normal_mob","boss"}]
+          if len(assets)!=20 or sum(x.get("category")=="normal_mob" for x in assets)!=15 or sum(x.get("category")=="boss" for x in assets)!=5:
+            raise SystemExit("Expected exactly 15 approved mobs and 5 bosses")
+          for item in assets:
+            src=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename="phase3b/"+item["file"],token=token))
+            data=src.read_bytes()
+            if len(data)!=int(item["bytes"]) or hashlib.sha256(data).hexdigest()!=item["sha256"] or data[:4]!=b"glTF":
+              raise SystemExit("Approved monster GLB SHA256 failure: "+item["file"])
+            out=pathlib.Path("assets/phase3b")/item["file"]; out.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,out)
+          print("PHASE4B_STEP3_APPROVED_MONSTERS_OK: normal=15 bosses=5 sha256_verified=20")
+          PY
+      - name: Import assets and generate the approved read-only hero animation resource
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --editor --quit 2>&1 | tee artifacts/godot_import.log
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/animation/ConquerHeroAnimationBuilder.gd 2>&1 | tee artifacts/hero_animation_builder.log
+          test -s assets/phase4/animations/conquer_hero_anims.res
+          grep -q "PHASE4A_ANIMATION_LIBRARY_OK" artifacts/hero_animation_builder.log
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee -a artifacts/godot_import.log
+          echo PHASE4B_STEP3_APPROVED_HERO_RESOURCE_READY
+      - name: Run actual Twin City forging test and capture +12 weapon aura proof
+        env:
+          CI_CAPTURE: "0"
+          PHASE4A_CAPTURE: "0"
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 1600x1000x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x1000 --script res://ci/phase4c_step3_forging_capture.gd 2>&1 | tee artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_FORGING_FINAL_STATE_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_FORGING_AURA_VISUAL_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_FORGING_SCATTER_IN_CAMP_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_STEP3_IN_GAME_PNG_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_STEP3_FORGING_OK" artifacts/phase4c_step3_forging_capture.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP3_FAILED|HERO_.*MISSING"
+      - name: Validate the real in-game forging PNG
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib,struct
+          p=pathlib.Path("artifacts/phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png")
+          data=p.read_bytes()
+          if data[:8]!=b"\\x89PNG\\r\\n\\x1a\\n": raise SystemExit("Invalid in-game forging PNG")
+          w,h=struct.unpack(">II",data[16:24])
+          if (w,h)!=(1600,1000) or len(data)<20000: raise SystemExit(f"Bad forging PNG: {(w,h)} bytes={len(data)}")
+          print("PHASE4C_STEP3_PNG_VALIDATED:",p.name,"dimensions=",w,"x",h,"bytes=",len(data))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4c-step3-forging-proof-${{ github.run_number }}
+          path: |
+            artifacts/phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png
+            artifacts/phase4c_step3_forging_capture.log
+            artifacts/godot_import.log
+            artifacts/hero_animation_builder.log
+            artifacts/city_asset_fetch.log
+            artifacts/city_scene_asset_prepare.log
+          if-no-files-found: warn
+          retention-days: 30
