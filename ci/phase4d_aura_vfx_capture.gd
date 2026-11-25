@@ -267,6 +267,8 @@ func _run_capture() -> void:
  # Free synchronously while still inside the SceneTree: queue_free() leaves the
  # whole imported city subtree alive until the deferred-delete flush, after our capture returns.
  if is_instance_valid(city): city.free()
+ AssetLoader.clear_cached_prototypes()
+ print("PHASE4D_ASSETLOADER_PROTOTYPES_CLEARED")
  if is_instance_valid(city):
   _fail("CITY_SCENE_ROOT_SURVIVED_SYNCHRONOUS_FREE")
   return
