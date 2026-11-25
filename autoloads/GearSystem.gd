@@ -70,5 +70,24 @@ func _persist_equipment() -> void:
 func _apply_runtime_aura() -> void:
  var hero := get_tree().root.find_child("PlayableHero",true,false)
  if not hero is Node3D: hero = get_tree().root.find_child("TwinCityPlayableHero",true,false)
- var forging := get_node_or_null("/root/ForgingSystem")
- if forging != null and hero is Node3D: forging.apply_equipped_weapon_aura(hero)
+ if not hero is Node3D: return
+ var vfx := get_node_or_null("/root/AuraAndVFXManager")
+ if vfx == null: return
+ var weapon_nodes: Array = hero.get("weapon_nodes") if hero.get("weapon_nodes") is Array else []
+ var weapon: Dictionary = equipped.get("weapon",{})
+ for socket in weapon_nodes:
+  if not is_instance_valid(socket) or not socket is Node3D: continue
+  var mesh_root := socket.get_child(0) as Node3D if socket.get_child_count()>0 else socket as Node3D
+  if mesh_root != null: vfx.attach_equipment_aura(mesh_root,int(weapon.get("plus",0)))
+ var min_set_plus := 13
+ var set_count := 0
+ for slot in equipped:
+  var item: Dictionary = equipped[slot]
+  if String(slot) in ["weapon","armor","helmet","necklace","ring","boots","fan","tower"]:
+   min_set_plus = mini(min_set_plus,int(item.get("plus",0)))
+   set_count += 1
+ if set_count == 0: min_set_plus = 0
+ var state := get_node_or_null("/root/GameState")
+ var xp_active := state != null and float(state.xp_ready_time_left)>0.0
+ vfx.attach_character_aura(hero,min_set_plus,xp_active)
+ if state != null: vfx.attach_anima_aura(hero,int(state.anima_phase))
