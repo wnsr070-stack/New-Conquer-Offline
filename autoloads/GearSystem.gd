@@ -75,6 +75,8 @@ func _apply_runtime_aura() -> void:
  if vfx == null: return
  var weapon_nodes: Array = hero.get("weapon_nodes") if hero.get("weapon_nodes") is Array else []
  var weapon: Dictionary = equipped.get("weapon",{})
+ var armor: Dictionary = equipped.get("armor",{})
+ vfx.attach_equipment_aura(hero,int(armor.get("plus",0)))
  for socket in weapon_nodes:
   if not is_instance_valid(socket) or not socket is Node3D: continue
   var mesh_root := socket.get_child(0) as Node3D if socket.get_child_count()>0 else socket as Node3D
