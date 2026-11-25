@@ -54,7 +54,7 @@ func _run() -> void:
  if state.xp < 8.9:
   _fail("xp_increment_failed: "+str(state.xp))
   return
- if chicken.get_node_or_null("AutoRespawn") == null or not (chicken.get_node("AutoRespawn") as Timer).is_stopped():
+ if chicken.get_node_or_null("AutoRespawn") == null or (chicken.get_node("AutoRespawn") as Timer).is_stopped():
   _fail("auto_respawn_timer_not_started")
   return
  await create_timer(0.65).timeout
