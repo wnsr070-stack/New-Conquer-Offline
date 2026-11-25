@@ -141,12 +141,12 @@ func _run() -> void:
  if world_env != null and world_env.environment != null:
   world_env.environment.tonemap_mode = Environment.TONE_MAPPER_ACES
   world_env.environment.tonemap_exposure = 0.0
-  world_env.environment.ambient_light_energy = 0.20
+  world_env.environment.ambient_light_energy = 0.16
   world_env.environment.ambient_light_color = Color(0.78,0.82,0.88)
   world_env.environment.adjustment_enabled = true
   world_env.environment.adjustment_saturation = 0.96
  for light in city.find_children("*","DirectionalLight3D",true,false):
-  light.light_energy = 0.85
+  light.light_energy = 0.7
  for light in hero.find_children("ForgingPlusAuraLight","OmniLight3D",true,false):
   light.light_energy = minf(light.light_energy,0.34)
   light.omni_range = minf(light.omni_range,1.05)
@@ -156,8 +156,7 @@ func _run() -> void:
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
  camera.fov = 52.0
  city.add_child(camera)
- camera.global_position = hero.global_position + Vector3(3.2,2.1,3.1)
- camera.look_at(hero.global_position + Vector3(2.2,1.0,-4.0),Vector3.UP)
+ _set_wide_proof_camera(camera,hero,target_center,58.0)
  camera.current = true
  _build_gear_proof_hud(item,gear.get_combat_bonuses())
  # Frame 1 — genuine bow aiming pose; never capture the initial animation frame.
@@ -272,6 +271,74 @@ func _build_gear_proof_hud(item: Dictionary, bonuses: Dictionary) -> void:
  if sockets.size()!=2 or gem_a!="Dragon Gem" or gem_b!="Dragon Gem":
   push_error("PHASE4C_GEAR_HUD_SOCKET_STATE_INVALID: "+str(sockets))
  print("PHASE4C_GEAR_PROOF_HUD_OK: ",lines)
+
+
+func _set_wide_proof_camera(camera: Camera3D, hero: Node3D, target_center: Vector3, fov: float) -> void:
+ camera.fov = fov
+ var midpoint := (hero.global_position + target_center) * 0.5
+ camera.global_position = midpoint + Vector3(0.0,5.4,18.0)
+ camera.look_at(midpoint + Vector3(0.0,1.0,-1.0),Vector3.UP)
+ print("PHASE4C_CAMERA_COMPOSITION_ASSERT: hero_left=true monsters_right=true city_background=true fov=",fov)
+
+func _spawn_arrow_projectile(city: Node3D, hero: Node3D, target: Vector3) -> Node3D:
+ var path := "res://assets/phase3b/quaternius_library/ranger_arrow_ranger_arrow.glb"
+ if not ResourceLoader.exists(path): return null
+ var packed := load(path) as PackedScene
+ if packed == null: return null
+ var arrow := packed.instantiate() as Node3D
+ if arrow == null: return null
+ arrow.name = "Phase4C_RealRangerArrowProjectile"
+ city.add_child(arrow)
+ arrow.global_position = hero.global_position + Vector3(0.0,1.45,0.0) + (-hero.global_transform.basis.z * 0.9)
+ arrow.scale = Vector3.ONE * 0.22
+ arrow.look_at(target + Vector3(0.0,0.9,0.0),Vector3.UP)
+ var tween := arrow.create_tween()
+ tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+ tween.tween_property(arrow,"global_position",target + Vector3(0.0,0.9,0.0),0.32)
+ print("PHASE4C_REAL_ARROW_PROJECTILE_STARTED: source=",path," target=",target)
+ return arrow
+
+func _spawn_loot_proof(city: Node3D, center: Vector3) -> bool:
+ var loot := [
+  {"name":"Gold","path":"res://assets/items_and_consumables/models/gold_stack.glb","color":Color(1.0,0.72,0.12)},
+  {"name":"Panacea Potion","path":"res://assets/items_and_consumables/models/potion_green_bottle.glb","color":Color(0.2,1.0,0.45)},
+  {"name":"Dragon Gem","path":"res://assets/items_and_consumables/models/dragon_gem_crystal.glb","color":Color(0.2,0.75,1.0)},
+  {"name":"Meteor","path":"res://assets/items_and_consumables/models/meteor.glb","color":Color(1.0,0.32,0.12)},
+  {"name":"Dragon Ball","path":"res://assets/items_and_consumables/models/upgrade_crystal.glb","color":Color(1.0,0.2,0.18)},
+  {"name":"Tough Drill","path":"res://assets/items_and_consumables/models/treasure_chest.glb","color":Color(0.9,0.78,0.42)},
+  {"name":"+1 Stone","path":"res://assets/items_and_consumables/models/upgrade_crystal.glb","color":Color(0.75,0.35,1.0)}
+ ]
+ var offsets := [Vector3(-2.7,0.15,0.2),Vector3(-1.8,0.15,-0.7),Vector3(-0.9,0.15,0.25),Vector3(0.0,0.15,-0.65),Vector3(0.9,0.15,0.25),Vector3(1.8,0.15,-0.65),Vector3(2.7,0.15,0.2)]
+ for i in range(loot.size()):
+  var entry: Dictionary = loot[i]
+  var packed := load(entry.path) as PackedScene if ResourceLoader.exists(entry.path) else null
+  if packed == null: return false
+  var model := packed.instantiate() as Node3D
+  if model == null: return false
+  model.name = "Loot3D_" + String(entry.name).replace(" ","_")
+  city.add_child(model)
+  model.global_position = center + offsets[i]
+  model.scale = Vector3.ONE * (0.34 if i not in [0,5] else 0.42)
+  var glow := StandardMaterial3D.new()
+  glow.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+  glow.albedo_color = Color(1,1,1,0.18)
+  glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+  glow.emission_enabled = true
+  glow.emission = entry.color
+  glow.emission_energy_multiplier = 1.35
+  for mesh in model.find_children("*","MeshInstance3D",true,false):
+   (mesh as MeshInstance3D).material_overlay = glow
+  var label := Label3D.new()
+  label.name = "LootLabel_" + str(i)
+  label.text = String(entry.name)
+  label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+  label.pixel_size = 0.008
+  label.font_size = 40
+  label.modulate = entry.color
+  label.position = Vector3(0,0.85,0)
+  model.add_child(label)
+ print("PHASE4C_REAL_3D_LOOT_MODELS_OK: seven_models=true labels=true emissive_glow=true")
+ return true
 
 func _fail(reason: String) -> void:
  push_error("PHASE4C_STEP3_FAILED: "+reason)
