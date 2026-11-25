@@ -29,8 +29,8 @@ func _run() -> void:
    camp = point
    break
  if camp == null: _fail("chicken_camp_missing"); return
- hero.global_position = camp.global_position + Vector3(-1.5,0,4.5)
- # Face the camera so the approved Ranger, bow grip and attack pose are visible.
+ hero.global_position = camp.global_position + Vector3(-5.0,0,7.0)
+ # Keep the Ranger facing the camp; the proof camera will view the front/bow side.
  hero.look_at(hero.global_position+Vector3(0,0,1),Vector3.UP)
  if hero.has_method("_switch_class"):
   hero.call("_switch_class","archer")
@@ -57,9 +57,10 @@ func _run() -> void:
  for child in camp.get_children():
   if child is MonsterActor and not child.is_dead(): actors.append(child as MonsterActor)
  if actors.size() < 8: _fail("chicken_camp_population_less_than_8: "+str(actors.size())); return
- var slots := [Vector3(-2.4,0,4.2),Vector3(-1.7,0,5.1),Vector3(-0.9,0,4.6),Vector3(-0.2,0,5.5),Vector3(0.5,0,4.5),Vector3(1.2,0,5.4),Vector3(1.9,0,4.6),Vector3(2.5,0,5.2)]
+ var slots := [Vector3(2.0,0,5.5),Vector3(4.0,0,6.0),Vector3(6.0,0,5.4),Vector3(8.0,0,6.2),Vector3(3.0,0,8.0),Vector3(5.0,0,8.4),Vector3(7.0,0,8.0),Vector3(9.0,0,8.5)]
  for i in range(8):
   actors[i].global_position = hero.global_position + slots[i]
+  actors[i].rotation.y = PI
   actors[i].max_hp = 5000
   actors[i].current_hp = 5000
   actors[i].set("_target",actors[i].global_position)
@@ -102,9 +103,6 @@ func _run() -> void:
  var aura_light := hero.find_child("ForgingPlusAuraLight",true,false)
  var aura_particles := hero.find_child("ForgingPlusAuraParticles",true,false)
  if aura_light == null or aura_particles == null: _fail("aura_light_or_particles_missing"); return
- if hero.animation_player != null and hero.animation_player.has_animation("Attack_Bow"):
-  hero.animation_player.play("Attack_Bow")
- await create_timer(0.35).timeout
  var skill_result: Dictionary = skills.use_skill(hero,"scatter")
  if not skill_result.get("ok",false) or int(skill_result.get("targets_hit",0)) < 1:
   _fail("scatter_skill_did_not_hit_camp: "+str(skill_result)); return
@@ -117,15 +115,30 @@ func _run() -> void:
     for child in actor.get_children():
      if child is Label3D and String(child.name).begins_with("FloatingDamage"): floating = true
  if not floating: _fail("floating_damage_numbers_missing"); return
+ # Freeze the hero controller so its idle updater cannot cancel the attack pose.
+ hero.set_process(false)
+ hero.set_physics_process(false)
+ if hero.animation_player != null and hero.animation_player.has_animation("Attack_Bow"):
+  hero.animation_player.play("Attack_Bow")
+  await create_timer(0.55).timeout
+ else:
+  _fail("approved_attack_bow_clip_missing"); return
+ var world_env := city.find_child("WorldEnvironment",true,false) as WorldEnvironment
+ if world_env != null and world_env.environment != null:
+  world_env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+  world_env.environment.tonemap_exposure = 0.82
+  world_env.environment.ambient_light_energy = 0.72
+  world_env.environment.adjustment_enabled = true
+  world_env.environment.adjustment_saturation = 0.82
  var old_camera := hero.get("camera") as Camera3D
  if old_camera != null: old_camera.current = false
  var camera := Camera3D.new()
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
- camera.fov = 42.0
+ camera.fov = 36.0
  city.add_child(camera)
- # Close bow-side 3/4 composition: show the Ranger's face/weapon and the Chicken camp together.
- camera.global_position = hero.global_position + Vector3(-6.0,3.5,-1.0)
- camera.look_at(hero.global_position + Vector3(0.0,1.15,1.8),Vector3.UP)
+ # Front/bow-side 3/4 framing: hero left, a spaced monster arc right, horizon retained.
+ camera.global_position = hero.global_position + Vector3(6.0,3.4,10.5)
+ camera.look_at(hero.global_position + Vector3(2.2,1.0,4.2),Vector3.UP)
  camera.current = true
  await process_frame
  await RenderingServer.frame_post_draw
@@ -139,6 +152,20 @@ func _run() -> void:
  if save_error != OK: _fail("forging_png_save_failed: "+str(save_error)); return
  var bytes := FileAccess.get_file_as_bytes(out_path).size()
  if bytes < 20000: _fail("forging_png_too_small: "+str(bytes)); return
+ # Second genuine in-game angle, tighter on the approved bow grip and forging aura.
+ camera.fov = 29.0
+ camera.global_position = hero.global_position + Vector3(3.4,2.4,6.2)
+ camera.look_at(hero.global_position + Vector3(0.0,1.0,1.4),Vector3.UP)
+ await process_frame
+ await RenderingServer.frame_post_draw
+ await RenderingServer.frame_post_draw
+ var detail_image := get_root().get_texture().get_image()
+ if detail_image == null or detail_image.is_empty(): _fail("forging_detail_framebuffer_empty"); return
+ var detail_path := out_dir.path_join("phase4c_step3_bow_aura_detail.png")
+ var detail_error := detail_image.save_png(detail_path)
+ if detail_error != OK: _fail("forging_detail_png_save_failed: "+str(detail_error)); return
+ var detail_bytes := FileAccess.get_file_as_bytes(detail_path).size()
+ if detail_bytes < 20000: _fail("forging_detail_png_too_small: "+str(detail_bytes)); return
  var bonuses: Dictionary = gear.get_combat_bonuses()
  if int(bonuses.attack) < 100: _fail("forged_attack_bonus_not_applied"); return
  if int(state.gold) >= 2000000: _fail("gold_cost_was_not_charged"); return
@@ -146,7 +173,8 @@ func _run() -> void:
  print("PHASE4C_FORGING_FINAL_STATE_OK: weapon=+12 Super sockets=2 DragonGem=true composition=",item.composition_points," attack_bonus=",bonuses.attack," gold_remaining=",state.gold)
  print("PHASE4C_FORGING_AURA_VISUAL_OK: aura_level=4 light=true particles=true")
  print("PHASE4C_FORGING_SCATTER_IN_CAMP_OK: targets_hit=",skill_result.targets_hit," floating_damage=true approved_hero=true approved_monsters=true")
- print("PHASE4C_STEP3_IN_GAME_PNG_OK: ",out_path," bytes=",bytes," camera=close_bow_side_3_quarter fov=30 bow_visible=true")
+ print("PHASE4C_STEP3_IN_GAME_PNG_OK: ",out_path," bytes=",bytes," camera=front_bow_side_3_quarter hero_left_monster_arc_right")
+ print("PHASE4C_STEP3_DETAIL_PNG_OK: ",detail_path," bytes=",detail_bytes," camera=close_bow_aura_detail")
  print("PHASE4C_STEP3_FORGING_OK")
  print("PHASE4C_STEP3_EXIT_CODE_0")
  quit(0)
