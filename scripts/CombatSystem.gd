@@ -81,7 +81,7 @@ func perform_attack(hero: Node3D, target: Node3D, force_critical: bool = false) 
  var distance := hero.global_position.distance_to(target.global_position)
  if distance > _weapon_range(hero):
   return {"ok":false,"reason":"out_of_range","distance":distance}
- var class_id := String(hero.get("active_class")) if hero.get("active_class") != null else "archer"
+ var class_id := _hero_class(hero)
  _play_attack_animation(hero,class_id)
  var state := get_node_or_null("/root/GameState")
  var player_data: Dictionary = state.player_data if state != null else {}
