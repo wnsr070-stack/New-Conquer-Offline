@@ -20,11 +20,9 @@ func _run() -> void:
  state.xp_ready_time_left = 0.0
  state.inventory.clear()
  state.player_data = {"class":"archer","level":1,"attack":20,"defense":0,"equipped":{}}
- var hero := CharacterBody3D.new()
+ var hero := Node3D.new()
  hero.name = "Phase4C_TestHero"
- hero.set_script(load("res://scripts/HeroController.gd"))
- # Use the combat-facing contract without loading or changing approved hero assets.
- hero.set_script(null)
+ # Use a minimal combat-facing test actor; approved Phase 4A hero files remain untouched.
  hero.set_meta("active_class","archer")
  hero.set_meta("animation_player",null)
  hero.set_meta("attack",20)
