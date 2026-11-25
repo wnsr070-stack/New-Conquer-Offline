@@ -16,7 +16,7 @@ on:
       - 'scripts/animation/ConquerHeroAnimationBuilder.gd'
       - 'scripts/MonsterActor.gd'
       - 'scripts/CombatSystem.gd'
-      - '.github/workflows/phase4c-step3-forging.yml'
+      - '.github/workflows/phase4c-step3-forging.yml'\n      - '.github/workflows/phase4d-aura-vfx-proof.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m venv .venv
-          .venv/bin/python -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0" hf_transfer requests
+          .venv/bin/python -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0" hf_transfer requests pillow
       - name: Prepare the five real city scene asset catalog when cache misses
         if: steps.city-cache.outputs.cache-hit != 'true'
         env:
