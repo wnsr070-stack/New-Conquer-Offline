@@ -4,7 +4,6 @@ extends SceneTree
 
 const OUTPUT := "res://assets/phase4/animations/conquer_hero_anims.res"
 const MALE_MODEL := "res://assets/phase3b/characters/Male_Ranger.glb"
-const FEMALE_MODEL := "res://assets/phase3b/characters/Female_Ranger.glb"
 const CLIPS := ["Idle", "Run", "Jump", "Attack_Bow", "Attack_Assassin", "Attack_Trojan", "Attack_SwordShield", "Attack_Staff", "Hit", "Death"]
 const POSES := {
  "Idle": [
@@ -56,12 +55,8 @@ func _initialize() -> void:
 func _build() -> void:
  var male := _load_rig(MALE_MODEL)
  if male == null: quit(2); return
- var female := _load_rig(FEMALE_MODEL)
- if female == null or female.is_empty() or not female.has("skeleton"):
-  push_warning("FEMALE_RANGER_UNAVAILABLE: safely falling back to Male_Ranger rig")
-  female = male
  var skeleton := male["skeleton"] as Skeleton3D
- var female_skeleton := female["skeleton"] as Skeleton3D
+ var female_skeleton := skeleton
  var mapping := _resolve_bones(skeleton)
  if mapping.size() < 18:
   push_error("RANGER_RIG_BONE_MAPPING_INCOMPLETE: " + str(mapping))
@@ -81,7 +76,7 @@ func _build() -> void:
  var loaded := ResourceLoader.load(OUTPUT, "AnimationLibrary", ResourceLoader.CACHE_MODE_IGNORE) as AnimationLibrary
  if loaded == null or loaded.get_animation_list().size() != CLIPS.size():
   push_error("ANIMATION_RELOAD_VALIDATION_FAILED"); quit(8); return
- print("PHASE4A_ANIMATION_LIBRARY_OK: animations=", CLIPS.size(), " mapped_bones=", mapping.size(), " rig=Male_Ranger/Female_Ranger")
+ print("PHASE4A_ANIMATION_LIBRARY_OK: animations=", CLIPS.size(), " mapped_bones=", mapping.size(), " rig=Male_Ranger_only")
  quit(0)
 
 func _load_rig(path: String) -> Dictionary:
