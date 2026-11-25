@@ -93,6 +93,9 @@ func _load_approved_ranger() -> void:
   push_error("HERO_RANGER_INSTANCE_FAILED")
   return
  hero_model.name = "ApprovedRanger"
+ # Male_Ranger source faces +Z while Godot look_at() aims the parent -Z.
+ # Rotate only the visual rig; preserve gameplay/root heading.
+ hero_model.rotation.y = PI
  add_child(hero_model)
  await get_tree().process_frame
  _normalize_hero_scale()
