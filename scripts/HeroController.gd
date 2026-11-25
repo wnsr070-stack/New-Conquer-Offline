@@ -369,7 +369,7 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  print("HERO_WEAPON_BONE_ATTACHMENT_CREATED: ", socket_id, " parent=Skeleton3D bone=", actual_bone)
  print("HERO_WEAPON_GRIP_ALIGNED: family=", family, " scale=", family_scale, " bounds=", bounds, " grip=", grip, " meshes=", weapon.get_meta("phase4a_mesh_count"), " world_aabb_length=", maxf(bounds.size.x,maxf(bounds.size.y,bounds.size.z))*family_scale)
  if family == "bow":
-  assert socket is BoneAttachment3D and weapon.get_parent() == socket and weapon.get_meta("phase4a_mesh_count") > 0
+  assert(socket is BoneAttachment3D and weapon.get_parent() == socket and weapon.get_meta("phase4a_mesh_count", 0) > 0, "Bow weapon must be attached to BoneAttachment3D with valid meshes")
   assert absf(maxf(bounds.size.x,maxf(bounds.size.y,bounds.size.z))*family_scale - 1.2) < 0.02
   print("HERO_BOW_ATTACHMENT_AABB_ASSERT_OK: bone=", actual_bone, " world_length=1.2m")
  print("HERO_WEAPON_HAND_WORLD_PENDING: ", socket_id, " bone=", actual_bone)
