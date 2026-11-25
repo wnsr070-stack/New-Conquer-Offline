@@ -147,7 +147,7 @@ func apply_equipped_weapon_aura(hero: Node3D) -> bool:
  for socket in weapon_nodes:
   if not is_instance_valid(socket) or not socket is Node3D: continue
   var mesh_root := socket.get_child(0) as Node3D if socket.get_child_count()>0 else socket as Node3D
-  if mesh_root != null and vfx.attach_equipment_aura(mesh_root,plus): attached = true
+  if mesh_root != null and vfx.attach_equipment_aura(mesh_root,plus,true): attached = true
  print("PHASE4D_FORGING_SPRITE_AURA_OK: plus=",plus," attached=",attached," particles=false")
  return attached or plus < 3
 
