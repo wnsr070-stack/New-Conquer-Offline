@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip python3-pip
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip python3-pip xvfb xauth libgl1-mesa-dri
           mkdir -p .cache/godot assets/phase3b/monsters/normal artifacts
           curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o /tmp/godot.zip
           unzip -o /tmp/godot.zip -d .cache/godot
@@ -47,7 +47,7 @@ jobs:
           set -euo pipefail
           GODOT=.cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --editor --quit 2>&1 | tee artifacts/godot_import.log
-          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://ci/phase4c_step1_combat_test.gd 2>&1 | tee artifacts/phase4c_step1_combat_test.log
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 "$GODOT" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --script res://ci/phase4c_step1_combat_test.gd 2>&1 | tee artifacts/phase4c_step1_combat_test.log
           grep -q "PHASE4C_STEP1_COMBAT_LOOP_OK" artifacts/phase4c_step1_combat_test.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP1_FAILED"
           echo PHASE4C_STEP1_EXIT_CODE_0
