@@ -1,5 +1,4 @@
 extends Node
-class_name CombatSystem
 signal target_changed(target: Node3D)
 signal damage_dealt(target: Node3D, amount: int, critical: bool)
 
@@ -83,7 +82,7 @@ func perform_attack(hero: Node3D, target: Node3D, force_critical: bool = false) 
  var attack := int(player_data.get("attack",100))
  var defense := int(target.definition.get("defense",0))
  var raw_damage := maxi(1,attack-defense)
- var critical := force_critical or _rng.randf() < CRITICAL_CHANCE
+ var critical := force_critical or (not bool(get_meta("disable_random_crit",false)) and _rng.randf() < CRITICAL_CHANCE)
  var damage := int(round(float(raw_damage) * CRITICAL_MULTIPLIER)) if critical else raw_damage
  var hp_before := int(target.current_hp)
  target.current_hp = maxi(0,hp_before-damage)
