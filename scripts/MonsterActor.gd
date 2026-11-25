@@ -193,9 +193,8 @@ func _apply_procedural_motion() -> void:
 		return
 	var bob := 0.0
 	var breath := 0.0
-	if _animation_player != null:
-		# A GLB with incomplete clips still uses the same gentle procedural fallback.
-		_animation_player.stop()
+	# Do not stop the GLB AnimationPlayer here: partial source libraries may still
+	# contain valid Hit/Death clips even when Idle/Walk are absent.
 	if _target.distance_to(global_position) > 0.18:
 		bob = absf(sin(_procedural_clock * 8.0)) * 0.095
 	_model.position = _model_rest_position + Vector3(0.0, bob + sin(_procedural_clock * 2.1) * 0.012, 0.0)
