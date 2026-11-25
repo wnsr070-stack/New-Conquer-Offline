@@ -15,7 +15,8 @@ func _run() -> void:
  var state := root.get_node_or_null("GameState")
  var combat := root.get_node_or_null("CombatSystem")
  var skills := root.get_node_or_null("SkillSystem")
- if state == null or combat == null or skills == null: _fail("autoload_missing"); return
+ var gear := root.get_node_or_null("GearSystem")
+ if state == null or combat == null or skills == null or gear == null: _fail("autoload_missing"); return
  combat.set_meta("disable_random_crit",true)
  state.gold = 0
  state.exp = 0
@@ -28,6 +29,7 @@ func _run() -> void:
  hero.set_meta("max_hp",100)
  hero.set_meta("current_hp",50)
  root.add_child(hero)
+ if not gear.equip_weapon("bow_lv40_normal_p1","archer") or skills.get_equipped_mode(hero) != "bow": _fail("bow_equipment_mode_failed"); return
  var mobs: Array[DummyMonster] = []
  for i in range(8):
   var mob := DummyMonster.new()
@@ -45,6 +47,9 @@ func _run() -> void:
  if not result.get("ok",false) or int(result.get("targets_hit",0)) != 3: _fail("rapid_fire_failed: "+str(result)); return
  checks += 1
  hero.set_meta("equipped_weapon","dual_daggers")
+ if not gear.equip_weapon("dual_daggers_lv40_normal_p1","oriental_assassin"): _fail("dual_dagger_equipment_failed"); return
+ hero.remove_meta("equipped_weapon")
+ if skills.get_equipped_mode(hero) != "dual_daggers": _fail("dual_dagger_mode_failed"); return
  skills.reset_for_test()
  result = skills.use_skill(hero,"blade_tempest")
  if not result.get("ok",false) or int(result.get("targets_hit",0)) < 1: _fail("blade_tempest_failed: "+str(result)); return
