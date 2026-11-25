@@ -126,6 +126,7 @@ func _run() -> void:
  checks += 1
  hero.set_meta("active_class","archer")
  hero.set_meta("equipped_weapon","bow")
+ if not gear.equip_weapon("bow_lv40_normal_p1","archer"): _fail("bow_re_equip_failed"); return
  skills.reset_for_test()
  state.xp = 100.0; state.xp_ready_time_left = 20.0
  result = skills.use_skill(hero,"fly")
