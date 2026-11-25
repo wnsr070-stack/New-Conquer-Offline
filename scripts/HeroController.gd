@@ -331,8 +331,6 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  socket.set_meta("phase4a_weapon_socket_id", socket_id)
  socket.set_meta("phase4a_actual_bone_name", actual_bone)
  socket.add_child(weapon)
- var family_scale := 0.18 if family == "dual_knives" else (0.26 if family == "bow" else 0.30)
- weapon.scale = Vector3.ONE * family_scale
  var mesh_points: Array[Vector3] = []
  for child in weapon.get_children():
   _collect_weapon_mesh_points(child, Transform3D.IDENTITY, mesh_points)
@@ -341,6 +339,16 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   socket.queue_free()
   return
  var bounds := _points_bounds(mesh_points)
+ var family_scale := 0.18 if family == "dual_knives" else 0.30
+ if family == "bow":
+  var source_length := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+  if source_length <= 0.0001:
+   push_error("HERO_BOW_AABB_INVALID: " + str(bounds))
+   socket.queue_free()
+   return
+  family_scale = 1.2 / source_length
+  print("HERO_BOW_AABB_MEASURED: path=", path, " source_aabb=", bounds, " source_length=", source_length, " target_world_length=1.2m scale=", family_scale)
+ weapon.scale = Vector3.ONE * family_scale
  var grip := bounds.get_center()
  if family in ["dual_knives", "dual_blades", "greatsword", "magic_staff"]:
   var size := bounds.size
@@ -359,7 +367,11 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  skeleton.force_update_all_bone_transforms()
  print("HERO_REAL_HAND_BONE_RESOLVED: side=", hand_side, " bone_index=", bone, " bone_name=", actual_bone)
  print("HERO_WEAPON_BONE_ATTACHMENT_CREATED: ", socket_id, " parent=Skeleton3D bone=", actual_bone)
- print("HERO_WEAPON_GRIP_ALIGNED: family=", family, " scale=", family_scale, " bounds=", bounds, " grip=", grip, " meshes=", weapon.get_meta("phase4a_mesh_count"))
+ print("HERO_WEAPON_GRIP_ALIGNED: family=", family, " scale=", family_scale, " bounds=", bounds, " grip=", grip, " meshes=", weapon.get_meta("phase4a_mesh_count"), " world_aabb_length=", maxf(bounds.size.x,maxf(bounds.size.y,bounds.size.z))*family_scale)
+ if family == "bow":
+  assert socket is BoneAttachment3D and weapon.get_parent() == socket and weapon.get_meta("phase4a_mesh_count") > 0
+  assert absf(maxf(bounds.size.x,maxf(bounds.size.y,bounds.size.z))*family_scale - 1.2) < 0.02
+  print("HERO_BOW_ATTACHMENT_AABB_ASSERT_OK: bone=", actual_bone, " world_length=1.2m")
  print("HERO_WEAPON_HAND_WORLD_PENDING: ", socket_id, " bone=", actual_bone)
  call_deferred("_log_bone_attachment_world", socket_id)
 
