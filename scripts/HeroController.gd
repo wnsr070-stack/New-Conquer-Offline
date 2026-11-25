@@ -369,8 +369,8 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  var rotated_grip_offset: Vector3 = weapon.transform.basis * grip_local_offset
  var bow_forward_seat_offset := Vector3.ZERO
  if family == "bow":
-  # 1.5 cm forward seating correction; remains inside the strict 2 cm palm tolerance.
-  bow_forward_seat_offset = Vector3(0.0, 0.0, -0.015)
+  # 5 mm forward seating correction; keeps clearance inside the strict 2 cm palm tolerance.
+  bow_forward_seat_offset = Vector3(0.0, 0.0, -0.005)
  weapon.position = -rotated_grip_offset + bow_forward_seat_offset
  if family == "bow":
   print("PHASE4C_BOW_PALM_SEATING_OFFSET_OK: forward_offset_m=", bow_forward_seat_offset.length(), " required_lt=0.02")
