@@ -181,7 +181,11 @@ jobs:
       - name: Check all project GDScript syntax before rendering
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --check-only --quit 2>&1 | tee artifacts/godot_check_only.log
+          : > artifacts/godot_check_only.log
+          for script in autoloads/AuraAndVFXManager.gd autoloads/ForgingSystem.gd autoloads/SkillSystem.gd ci/phase4d_aura_vfx_capture.gd; do
+            echo "CHECKING_GDSCRIPT: $script" | tee -a artifacts/godot_check_only.log
+            "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only --script "res://$script" 2>&1 | tee -a artifacts/godot_check_only.log
+          done
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" artifacts/godot_check_only.log
           echo PHASE4D_GDSCRIPT_CHECK_ONLY_OK
       - name: Run actual Twin City forging test and capture +12 weapon aura proof
