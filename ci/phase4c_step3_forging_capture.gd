@@ -30,6 +30,7 @@ func _run() -> void:
    break
  if camp == null: _fail("chicken_camp_missing"); return
  hero.global_position = camp.global_position + Vector3(-1.5,0,4.5)
+ hero.look_at(hero.global_position+Vector3(0,0,-1),Vector3.UP)
  hero.velocity = Vector3.ZERO
  hero.set("has_move_target",false)
  spawner.set_hero(hero)
@@ -41,6 +42,8 @@ func _run() -> void:
  var slots := [Vector3(-3.5,0,-4.0),Vector3(-2.5,0,-5.0),Vector3(-1.5,0,-4.5),Vector3(-0.5,0,-5.5),Vector3(0.5,0,-4.5),Vector3(1.5,0,-5.5),Vector3(2.5,0,-4.5),Vector3(3.5,0,-5.0)]
  for i in range(8):
   actors[i].global_position = hero.global_position + slots[i]
+  actors[i].max_hp = 5000
+  actors[i].current_hp = 5000
   actors[i].set("_target",actors[i].global_position)
   actors[i].set_process(false)
   actors[i].set_physics_process(false)
