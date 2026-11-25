@@ -36,8 +36,8 @@ func _run() -> void:
   _fail("chicken_configure_failed")
   return
  chicken.global_position = Vector3(2,0,0)
- var first: Dictionary = combat.perform_attack(hero,chicken,false)
- if not first.get("ok",false) or int(first.get("hp",-1)) != 13:
+ var first: Dictionary = combat.perform_attack(hero,chicken,true)
+ if not first.get("ok",false) or int(first.get("hp",-1)) != 3 or int(first.get("damage",0)) != 30:
   _fail("first_hit_or_hp_failed: "+str(first))
   return
  if chicken.get_node_or_null("FloatingDamage") == null:
@@ -61,6 +61,7 @@ func _run() -> void:
  if chicken.is_dead() or int(chicken.current_hp) != int(chicken.max_hp):
   _fail("auto_respawn_failed")
   return
+ await create_timer(0.5).timeout
  print("PHASE4C_STEP1_COMBAT_LOOP_OK: chicken_hp=33->13->0 damage_label=true exp=15 gold=",state.gold," xp=",state.xp," respawn=true")
  quit(0)
 
