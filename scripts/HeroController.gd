@@ -350,12 +350,20 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   print("HERO_BOW_AABB_MEASURED: path=", path, " source_aabb=", bounds, " source_length=", source_length, " target_world_length=1.2m scale=", family_scale)
  weapon.scale = Vector3.ONE * family_scale
  if family == "bow":
-  # Preserve the approved upright roll, then flip front-to-back around the
-  # local axis perpendicular to the bow length. This reverses local depth Z.
+  # Keep the bow upright, then compose the two director-requested rotations:
+  # 1) close the bow plane around its length axis (local Y).
+  # 2) rotate 180 degrees in the bow plane around its normal.
   weapon.rotation = Vector3(0.0, PI, PI / 2.0)
-  weapon.rotate_object_local(Vector3.RIGHT, PI)
-  print("PHASE4C_BOW_UPRIGHT_ORIENTATION_APPLIED: local_z=90deg local_y=180deg")
-  print("PHASE4C_BOW_FRONT_BACK_FLIP_APPLIED: rotate_object_local_axis=local_x angle=180deg depth_z_reversed=true")
+  var bow_up_dir := Vector3.UP
+  weapon.rotate_object_local(bow_up_dir, PI / 2.0)
+  var bow_up_after_first: Vector3 = weapon.transform.basis * bow_up_dir
+  var bow_forward_after_first: Vector3 = weapon.transform.basis * Vector3.FORWARD
+  var bow_plane_normal := bow_up_after_first.cross(bow_forward_after_first).normalized()
+  var bow_plane_normal_local := (weapon.transform.basis.inverse() * bow_plane_normal).normalized()
+  weapon.rotate_object_local(bow_plane_normal_local, PI)
+  print("PHASE4C_BOW_FIRST_COMPOSITE_ROTATION_APPLIED: axis=bow_up_dir_local_y angle=90deg")
+  print("PHASE4C_BOW_SECOND_COMPOSITE_ROTATION_APPLIED: axis=bow_plane_normal angle=180deg normal=", bow_plane_normal, " local_axis=", bow_plane_normal_local)
+  print("PHASE4C_BOW_COMPOSITE_ORIENTATION_OK: upright_preserved=true plane_rotated=true")
  var grip := bounds.get_center()
  if family == "bow":
   # The bow mesh is thin along source Z. Anchor the palm on the forward wooden
