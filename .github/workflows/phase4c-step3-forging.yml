@@ -13,6 +13,7 @@ on:
       - 'ci/phase4c_step3_forging_capture.gd'
       - 'ci/fetch_items_consumables.py'
       - 'scripts/HeroController.gd'
+      - 'scripts/animation/ConquerHeroAnimationBuilder.gd'
       - 'scripts/MonsterActor.gd'
       - 'scripts/CombatSystem.gd'
       - '.github/workflows/phase4c-step3-forging.yml'
