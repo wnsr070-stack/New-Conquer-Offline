@@ -213,7 +213,7 @@ func _build_dirt_ground() -> bool:
     var road_layers := find_children("Grab3DDirtRoad_TiledSurface", "MultiMeshInstance3D", true, false)
     assert(road_layers.size() == meshes.size() and road_layers.size() > 0)
     for road_layer in road_layers:
-        var layer := road_layer as MeshInstance3D
+        var layer := road_layer as MultiMeshInstance3D
         var road_material := layer.material_override as StandardMaterial3D
         assert(road_material != null and road_material.albedo_texture != null and road_material.normal_texture != null and road_material.roughness_texture != null)
         assert(road_material.uv1_scale == Vector3(20.0, 20.0, 1.0))
