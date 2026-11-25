@@ -17,7 +17,7 @@ permissions:
   contents: read
 concurrency:
   group: phase4c-step3-forging-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 env:
   GODOT_VERSION: "4.3"
   GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
