@@ -94,7 +94,7 @@ func _make_material(tint: Color = Color.WHITE) -> StandardMaterial3D:
  material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
  material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
  material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
- material.albedo_color = tint
+ material.albedo_color = Color(minf(tint.r,1.0),minf(tint.g,1.0),minf(tint.b,1.0),clampf(tint.a,0.0,1.0))
  material.emission_enabled = true
  material.emission = Color(tint.r,tint.g,tint.b,1.0)
  material.emission_energy_multiplier = 1.35
@@ -149,7 +149,7 @@ func _make_sprite(effect_type: String, variant: int, tint: Color, scale_value: f
  sprite.speed_scale = fps/18.0
  sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
  sprite.material_override = _make_material(tint)
- sprite.modulate = tint
+ sprite.modulate = Color(minf(tint.r,1.0),minf(tint.g,1.0),minf(tint.b,1.0),minf(tint.a,1.0))
  sprite.pixel_size = 0.004
  sprite.scale = Vector3.ONE*scale_value
  sprite.play("play")
