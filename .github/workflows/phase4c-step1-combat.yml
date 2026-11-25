@@ -1,0 +1,59 @@
+name: Phase 4C Step 1 Combat Loop, XP Circle and Loot Validation
+on:
+  push:
+    branches: ['test/phase4c-combat-skills-forging']
+    paths:
+      - 'autoloads/GameState.gd'
+      - 'scripts/CombatSystem.gd'
+      - 'project.godot'
+      - 'ci/phase4c_step1_combat_test.gd'
+      - '.github/workflows/phase4c-step1-combat.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-combat-loop:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      GODOT_VERSION: "4.3"
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.3 and restore approved Chicken model
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip python3-pip
+          mkdir -p .cache/godot assets/phase3b/monsters/normal artifacts
+          curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -o /tmp/godot.zip -d .cache/godot
+          chmod +x .cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          python3 -m pip install --disable-pip-version-check "huggingface_hub>=0.26,<1.0"
+          python3 - <<'PY'
+          import os, pathlib, shutil
+          from huggingface_hub import hf_hub_download
+          token=os.environ.get("HF_TOKEN")
+          if not token: raise SystemExit("HF_TOKEN secret is required")
+          src=pathlib.Path(hf_hub_download(repo_id="ZzwahwahzZ/clash-of-legends-terrain-assets",repo_type="dataset",filename="phase3b/monsters/normal/chicken.glb",token=token))
+          data=src.read_bytes()
+          if len(data)<10000 or data[:4]!=b"glTF": raise SystemExit("Invalid approved Chicken GLB")
+          dst=pathlib.Path("assets/phase3b/monsters/normal/chicken.glb")
+          dst.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,dst)
+          print("PHASE4C_APPROVED_CHICKEN_ASSET_OK:",len(data))
+          PY
+      - name: Import and run Chicken combat loop test
+        run: |
+          set -euo pipefail
+          GODOT=.cache/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --editor --quit 2>&1 | tee artifacts/godot_import.log
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://ci/phase4c_step1_combat_test.gd 2>&1 | tee artifacts/phase4c_step1_combat_test.log
+          grep -q "PHASE4C_STEP1_COMBAT_LOOP_OK" artifacts/phase4c_step1_combat_test.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP1_FAILED"
+          echo PHASE4C_STEP1_EXIT_CODE_0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4c-step1-combat-test-${{ github.run_number }}
+          path: artifacts/
+          retention-days: 14
