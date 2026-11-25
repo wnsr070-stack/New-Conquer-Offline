@@ -2,11 +2,13 @@ extends SceneTree
 class DummyHero extends Node3D:
  var active_class: String = "archer"
  var stamina: float = 100.0
+ var move_speed: float = 7.0
  var max_hp: int = 100
  var current_hp: int = 50
 
 class DummyMonster extends Node3D:
  var current_hp: int = 500
+ var move_speed: float = 1.6
  var max_hp: int = 500
  var rest_secs: float = 0.2
  var definition: Dictionary = {"defense":0,"exp":1}
@@ -80,7 +82,7 @@ func _run() -> void:
  checks += 1
  state.xp = 100.0; state.xp_ready_time_left = 20.0
  result = skills.use_skill(hero,"cyclone")
- if not result.get("ok",false) or not skills.buffs.has("cyclone"): _fail("cyclone_failed: "+str(result)); return
+ if not result.get("ok",false) or not skills.buffs.has("cyclone") or absf(hero.move_speed-14.0)>0.01: _fail("cyclone_failed: "+str(result)); return
  var before_cyclone := float(skills.buffs["cyclone"])
  mobs[0].revive()
  mobs[0].current_hp = 1
@@ -95,7 +97,7 @@ func _run() -> void:
  checks += 1
  skills.reset_for_test()
  result = skills.use_skill(hero,"shield_bash",mobs[1])
- if not result.get("ok",false) or not mobs[1].has_meta("movement_slow_multiplier"): _fail("shield_bash_failed: "+str(result)); return
+ if not result.get("ok",false) or not mobs[1].has_meta("movement_slow_multiplier") or mobs[1].move_speed >= 1.6: _fail("shield_bash_failed: "+str(result)); return
  checks += 1
  skills.reset_for_test()
  state.xp = 100.0; state.xp_ready_time_left = 20.0
