@@ -36,8 +36,10 @@ func _load_save() -> void:
   gold = 0
   exp = 0
   inventory = {}
+  anima_phase = 0
   return
  player_data = config.get_value("player","data",{"class":"archer","level":1,"equipped":{}})
+ anima_phase = clampi(int(player_data.get("anima_phase",0)),0,18)
  player_data["mana"] = int(player_data.get("mana",100))
  player_data["stamina"] = int(player_data.get("stamina",100))
  gold = maxi(0,int(config.get_value("economy","gold",0)))
