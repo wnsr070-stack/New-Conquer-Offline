@@ -156,7 +156,9 @@ jobs:
           grep -q "PHASE4C_FORGING_SCATTER_IN_CAMP_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FRAME1_STANCE_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FRAME2_ATTACK_HIT_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_REAL_ARROW_PROJECTILE_VISUAL_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FRAME3_KILL_LOOT_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_REAL_3D_LOOT_MODELS_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FRAME4_BOW_CLOSEUP_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_STEP3_FORGING_OK" artifacts/phase4c_step3_forging_capture.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP3_FAILED|HERO_.*MISSING" artifacts/phase4c_step3_forging_capture.log
@@ -187,6 +189,7 @@ jobs:
             artifacts/hero_animation_builder.log
             artifacts/city_asset_fetch.log
             artifacts/city_scene_asset_prepare.log
+            artifacts/items_consumables_fetch.log
             artifacts/items_consumables_fetch.log
           if-no-files-found: warn
           retention-days: 30
