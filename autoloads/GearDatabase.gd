@@ -27,7 +27,7 @@ func _initialize() -> void:
    for quality in QUALITIES:
     for plus in range(1,PLUS_LEVELS+1):
      var item_id := "%s_lv%d_%s_p%d" % [family,level,quality.to_lower(),plus]
-     items[item_id] = {"id":item_id,"family":family,"level":level,"quality":quality,"plus":plus,"classes":WEAPON_FAMILIES[family].classes,"model_keys":WEAPON_FAMILIES[family].models,"tier_color":_tier_color(level),"display_name":"%s Lv.%d %s +%d" % [family.replace("_"," ").capitalize(),level,quality,plus]}
+     items[item_id] = {"id":item_id,"family":family,"level":level,"quality":quality,"plus":plus,"classes":WEAPON_FAMILIES[family].classes,"model_keys":WEAPON_FAMILIES[family].models,"tier_color":_tier_color(level),"display_name":"%s Lv.%d %s +%d" % [family.replace("_"," ").capitalize(),level,quality,plus],"base_attack":_family_attack(family),"base_defense":_family_defense(family),"composition_points":0,"sockets":[],"gem_bonuses":{"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}}
  initialized = true
  print("PHASE3B_GEAR_DATABASE_READY: ",items.size()," weapon variants; 13 tiers x 5 qualities x 12 plus levels")
 func _tier_color(level: int) -> Color:
@@ -43,3 +43,10 @@ func get_tier_item(family: String, level: int, quality: String = "Normal", plus:
  return get_item("%s_lv%d_%s_p%d" % [family,safe_level,quality.to_lower(),safe_plus])
 func get_family(family: String) -> Dictionary:
  return WEAPON_FAMILIES.get(family,{}).duplicate(true)
+
+func _family_attack(family: String) -> int:
+ if family in ["bow","dual_daggers","dual_blades","dual_axes","spear","halberd","infernal_greatsword"]: return 80
+ if family in ["magic_staff","staff"]: return 45
+ return 10
+func _family_defense(family: String) -> int:
+ return 15 if family == "shield" else 0
