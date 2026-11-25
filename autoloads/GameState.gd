@@ -73,12 +73,14 @@ func add_xp(amount: float) -> void:
   xp = 100.0
   xp_ready_time_left = 20.0
   print("XP_READY: duration=20s")
+  _refresh_character_aura()
  xp_changed.emit(xp,xp_ready_time_left>0.0)
 func consume_xp_ready() -> bool:
  if xp_ready_time_left <= 0.0 or xp < 100.0: return false
  xp = 0.0
  xp_ready_time_left = 0.0
  xp_changed.emit(xp,false)
+ _refresh_character_aura()
  return true
 func tick_xp(delta: float) -> void:
  if xp_ready_time_left > 0.0:
@@ -86,6 +88,7 @@ func tick_xp(delta: float) -> void:
   if xp_ready_time_left <= 0.0:
    xp = 0.0
    xp_changed.emit(xp,false)
+   _refresh_character_aura()
  else: xp_changed.emit(xp,false)
 
 func set_anima_phase(value: int) -> void:
@@ -104,3 +107,8 @@ func get_anima_bonuses() -> Dictionary:
   "defense_bonus":phase*3,
   "hp_multiplier":1.0+float(phase)*0.025
  }
+
+func _refresh_character_aura() -> void:
+ var gear := get_node_or_null("/root/GearSystem")
+ if gear != null and gear.has_method("_apply_runtime_aura"):
+  gear.call("_apply_runtime_aura")
