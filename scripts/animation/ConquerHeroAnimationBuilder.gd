@@ -131,6 +131,13 @@ func _make_animation(clip: String, skeleton: Skeleton3D, skeleton_path: NodePath
  var frames: Array = POSES[clip]
  animation.length = float(frames.back()["t"]) + (0.22 if clip in ["Run","Attack_Assassin"] else 0.28)
  animation.loop_mode = Animation.LOOP_LINEAR if clip in ["Idle","Run"] else Animation.LOOP_NONE
+ var forearm_roll_axis_local := Vector3.RIGHT
+ if mapping.has("lowerarm_l") and mapping.has("upperarm_l"):
+  var lowerarm_index := skeleton.find_bone(str(mapping["lowerarm_l"]))
+  var upperarm_index := skeleton.find_bone(str(mapping["upperarm_l"]))
+  var lowerarm_rest_global := skeleton.get_bone_global_rest(lowerarm_index)
+  var upperarm_rest_global := skeleton.get_bone_global_rest(upperarm_index)
+  forearm_roll_axis_local = (lowerarm_rest_global.basis.inverse() * (upperarm_rest_global.origin - lowerarm_rest_global.origin)).normalized()
  var used := {}
  for frame in frames:
   for bone in frame["p"]: used[bone] = true
@@ -162,54 +169,12 @@ func _make_animation(clip: String, skeleton: Skeleton3D, skeleton_path: NodePath
    elif clip == "Attack_Bow" and canonical == "lowerarm_r":
     # Keep the elbow completely straight; no forearm bend.
     delta_quat = Quaternion.IDENTITY
+   if clip in ["Idle", "Attack_Bow"] and canonical == "lowerarm_l":
+    # Forearm roll: rotate the complete left hand assembly around the forearm's
+    # anatomical long axis. Weapon socket transform remains untouched.
+    var forearm_roll := Quaternion(forearm_roll_axis_local, deg_to_rad(90.0))
+    delta_quat = (delta_quat * forearm_roll).normalized()
    animation.track_insert_key(track, float(frame["t"]), (rest_quat * delta_quat).normalized())
- if clip in ["Idle", "Attack_Bow"] and mapping.has("hand_l") and mapping.has("lowerarm_l"):
-  var hand_index := skeleton.find_bone(str(mapping["hand_l"]))
-  var forearm_index := skeleton.find_bone(str(mapping["lowerarm_l"]))
-  var hand_rest_global := skeleton.get_bone_global_rest(hand_index)
-  var forearm_to_wrist := hand_rest_global.basis.inverse() * (skeleton.get_bone_global_rest(forearm_index).origin - hand_rest_global.origin)
-  var forearm_axis_local := forearm_to_wrist.normalized()
-  var hand_track := animation.add_track(Animation.TYPE_ROTATION_3D)
-  animation.track_set_path(hand_track, NodePath(str(skeleton_path) + ":" + str(mapping["hand_l"])))
-  animation.track_set_interpolation_type(hand_track, Animation.INTERPOLATION_LINEAR)
-  var hand_rest_rotation := skeleton.get_bone_rest(hand_index).basis.get_rotation_quaternion()
-  var palm_inward_rotation := Quaternion(forearm_axis_local, deg_to_rad(90.0))
-  for frame in frames:
-   animation.track_insert_key(hand_track, float(frame["t"]), (hand_rest_rotation * palm_inward_rotation).normalized())
-  var finger_track_count := 0
-  var finger_names: Array[String] = []
-  for finger_index in range(skeleton.get_bone_count()):
-   var ancestor := skeleton.get_bone_parent(finger_index)
-   while ancestor >= 0 and ancestor != hand_index:
-    ancestor = skeleton.get_bone_parent(ancestor)
-   if ancestor != hand_index:
-    continue
-   var finger_name := skeleton.get_bone_name(finger_index)
-   var finger_normalized := finger_name.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
-   var is_finger := "index" in finger_normalized or "middle" in finger_normalized or "ring" in finger_normalized or "pinky" in finger_normalized or "little" in finger_normalized or "thumb" in finger_normalized
-   if not is_finger:
-    continue
-   var curl_degrees := 42.0
-   if "thumb" in finger_normalized:
-    curl_degrees = 34.0
-   elif "3" in finger_normalized or "distal" in finger_normalized:
-    curl_degrees = 24.0
-   elif "2" in finger_normalized or "middle" in finger_normalized:
-    curl_degrees = 38.0
-   else:
-    curl_degrees = 48.0
-   var finger_rest_rotation := skeleton.get_bone_rest(finger_index).basis.get_rotation_quaternion()
-   var finger_curl := Quaternion(Vector3.RIGHT, deg_to_rad(curl_degrees))
-   var finger_track := animation.add_track(Animation.TYPE_ROTATION_3D)
-   animation.track_set_path(finger_track, NodePath(str(skeleton_path) + ":" + finger_name))
-   animation.track_set_interpolation_type(finger_track, Animation.INTERPOLATION_LINEAR)
-   for frame in frames:
-    animation.track_insert_key(finger_track, float(frame["t"]), (finger_rest_rotation * finger_curl).normalized())
-   finger_track_count += 1
-   finger_names.append(finger_name)
-  print("PHASE4C_LEFT_HAND_GRIP_POSE_BUILT: hand_bone=", mapping["hand_l"], " forearm_axis_local=", forearm_axis_local, " palm_rotation_deg=90 finger_tracks=", finger_track_count, " fingers=", finger_names)
-  if finger_track_count < 4:
-   push_error("PHASE4C_LEFT_HAND_FINGER_CURL_INCOMPLETE: tracks=" + str(finger_track_count) + " fingers=" + str(finger_names))
  if clip == "Jump" and mapping.has("pelvis"):
   var pelvis := str(mapping["pelvis"])
   var idx := skeleton.find_bone(pelvis)
