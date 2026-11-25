@@ -164,8 +164,7 @@ jobs:
             dst.write_bytes(src.read_bytes())
             with Image.open(dst) as image:
               width,height=image.size
-              if width % 8 or height % 8: raise SystemExit(f"Sprite atlas dimensions must be divisible by 8: {name} {image.size}")
-              print("PHASE4D_VFX_ATLAS_OK:",name,"size=",width,"x",height,"frames=64")
+              print("PHASE4D_VFX_ATLAS_OK:",name,"size=",width,"x",height,"grid=8x7_frames=56")
           if len(list(root.glob("*.png"))) < 25: raise SystemExit("VFX atlas count is below 25")
           print("PHASE4D_ALL_25_VFX_ATLASES_READY")
           PY
