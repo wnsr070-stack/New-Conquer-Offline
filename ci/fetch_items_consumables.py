@@ -54,6 +54,10 @@ def main():
     for src,dst in kenney_files: copied.append(copy_file(k/src,dst))
     # Kenney Platformer atlas: resolves the external colormap.png URI used by the imported loot GLBs.
     copied.append(copy_file(k/"3d/platformer/Textures/colormap.png", "models/Textures/colormap.png"))
+    colormap_path = ROOT/"models/Textures/colormap.png"
+    if colormap_path.read_bytes()[:8] != bytes.fromhex("89504e470d0a1a0a"):
+        raise RuntimeError("Kenney loot colormap is not a valid PNG")
+    print("PHASE4C_CC0_LOOT_COLORMAP_OK:", colormap_path, colormap_path.stat().st_size, "bytes")
     kaykit_files = [
       ("addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_medium.gltf.glb","models/gold_stack.glb"),
       ("addons/kaykit_dungeon_remastered/Assets/gltf/chest_gold.glb","models/gold_chest.glb"),
