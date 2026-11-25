@@ -102,7 +102,7 @@ func _lighting() -> void:
     sky.sky_material = sky_material
     environment.sky = sky
     environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-    environment.ambient_light_energy = 0.25
+    environment.ambient_light_energy = 0.20
     environment.tonemap_mode = Environment.TONE_MAPPER_ACES
     environment.fog_enabled = false
     environment.fog_light_color = Color(0.72, 0.86, 0.98)
@@ -116,7 +116,7 @@ func _lighting() -> void:
     add_child(world)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
-    sun.light_energy = 0.75
+    sun.light_energy = 0.48
     sun.shadow_enabled = OS.get_environment("CI_CAPTURE") != "1"
     print("CHECKPOINT2_PREVIEW_SHADOWS_DISABLED: ", OS.get_environment("CI_CAPTURE") == "1")
     add_child(sun)
@@ -182,8 +182,14 @@ func _build_dirt_ground() -> bool:
         var instance_node := MultiMeshInstance3D.new()
         instance_node.name = "Grab3DDirtRoad_TiledSurface"
         instance_node.multimesh = multimesh
-        var dirt_material := _mat(Color(0.43, 0.30, 0.19))
-        dirt_material.roughness = 1.0
+        var dirt_material := _cobble()
+        if dirt_material == null:
+            instance_node.queue_free()
+            push_error("CHECKPOINT1_DIRT_ROAD_COBBLESTONE_TEXTURE_MISSING")
+            source.free()
+            return false
+        dirt_material.roughness = 0.92
+        dirt_material.uv1_scale = Vector3(0.22, 0.22, 0.22)
         instance_node.material_override = dirt_material
         add_child(instance_node)
         var index := 0
@@ -197,7 +203,7 @@ func _build_dirt_ground() -> bool:
     source.free()
     print("CHECKPOINT1_UNIFIED_DIRT_GROUND_OK: grab3d-dirt-road tiled ", DIRT_TILES_PER_SIDE, "x", DIRT_TILES_PER_SIDE, " covers 320x320m")
     print("CHECKPOINT1_FULL_GROUND_NO_GREEN_GAPS_OK: 320x320m")
-    print("CHECKPOINT1_GROUND_GREEN_MATERIAL_OVERRIDE_OK: all tiled GLB surfaces unified earth-brown")
+    print("CHECKPOINT1_GROUND_TEXTURED_ROAD_OK: cobblestone diffuse+normal+roughness tiled UV=0.22; no flat beige override")
     return true
 func _build_walls_moat_and_bridges() -> void:
     var wall_material := _mat(Color(0.39, 0.38, 0.34))
