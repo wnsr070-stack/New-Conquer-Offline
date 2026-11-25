@@ -350,11 +350,18 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   print("HERO_BOW_AABB_MEASURED: path=", path, " source_aabb=", bounds, " source_length=", source_length, " target_world_length=1.2m scale=", family_scale)
  weapon.scale = Vector3.ONE * family_scale
  if family == "bow":
-  # Keep the approved upright roll, but reverse the bow 180 degrees around the
-  # socket's vertical axis so the wooden grip seats naturally in the palm.
+  # Preserve the approved upright roll, then flip front-to-back around the
+  # local axis perpendicular to the bow length. This reverses local depth Z.
   weapon.rotation = Vector3(0.0, PI, PI / 2.0)
-  print("PHASE4C_BOW_UPRIGHT_ORIENTATION_APPLIED: local_z=90deg local_y=180deg string_facing_hero=true")
+  weapon.rotate_object_local(Vector3.RIGHT, PI)
+  print("PHASE4C_BOW_UPRIGHT_ORIENTATION_APPLIED: local_z=90deg local_y=180deg")
+  print("PHASE4C_BOW_FRONT_BACK_FLIP_APPLIED: rotate_object_local_axis=local_x angle=180deg depth_z_reversed=true")
  var grip := bounds.get_center()
+ if family == "bow":
+  # The bow mesh is thin along source Z. Anchor the palm on the forward wooden
+  # stave face, not at the AABB midpoint between stave and string.
+  grip.z = bounds.position.z + bounds.size.z * 0.85
+  print("PHASE4C_BOW_WOOD_GRIP_ANCHOR_SELECTED: source_z=", grip.z, " depth_fraction=0.85 anchor=wood_stave_face")
  if family in ["dual_knives", "dual_blades", "greatsword", "magic_staff"]:
   var size := bounds.size
   if size.y >= size.x and size.y >= size.z:
