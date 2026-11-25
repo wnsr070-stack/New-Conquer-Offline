@@ -31,7 +31,7 @@ func _run() -> void:
  if camp == null: _fail("chicken_camp_missing"); return
  hero.global_position = camp.global_position + Vector3(-5.0,0,7.0)
  # Keep the Ranger facing the camp; the proof camera will view the front/bow side.
- hero.look_at(hero.global_position+Vector3(0,0,1),Vector3.UP)
+ hero.look_at(camp.global_position + Vector3(0,0,-5.5),Vector3.UP)
  if hero.has_method("_switch_class"):
   hero.call("_switch_class","archer")
  for i in range(3): await process_frame
@@ -41,7 +41,13 @@ func _run() -> void:
  var bow_metrics: Dictionary = hero.call("_weapon_visual_metrics",bow_socket) if hero.has_method("_weapon_visual_metrics") else {}
  if int(bow_metrics.get("mesh_count",0)) < 1 or float(bow_metrics.get("grip_distance",999.0)) > 0.08:
   _fail("approved_bow_visual_alignment_failed: "+str(bow_metrics)); return
- print("PHASE4C_PROOF_BOW_VISIBLE_OK: mesh_count=",bow_metrics.get("mesh_count")," grip_distance=",bow_metrics.get("grip_distance"))
+ var bow_node := bow_socket.get_child(0) as Node3D
+ if bow_node == null or bow_node.scale.length() < 0.1:
+  _fail("bow_root_scale_invalid")
+  return
+ bow_socket.visible = true
+ bow_node.visible = true
+ print("PHASE4C_PROOF_BOW_VISIBLE_OK: mesh_count=",bow_metrics.get("mesh_count")," grip_distance=",bow_metrics.get("grip_distance")," bone=",bow_metrics.get("actual_bone_name")," scale=",bow_node.scale," rotation_degrees=",bow_node.rotation_degrees," global_bounds=",bow_node.get_global_transform())
  hero.velocity = Vector3.ZERO
  hero.set("has_move_target",false)
  spawner.set_hero(hero)
@@ -82,7 +88,7 @@ func _run() -> void:
  var combat := root.get_node("CombatSystem")
  var skills := root.get_node("SkillSystem")
  state.gold = 2000000
- state.inventory = {"Plus1Stone":12,"Meteor":4,"DragonBall":2,"DragonGem":1}
+ state.inventory = {"Plus1Stone":12,"Meteor":4,"DragonBall":2,"DragonGem":2}
  state.player_data["class"] = "archer"
  state.player_data["attack"] = 120
  if not gear.equip_weapon("bow_lv40_normal_p1","archer"): _fail("equip_approved_bow_failed"); return
@@ -100,13 +106,20 @@ func _run() -> void:
  var gem_result: Dictionary = forging.socket_gem("DragonGem",0,"weapon")
  if not gem_result.get("ok",false): _fail("dragon_gem_socket_failed: "+str(gem_result)); return
  var item: Dictionary = gear.get_equipped("weapon")
- if int(item.get("plus",0)) != 12 or String(item.get("quality","")) != "Super" or item.get("sockets",[]).size() != 2 or String(item.sockets[0]) != "DragonGem":
+ if int(item.get("plus",0)) != 12 or String(item.get("quality","")) != "Super" or item.get("sockets",[]).size() != 2 or String(item.sockets[0]) != "DragonGem" or String(item.sockets[1]) != "DragonGem":
   _fail("final_weapon_state_invalid: "+str(item)); return
  if forging.get_plus_aura_level(item) != 4: _fail("plus_12_aura_tier_invalid"); return
  if not forging.apply_equipped_weapon_aura(hero): _fail("plus_12_weapon_aura_not_attached"); return
  var aura_light := hero.find_child("ForgingPlusAuraLight",true,false)
  var aura_particles := hero.find_child("ForgingPlusAuraParticles",true,false)
  if aura_light == null or aura_particles == null: _fail("aura_light_or_particles_missing"); return
+ var target_center := Vector3.ZERO
+ for actor in actors:
+  target_center += actor.global_position
+ target_center /= float(actors.size())
+ hero.look_at(target_center,Vector3.UP)
+ var aim_dot := (-hero.global_transform.basis.z).normalized().dot((target_center-hero.global_position).normalized())
+ if aim_dot < 0.94: _fail("archer_aim_direction_invalid: "+str(aim_dot)); return
  var skill_result: Dictionary = skills.use_skill(hero,"scatter")
  if not skill_result.get("ok",false) or int(skill_result.get("targets_hit",0)) < 1:
   _fail("scatter_skill_did_not_hit_camp: "+str(skill_result)); return
@@ -128,22 +141,33 @@ func _run() -> void:
  var world_env := city.find_child("WorldEnvironment",true,false) as WorldEnvironment
  if world_env != null and world_env.environment != null:
   world_env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-  world_env.environment.tonemap_exposure = 0.58
-  world_env.environment.ambient_light_energy = 0.52
+  world_env.environment.tonemap_exposure = 0.0
+  world_env.environment.ambient_light_energy = 0.20
+  world_env.environment.ambient_light_color = Color(0.78,0.82,0.88)
   world_env.environment.adjustment_enabled = true
-  world_env.environment.adjustment_saturation = 0.68
+  world_env.environment.adjustment_saturation = 0.92
+ for light in city.find_children("*","DirectionalLight3D",true,false):
+  light.light_energy = minf(light.light_energy,0.48)
+ for light in hero.find_children("ForgingPlusAuraLight","OmniLight3D",true,false):
+  light.light_energy = minf(light.light_energy,0.34)
+  light.omni_range = minf(light.omni_range,1.05)
  var old_camera := hero.get("camera") as Camera3D
  if old_camera != null: old_camera.current = false
  var camera := Camera3D.new()
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
- camera.fov = 36.0
+ camera.fov = 48.0
  city.add_child(camera)
- # Front/bow-side 3/4 framing: hero left, a spaced monster arc right, horizon retained.
- camera.global_position = hero.global_position + Vector3(6.0,3.4,-10.5)
- camera.look_at(hero.global_position + Vector3(2.2,1.0,-4.2),Vector3.UP)
+ # Clean 45-degree 3/4 full-body framing; keep city skyline and the whole monster arc.
+ camera.global_position = hero.global_position + Vector3(8.0,8.0,-14.0)
+ camera.look_at(hero.global_position + Vector3(2.0,1.5,-4.8),Vector3.UP)
  camera.current = true
  await process_frame
  await RenderingServer.frame_post_draw
+ await RenderingServer.frame_post_draw
+ var actual_item: Dictionary = gear.get_equipped("weapon")
+ var actual_bonuses: Dictionary = gear.get_combat_bonuses()
+ _build_gear_proof_hud(actual_item,actual_bonuses)
+ await process_frame
  await RenderingServer.frame_post_draw
  var image := get_root().get_texture().get_image()
  if image == null or image.is_empty(): _fail("forging_proof_framebuffer_empty"); return
@@ -155,9 +179,9 @@ func _run() -> void:
  var bytes := FileAccess.get_file_as_bytes(out_path).size()
  if bytes < 20000: _fail("forging_png_too_small: "+str(bytes)); return
  # Second genuine in-game angle, tighter on the approved bow grip and forging aura.
- camera.fov = 29.0
- camera.global_position = hero.global_position + Vector3(3.4,2.4,-6.2)
- camera.look_at(hero.global_position + Vector3(0.0,1.0,-1.4),Vector3.UP)
+ camera.fov = 48.0
+ camera.global_position = hero.global_position + Vector3(8.0,8.0,-14.0)
+ camera.look_at(hero.global_position + Vector3(2.0,1.5,-4.8),Vector3.UP)
  await process_frame
  await RenderingServer.frame_post_draw
  await RenderingServer.frame_post_draw
@@ -172,7 +196,7 @@ func _run() -> void:
  if int(bonuses.attack) < 100: _fail("forged_attack_bonus_not_applied"); return
  if int(state.gold) >= 2000000: _fail("gold_cost_was_not_charged"); return
  state.save_game()
- print("PHASE4C_FORGING_FINAL_STATE_OK: weapon=+12 Super sockets=2 DragonGem=true composition=",item.composition_points," attack_bonus=",bonuses.attack," gold_remaining=",state.gold)
+ print("PHASE4C_FORGING_FINAL_STATE_OK: weapon=+12 Super sockets=2 DragonGemx2=true composition=",item.composition_points," attack_bonus=",bonuses.attack," gold_remaining=",state.gold)
  print("PHASE4C_FORGING_AURA_VISUAL_OK: aura_level=4 light=true particles=true")
  print("PHASE4C_FORGING_SCATTER_IN_CAMP_OK: targets_hit=",skill_result.targets_hit," floating_damage=true approved_hero=true approved_monsters=true")
  print("PHASE4C_STEP3_IN_GAME_PNG_OK: ",out_path," bytes=",bytes," camera=front_bow_side_3_quarter hero_left_monster_arc_right")
@@ -180,6 +204,44 @@ func _run() -> void:
  print("PHASE4C_STEP3_FORGING_OK")
  print("PHASE4C_STEP3_EXIT_CODE_0")
  quit(0)
+func _build_gear_proof_hud(item: Dictionary, bonuses: Dictionary) -> void:
+ var canvas := CanvasLayer.new()
+ canvas.name = "Phase4C_GearProofHUD"
+ get_root().add_child(canvas)
+ var panel := PanelContainer.new()
+ panel.name = "ForgedWeaponProofPanel"
+ panel.position = Vector2(28,28)
+ panel.custom_minimum_size = Vector2(410,210)
+ var style := StyleBoxFlat.new()
+ style.bg_color = Color(0.035,0.045,0.075,0.92)
+ style.border_color = Color(0.48,0.68,0.96,0.95)
+ style.set_border_width_all(2)
+ style.set_corner_radius_all(10)
+ style.set_content_margin_all(14)
+ panel.add_theme_stylebox_override("panel",style)
+ canvas.add_child(panel)
+ var stack := VBoxContainer.new()
+ stack.add_theme_constant_override("separation",7)
+ panel.add_child(stack)
+ var sockets: Array = item.get("sockets",[])
+ var gem_a := "Dragon Gem" if sockets.size()>0 and String(sockets[0])=="DragonGem" else "Empty"
+ var gem_b := "Dragon Gem" if sockets.size()>1 and String(sockets[1])=="DragonGem" else "Empty"
+ var lines := [
+  "WEAPON: Super Bow (+12)",
+  "SOCKETS (2/2): ["+gem_a+"] ["+gem_b+"]",
+  "QUALITY: "+String(item.get("quality","Unknown"))+"   LEVEL: "+str(item.get("level",0)),
+  "DAMAGE BONUS: +"+str(item.get("attack_bonus",0))+"   GEM ATK: +"+str(bonuses.get("attack",0))
+ ]
+ for i in range(lines.size()):
+  var label := Label.new()
+  label.text = lines[i]
+  label.add_theme_color_override("font_color",Color(0.94,0.96,1.0))
+  label.add_theme_font_size_override("font_size",22 if i==0 else 18)
+  stack.add_child(label)
+ if sockets.size()!=2 or gem_a!="Dragon Gem" or gem_b!="Dragon Gem":
+  push_error("PHASE4C_GEAR_HUD_SOCKET_STATE_INVALID: "+str(sockets))
+ print("PHASE4C_GEAR_PROOF_HUD_OK: ",lines)
+
 func _fail(reason: String) -> void:
  push_error("PHASE4C_STEP3_FAILED: "+reason)
  quit(1)
