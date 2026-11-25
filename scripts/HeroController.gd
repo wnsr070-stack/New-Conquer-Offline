@@ -40,6 +40,7 @@ var jump_destination := Vector3.ZERO
 var is_jumping := false
 var weapon_nodes: Array[Node] = []
 var measured_model_height := 0.0
+# PHASE4C_DIRECTOR_HAND_POSE: preserve bow's approved 210-degree orientation; palm alignment is derived from finger-root geometry.
 
 func _ready() -> void:
  name = "PlayableHero"
