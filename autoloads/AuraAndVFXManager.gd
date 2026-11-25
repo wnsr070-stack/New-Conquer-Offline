@@ -155,6 +155,32 @@ func _make_sprite(effect_type: String, variant: int, tint: Color, scale_value: f
  sprite.play("play")
  return sprite
 
+func load_loot_icon_texture(path: String) -> ImageTexture:
+ if path.is_empty() or not ResourceLoader.exists(path):
+  push_warning("PHASE4D_LOOT_ICON_MISSING: "+path)
+  return null
+ var source := load(path) as Texture2D
+ if source == null: return null
+ var image := source.get_image()
+ if image == null or image.is_empty(): return null
+ image.convert(Image.FORMAT_RGBA8)
+ for y in range(image.get_height()):
+  for x in range(image.get_width()):
+   var pixel := image.get_pixel(x,y)
+   if pixel.r > 0.88 and pixel.g > 0.88 and pixel.b > 0.88:
+    pixel.a = 0.0
+    image.set_pixel(x,y,pixel)
+ var texture := ImageTexture.create_from_image(image)
+ print("PHASE4D_LOOT_ICON_ALPHA_EXTRACTION_OK: ",path," format=RGBA8 white_background=transparent")
+ return texture
+
+func make_loot_icon_material() -> StandardMaterial3D:
+ var material := StandardMaterial3D.new()
+ material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+ material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+ material.albedo_color = Color.WHITE
+ return material
+
 func _get_or_create_anchor(target: Node3D, anchor_name: String) -> Node3D:
  var found := target.get_node_or_null(anchor_name)
  if found is Node3D:
