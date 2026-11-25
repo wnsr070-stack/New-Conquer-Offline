@@ -36,3 +36,9 @@ func _finish_transition() -> void:
     if player is Node3D and pending_spawn!=Vector3.ZERO: player.global_position=pending_spawn
     transition_in_progress=false
     print("WORLD_MAP_TRANSITION_OK: current_city=",current_city," five_city_network=true")
+
+func clear_cache() -> void:
+ pending_spawn = Vector3.ZERO
+ transition_in_progress = false
+ current_city = "TwinCity"
+ print("PHASE4D_WORLD_MAP_CACHE_CLEARED")
