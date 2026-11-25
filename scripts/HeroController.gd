@@ -322,6 +322,36 @@ func _palm_center_local(hand_bone: int) -> Vector3:
  print("PHASE4C_LEFT_PALM_CENTER_DERIVED: finger_roots=", finger_names, " local_center=", center)
  return center
 
+func _apply_left_bow_finger_curl() -> void:
+ if skeleton == null:
+  return
+ var finger_tokens := ["thumb", "index", "middle", "ring", "pinky", "little"]
+ var curled: Array[String] = []
+ for i in range(skeleton.get_bone_count()):
+  var bone_name := skeleton.get_bone_name(i)
+  var normalized := bone_name.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
+  var is_left := normalized.contains("left") or normalized.ends_with("l") or normalized.contains("handl")
+  var is_finger := false
+  for token in finger_tokens:
+   if token in normalized:
+    is_finger = true
+    break
+  if not is_left or not is_finger:
+   continue
+  # Curl each phalanx toward the palm while leaving the palm/hand bone untouched.
+  var curl_degrees := 32.0
+  if "middle" in normalized or "distal" in normalized or "tip" in normalized:
+   curl_degrees = 42.0
+  elif "thumb" in normalized:
+   curl_degrees = 24.0
+  var current_pose := skeleton.get_bone_pose_rotation(i)
+  skeleton.set_bone_pose_rotation(i, (current_pose * Quaternion(Vector3.RIGHT, deg_to_rad(curl_degrees))).normalized())
+  curled.append(bone_name)
+ if curled.size() < 4:
+  push_error("PHASE4C_LEFT_BOW_FINGER_CURL_INCOMPLETE: curled=" + str(curled))
+ else:
+  print("PHASE4C_LEFT_BOW_FINGER_CURL_OK: bones=", curled, " palm_direction_preserved=true")
+
 func _attach_weapon(hand_side: String,family: String) -> void:
  if skeleton == null:
   push_error("HERO_WEAPON_SKELETON_MISSING: " + family)
@@ -359,6 +389,8 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  var palm_center_local := _palm_center_local(bone) if family == "bow" and hand_side == "l" else Vector3.ZERO
  socket.set_meta("phase4c_palm_center_local", palm_center_local)
  socket.add_child(weapon)
+ if family == "bow" and hand_side == "l":
+  _apply_left_bow_finger_curl()
  var mesh_points: Array[Vector3] = []
  for child in weapon.get_children():
   _collect_weapon_mesh_points(child, Transform3D.IDENTITY, mesh_points)
@@ -378,23 +410,16 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   print("HERO_BOW_AABB_MEASURED: path=", path, " source_aabb=", bounds, " source_length=", source_length, " target_world_length=1.2m scale=", family_scale)
  weapon.scale = Vector3.ONE * family_scale
  if family == "bow":
-  # Keep the bow upright, then compose the two director-requested rotations:
-  # 1) close the bow plane around its length axis (local Y).
-  # 2) rotate 180 degrees in the bow plane around its normal.
+  # Director's two-step bow correction, composed in this exact order:
+  # 1) 90 degrees counter-clockwise about the palm-plane normal (local Z).
+  # 2) 180 degrees about the upright wooden grip axis (local Y).
+  # The hand/bone pose and palm-facing direction are not changed here.
   weapon.rotation = Vector3(0.0, PI, PI / 2.0)
-  var bow_up_dir := Vector3.UP
-  weapon.rotate_object_local(bow_up_dir, PI / 2.0)
-  var bow_up_after_first: Vector3 = weapon.transform.basis * bow_up_dir
-  var bow_forward_after_first: Vector3 = weapon.transform.basis * Vector3.FORWARD
-  var bow_plane_normal := bow_up_after_first.cross(bow_forward_after_first).normalized()
-  var bow_plane_normal_local := (weapon.transform.basis.inverse() * bow_plane_normal).normalized()
-  weapon.rotate_object_local(bow_plane_normal_local, PI)
-  # Fine adjustment: add 30 degrees in the same bow-plane spin direction.
-  weapon.rotate_object_local(bow_plane_normal_local, deg_to_rad(30.0))
-  print("PHASE4C_BOW_FIRST_COMPOSITE_ROTATION_APPLIED: axis=bow_up_dir_local_y angle=90deg")
-  print("PHASE4C_BOW_SECOND_COMPOSITE_ROTATION_APPLIED: axis=bow_plane_normal angle=180deg normal=", bow_plane_normal, " local_axis=", bow_plane_normal_local)
-  print("PHASE4C_BOW_FINE_IN_PLANE_SPIN_APPLIED: axis=bow_plane_normal angle=+30deg total_in_plane_spin=210deg")
-  print("PHASE4C_BOW_COMPOSITE_ORIENTATION_OK: upright_preserved=true plane_rotated=true fine_spin=30deg")
+  weapon.rotate_object_local(Vector3.FORWARD, PI / 2.0)
+  print("PHASE4C_BOW_STEP1_PALM_NORMAL_CCW_OK: axis=local_z angle=+90deg")
+  weapon.rotate_object_local(Vector3.UP, PI)
+  print("PHASE4C_BOW_STEP2_VERTICAL_GRIP_FLIP_OK: axis=local_y angle=180deg")
+  print("PHASE4C_BOW_DIRECTOR_TWO_STEP_ORIENTATION_OK: palm_pose_preserved=true extra_spin=0deg")
  var grip := bounds.get_center()
  if family == "bow":
   # The bow mesh is thin along source Z. Anchor the palm on the forward wooden
