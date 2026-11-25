@@ -167,14 +167,19 @@ func _run() -> void:
  await _wait_rendered_pose()
  _save_proof_png("1_stance_aim.png","PHASE4C_FRAME1_STANCE_OK")
  # Frame 2 — run the real combat skill and preserve the live HP/damage feedback.
+ var arrow_projectile := _spawn_arrow_projectile(city,hero,actors[0].global_position)
+ if arrow_projectile == null:
+  _fail("approved_ranger_arrow_glb_missing_or_invalid"); return
  var attack_result: Dictionary = combat.perform_attack(hero,actors[0],true)
  if not attack_result.get("ok",false):
   _fail("real_attack_frame_failed: "+str(attack_result)); return
  hero.animation_player.play("Attack_Bow")
  hero.animation_player.seek(0.48,true)
- camera.global_position = hero.global_position + Vector3(3.0,2.0,3.0)
- camera.look_at(target_center + Vector3(0,0.8,0),Vector3.UP)
+ _set_wide_proof_camera(camera,hero,target_center,58.0)
  await _wait_rendered_pose()
+ if not is_instance_valid(arrow_projectile):
+  _fail("real_arrow_projectile_disappeared_before_capture"); return
+ print("PHASE4C_REAL_ARROW_PROJECTILE_VISUAL_OK: source=approved_ranger_arrow_ranger_arrow.glb in_flight=true")
  _save_proof_png("2_attack_hit.png","PHASE4C_FRAME2_ATTACK_HIT_OK")
  # Frame 3 — force a real lethal combat result; MonsterActor now plays its death clip
  # or remains as a visible fallen corpse until the respawn timer expires.
@@ -182,8 +187,9 @@ func _run() -> void:
  var kill_result: Dictionary = combat.perform_attack(hero,actors[1],true)
  if not kill_result.get("ok",false) or not actors[1].is_dead():
   _fail("real_monster_kill_or_death_pose_failed: "+str(kill_result)); return
- camera.global_position = hero.global_position + Vector3(4.2,2.8,4.0)
- camera.look_at(target_center + Vector3(0,0.4,0),Vector3.UP)
+ if not _spawn_loot_proof(city,actors[1].global_position):
+  _fail("one_or_more_verified_cc0_loot_models_failed_to_load"); return
+ _set_wide_proof_camera(camera,hero,target_center,58.0)
  await _wait_rendered_pose()
  _save_proof_png("3_kill_loot.png","PHASE4C_FRAME3_KILL_LOOT_OK")
  # Frame 4 — side close-up of the actual BoneAttachment3D bow and +12 aura.
