@@ -75,7 +75,7 @@ func use_skill(hero: Node3D, skill_id: String, target: Node3D = null) -> Diction
   if state == null or float(state.xp_ready_time_left) <= 0.0: return _fail("xp_not_ready")
  else:
   if float(cooldowns.get(skill_id,0.0)) > 0.0: return _fail("cooldown")
-  if not _spend_resource(state,String(data.get("cost_type","mana")),int(data.get("cost",0))): return _fail("insufficient_resource")
+  if not _spend_resource(state,String(data.get("cost_type","mana")),int(data.get("cost",0)),hero): return _fail("insufficient_resource")
  var combat := get_node_or_null("/root/CombatSystem")
  if combat == null: return _fail("combat_system_missing")
  var kind := String(data.get("kind","single"))
@@ -170,8 +170,15 @@ func _chain_lightning(hero: Node3D, combat: Node, data: Dictionary) -> int:
   current = next_target
  return hit
 
-func _spend_resource(state: Node, resource: String, amount: int) -> bool:
+func _spend_resource(state: Node,resource: String,amount: int,hero: Node3D) -> bool:
  if state == null: return false
+ if resource == "stamina":
+  for property in hero.get_property_list():
+   if String(property.name) == "stamina":
+    var current_stamina := float(hero.get("stamina"))
+    if current_stamina < float(amount): return false
+    hero.set("stamina",current_stamina-float(amount))
+    return true
  var key := "mana" if resource == "mana" else "stamina"
  var current := int(state.player_data.get(key,100))
  if current < amount: return false
