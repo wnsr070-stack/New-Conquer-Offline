@@ -164,14 +164,18 @@ func _build_dirt_ground() -> bool:
     if source == null:
         push_error("CHECKPOINT1_DIRT_ROAD_IMPORT_FAILED")
         return false
-    var base_cobble := _cobble()
-    if base_cobble == null:
+    # Preserve the original green Ground underlay; only the imported road meshes get cobblestone.
+    var grass_diffuse := _texture("leafy_grass_diffuse")
+    if grass_diffuse == null:
         source.free()
+        push_error("CHECKPOINT1_GROUND_GREEN_TEXTURE_MISSING: leafy_grass_diffuse")
         return false
-    base_cobble.uv1_scale = Vector3(20.0, 20.0, 1.0)
-    var base_road := _plane("Full320mDirtBase_NoGreenGaps", Vector2(CITY_SIZE, CITY_SIZE), Vector3(0, -0.27, 0), base_cobble)
-    assert(base_road.material_override == base_cobble)
-    print("TWIN_CITY_ROAD_BASE_COBBLE_ASSERT_OK: material=cobblestone_diffuse uv1_scale=", base_cobble.uv1_scale)
+    var ground_material := _mat(Color(0.62, 0.78, 0.45))
+    ground_material.albedo_texture = grass_diffuse
+    ground_material.uv1_scale = Vector3(65.0, 65.0, 1.0)
+    var ground := _plane("Ground", Vector2(CITY_SIZE, CITY_SIZE), Vector3(0, -0.27, 0), ground_material)
+    assert(ground.name == "Ground" and ground.material_override == ground_material and ground_material.albedo_texture != null)
+    print("CHECKPOINT1_GROUND_GREEN_MATERIAL_OVERRIDE_OK: Ground=leafy_grass_diffuse uv1_scale=65; preserved beneath road layers")
     var meshes: Array[Dictionary] = []
     _collect_meshes(source, Transform3D.IDENTITY, meshes)
     if meshes.is_empty():
@@ -218,7 +222,7 @@ func _build_dirt_ground() -> bool:
         assert(road_material != null and road_material.albedo_texture != null and road_material.normal_texture != null and road_material.roughness_texture != null)
         assert(road_material.uv1_scale == Vector3(20.0, 20.0, 1.0))
     print("TWIN_CITY_ROAD_ALL_LAYERS_COBBLE_ASSERT_OK: layers=", road_layers.size(), " diffuse=true normal=true roughness=true uv1_scale=20,20,1")
-    print("CHECKPOINT1_GROUND_TEXTURED_ROAD_OK: cobblestone diffuse+normal+roughness tiled UV=20,20,1; no flat beige override")
+    print("CHECKPOINT1_GROUND_TEXTURED_ROAD_OK: cobblestone diffuse+normal+roughness assigned to road layers only; green Ground preserved")
     return true
 func _build_walls_moat_and_bridges() -> void:
     var wall_material := _mat(Color(0.39, 0.38, 0.34))
