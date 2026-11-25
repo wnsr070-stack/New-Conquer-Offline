@@ -1,4 +1,5 @@
 extends SceneTree
+# Zero Procedural Geometry: approved GLB weapon assets only; no generated projectile meshes.
 const SpawnerScript = preload("res://scripts/MonsterSpawner.gd")
 const MonsterActorScript = preload("res://scripts/MonsterActor.gd")
 func _initialize() -> void:
