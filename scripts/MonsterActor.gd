@@ -22,6 +22,9 @@ var move_speed := 1.6
 var animation_mode := "procedural"
 var embedded_idle_clip := ""
 var embedded_walk_clip := ""
+var embedded_attack_clip := ""
+var embedded_hit_clip := ""
+var embedded_death_clip := ""
 
 var _target := Vector3.ZERO
 var _dead := false
@@ -79,6 +82,9 @@ func configure(data: Dictionary, model_path: String, king: bool, boss: bool, cen
 	if _animation_player != null:
 		embedded_idle_clip = _find_clip(["idle", "animation_idle"])
 		embedded_walk_clip = _find_clip(["walk", "walking", "animation_walk"])
+		embedded_attack_clip = _find_clip(["attack", "attack_01", "bite"])
+		embedded_hit_clip = _find_clip(["hit", "hurt", "damage"])
+		embedded_death_clip = _find_clip(["death", "die", "dead"])
 	if _animation_player != null and not embedded_idle_clip.is_empty() and not embedded_walk_clip.is_empty():
 		animation_mode = "embedded"
 		_animation_player.play(embedded_idle_clip)
@@ -160,7 +166,8 @@ func _build_nameplate() -> void:
 		_nameplate.modulate = Color(1.0, 0.9, 0.12, 1.0)
 	else:
 		_nameplate.modulate = Color.WHITE
-	_nameplate.position.y = _model_height + 0.18
+	_nameplate.position.y = maxf(0.12, _model_height * 0.82)
+	_nameplate.position.y += 0.08
 	add_child(_nameplate)
 
 func _process(delta: float) -> void:
@@ -210,17 +217,33 @@ func _play_walk() -> void:
 	if animation_mode == "embedded" and _animation_player != null and _animation_player.current_animation != embedded_walk_clip:
 		_animation_player.play(embedded_walk_clip)
 
+func play_hit() -> void:
+	if _dead or _animation_player == null or embedded_hit_clip.is_empty():
+		return
+	_animation_player.play(embedded_hit_clip)
+
+func play_attack() -> void:
+	if _dead or _animation_player == null or embedded_attack_clip.is_empty():
+		return
+	_animation_player.play(embedded_attack_clip)
+
 func die() -> void:
 	if _dead:
 		return
 	_dead = true
 	current_hp = 0
-	if _animation_player != null:
-		_animation_player.stop()
 	if _nameplate != null:
 		_nameplate.visible = false
-	if _model != null:
-		_model.visible = false
+	if _animation_player != null and not embedded_death_clip.is_empty():
+		_animation_player.play(embedded_death_clip)
+		var death_length := _animation_player.get_animation(embedded_death_clip).length
+		await get_tree().create_timer(maxf(0.35, death_length)).timeout
+	elif _model != null:
+		# Keep a visible corpse if the imported GLB has no authored death clip.
+		var fall := create_tween()
+		fall.tween_property(_model, "rotation:z", deg_to_rad(82.0), 0.42)
+		fall.parallel().tween_property(_model, "position:y", _model_rest_position.y + 0.08, 0.42)
+		await fall.finished
 	if _respawn_timer != null:
 		_respawn_timer.start(rest_secs)
 
@@ -234,6 +257,7 @@ func _on_respawn_timeout() -> void:
 	if _model != null:
 		_model.visible = true
 		_model.position = _model_rest_position
+		_model.rotation = Vector3.ZERO
 		_model.scale = _model_rest_scale
 	if _nameplate != null:
 		_nameplate.visible = true
