@@ -49,8 +49,14 @@ func _find_hero() -> Node3D:
  var legacy := get_tree().root.find_child("TwinCityPlayableHero",true,false)
  return legacy as Node3D if legacy is Node3D else null
 
+func _hero_class(hero: Node3D) -> String:
+ for property in hero.get_property_list():
+  if String(property.name) == "active_class":
+   return String(hero.get("active_class"))
+ return String(hero.get_meta("active_class","archer"))
+
 func _weapon_range(hero: Node3D) -> float:
- var class_id := String(hero.get("active_class")) if hero.get("active_class") != null else "archer"
+ var class_id := _hero_class(hero)
  return RANGED_RANGE if class_id in ["archer","taoist"] else MELEE_RANGE
 
 func find_nearest_target(hero: Node3D) -> Node3D:
