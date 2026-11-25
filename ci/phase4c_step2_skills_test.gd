@@ -1,4 +1,10 @@
 extends SceneTree
+class DummyHero extends Node3D:
+ var active_class: String = "archer"
+ var stamina: float = 100.0
+ var max_hp: int = 100
+ var current_hp: int = 50
+
 class DummyMonster extends Node3D:
  var current_hp: int = 500
  var max_hp: int = 500
@@ -23,11 +29,10 @@ func _run() -> void:
  state.xp = 0.0
  state.xp_ready_time_left = 0.0
  state.player_data = {"class":"archer","level":40,"attack":30,"mana":100,"stamina":100}
- var hero := Node3D.new()
+ var hero := DummyHero.new()
  hero.name = "Phase4C_TestHero"
- hero.set_meta("active_class","archer")
- hero.set_meta("max_hp",100)
- hero.set_meta("current_hp",50)
+ hero.active_class = "archer"
+ 
  root.add_child(hero)
  if not gear.equip_weapon("bow_lv40_normal_p1","archer") or skills.get_equipped_mode(hero) != "bow": _fail("bow_equipment_mode_failed"); return
  var mobs: Array[DummyMonster] = []
@@ -46,6 +51,7 @@ func _run() -> void:
  result = skills.use_skill(hero,"rapid_fire",mobs[0])
  if not result.get("ok",false) or int(result.get("targets_hit",0)) != 3: _fail("rapid_fire_failed: "+str(result)); return
  checks += 1
+ hero.stamina = 100.0
  hero.set_meta("equipped_weapon","dual_daggers")
  if not gear.equip_weapon("dual_daggers_lv40_normal_p1","oriental_assassin"): _fail("dual_dagger_equipment_failed"); return
  hero.remove_meta("equipped_weapon")
@@ -57,7 +63,8 @@ func _run() -> void:
  result = skills.use_skill(hero,"kinetic_spark",mobs[0])
  if not result.get("ok",false): _fail("kinetic_spark_failed: "+str(result)); return
  checks += 1
- hero.set_meta("active_class","trojan")
+ hero.active_class = "trojan"
+ hero.stamina = 100.0
  hero.set_meta("equipped_weapon","")
  skills.reset_for_test()
  result = skills.use_skill(hero,"fast_blade")
@@ -80,7 +87,7 @@ func _run() -> void:
  combat.apply_skill_damage(hero,mobs[0],1.0,"cyclone_test_kill")
  if float(skills.buffs["cyclone"]) < before_cyclone+1.99: _fail("cyclone_kill_extension_failed"); return
  checks += 1
- hero.set_meta("active_class","warrior")
+ hero.active_class = "warrior"
  state.player_data["stamina"] = 100
  skills.reset_for_test()
  result = skills.use_skill(hero,"wide_strike")
@@ -100,16 +107,16 @@ func _run() -> void:
  combat.apply_skill_damage(hero,mobs[1],1.0,"superman_test_kill")
  if float(skills.buffs["superman"]) < before_superman+1.99: _fail("superman_kill_extension_failed"); return
  checks += 1
- hero.set_meta("active_class","taoist")
+ hero.active_class = "taoist"
  state.player_data["mana"] = 100
  skills.reset_for_test()
  result = skills.use_skill(hero,"thunder",mobs[2])
  if not result.get("ok",false): _fail("thunder_failed: "+str(result)); return
  checks += 1
  skills.reset_for_test()
- hero.set_meta("current_hp",40)
+ hero.current_hp = 40
  result = skills.use_skill(hero,"cure")
- if not result.get("ok",false) or int(hero.get_meta("current_hp")) <= 40: _fail("cure_failed: "+str(result)); return
+ if not result.get("ok",false) or hero.current_hp <= 40: _fail("cure_failed: "+str(result)); return
  checks += 1
  skills.reset_for_test()
  result = skills.use_skill(hero,"tornado")
