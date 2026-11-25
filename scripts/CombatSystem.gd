@@ -23,6 +23,7 @@ func _process(delta: float) -> void:
   combat_active = false
   return
  _hero = hero
+ _sync_anima_stats(hero)
  if combat_active:
   var target := current_target
   if not _is_alive_monster(target) or hero.global_position.distance_to(target.global_position) > _weapon_range(hero):
@@ -79,7 +80,8 @@ func perform_attack(hero: Node3D,target: Node3D,force_critical: bool = false) ->
  var attack: int = int(player_data.get("attack",100))+int(gear_stats.get("attack",0))
  var defense := int(target.definition.get("defense",0))
  var critical := force_critical or (not bool(get_meta("disable_random_crit",false)) and _rng.randf() < CRITICAL_CHANCE)
- var multiplier := float(hero.get_meta("physical_damage_multiplier",1.0))
+ var anima: Dictionary = state.get_anima_bonuses() if state != null else {"attack_multiplier":1.0}
+ var multiplier := float(hero.get_meta("physical_damage_multiplier",1.0))*float(anima.get("attack_multiplier",1.0))
  var raw_damage := maxi(1,attack-defense)
  var damage := int(round(float(raw_damage)*(CRITICAL_MULTIPLIER if critical else 1.0)*multiplier))
  return _apply_damage(target,damage,critical,hero,"basic_attack")
@@ -92,8 +94,10 @@ func apply_skill_damage(hero: Node3D,target: Node3D,skill_multiplier: float,skil
  var gear_stats: Dictionary = _gear_bonuses()
  var attack: int = int(player_data.get("attack",100))+int(gear_stats.get("attack" if physical else "magic_attack",0))
  var defense := int(target.definition.get("defense",0))
+ var anima: Dictionary = state.get_anima_bonuses() if state != null else {"attack_multiplier":1.0}
  var buff_multiplier := float(hero.get_meta("physical_damage_multiplier",1.0)) if physical else 1.0
- var damage := maxi(1,int(round(float(maxi(1,attack-defense))*skill_multiplier*buff_multiplier)))
+ var anima_multiplier := float(anima.get("attack_multiplier",1.0)) if physical else 1.0
+ var damage := maxi(1,int(round(float(maxi(1,attack-defense))*skill_multiplier*buff_multiplier*anima_multiplier)))
  return _apply_damage(target,damage,false,hero,skill_id)
 
 func _apply_damage(target: Node3D,damage: int,critical: bool,hero: Node3D,source: String) -> Dictionary:
@@ -175,7 +179,30 @@ func _gear_bonuses() -> Dictionary:
 func apply_incoming_damage(hero: Node3D,raw_damage: int) -> int:
  if hero == null or raw_damage <= 0: return 0
  var bonuses: Dictionary = _gear_bonuses()
- var reduced := maxi(0,raw_damage-int(bonuses.get("defense",0)))
+ var state := get_node_or_null("/root/GameState")
+ var anima: Dictionary = state.get_anima_bonuses() if state != null else {"defense_bonus":0}
+ var reduced := maxi(0,raw_damage-int(bonuses.get("defense",0))-int(anima.get("defense_bonus",0)))
  reduced = int(round(float(reduced)*(1.0-float(bonuses.get("damage_reduction",0.0)))))
  print("COMBAT_INCOMING_DAMAGE_REDUCED: raw=",raw_damage," final=",reduced," defense=",bonuses.get("defense",0)," gem_reduction=",bonuses.get("damage_reduction",0.0))
  return reduced
+
+func _sync_anima_stats(hero: Node3D) -> void:
+ var state := get_node_or_null("/root/GameState")
+ if state == null: return
+ var anima: Dictionary = state.get_anima_bonuses()
+ var max_hp_property := false
+ for property in hero.get_property_list():
+  if String(property.name) == "max_hp":
+   max_hp_property = true
+   break
+ if not max_hp_property: return
+ if not hero.has_meta("_anima_base_max_hp"):
+  hero.set_meta("_anima_base_max_hp",int(hero.get("max_hp")))
+ var base_hp := maxi(1,int(hero.get_meta("_anima_base_max_hp")))
+ var desired_hp := maxi(1,int(round(float(base_hp)*float(anima.get("hp_multiplier",1.0)))))
+ var old_max := maxi(1,int(hero.get("max_hp")))
+ if old_max != desired_hp:
+  var current_hp := int(hero.get("current_hp")) if hero.get_property_list().any(func(p): return String(p.name)=="current_hp") else old_max
+  hero.set("max_hp",desired_hp)
+  if hero.get_property_list().any(func(p): return String(p.name)=="current_hp"):
+   hero.set("current_hp",clampi(current_hp+(desired_hp-old_max),0,desired_hp))
