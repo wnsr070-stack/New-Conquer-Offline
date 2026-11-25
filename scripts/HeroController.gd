@@ -422,8 +422,10 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   # Final correction from the currently approved grip/string orientation:
   # rotate ONLY in the bow plane around its normal (source local Z).
   # This changes the limb tilt while preserving the plane normal, grip, and string-facing side.
+  weapon.rotate_object_local(Vector3.FORWARD, PI / 2.0)
+  print("PHASE4C_BOW_EXISTING_PLANE_NORMAL_CORRECTION_OK: axis=bow_plane_normal_local_z angle=+90deg")
   weapon.rotate_object_local(Vector3.FORWARD, deg_to_rad(38.0))
-  print("PHASE4C_BOW_PLANE_NORMAL_TILT_CORRECTION_OK: axis=bow_plane_normal_local_z angle=+38deg mesh_node_only=true hand_and_socket_unchanged=true grip_and_string_side_preserved=true")
+  print("PHASE4C_BOW_ADDITIONAL_TILT_CORRECTION_OK: axis=bow_plane_normal_local_z angle=+38deg mesh_node_only=true hand_and_socket_unchanged=true grip_and_string_side_preserved=true")
   print("PHASE4C_BOW_FINAL_PLANE_ORIENTATION_OK: palm_pose_preserved=true grip_translation_unchanged=true")
  var grip := bounds.get_center()
  if family == "bow":
