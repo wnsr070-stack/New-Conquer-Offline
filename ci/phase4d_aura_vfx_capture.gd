@@ -251,10 +251,13 @@ func _run_capture() -> void:
   autoload.clear_cache()
  current_scene = null
  var geometry_count := city.find_children("*","GeometryInstance3D",true,false).size() if is_instance_valid(city) else 0
- # Queue while the scene is still in the SceneTree so Godot processes EXIT_WORLD
- # and releases every renderer instance before the queued scene is destroyed.
- if is_instance_valid(city): city.queue_free()
- print("PHASE4D_SCENE_DETACHED_FOR_SAFE_RENDERER_TEARDOWN: geometry_instances=",geometry_count)
+ # Free synchronously while still inside the SceneTree: queue_free() leaves the
+ # whole imported city subtree alive until the deferred-delete flush, after our capture returns.
+ if is_instance_valid(city): city.free()
+ if is_instance_valid(city):
+  _fail("CITY_SCENE_ROOT_SURVIVED_SYNCHRONOUS_FREE")
+  return
+ print("PHASE4D_CITY_SUBTREE_FREED_SYNCHRONOUSLY: geometry_instances=",geometry_count)
  packed = null
  city = null
  hero = null
