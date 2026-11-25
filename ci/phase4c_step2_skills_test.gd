@@ -131,7 +131,7 @@ func _run() -> void:
  result = skills.use_skill(hero,"chain_lightning")
  if not result.get("ok",false) or int(result.get("targets_hit",0)) < 1 or int(result.get("targets_hit",0)) > 6: _fail("chain_lightning_failed: "+str(result)); return
  checks += 1
- hero.set_meta("active_class","archer")
+ hero.active_class = "archer"
  hero.set_meta("equipped_weapon","bow")
  if not gear.equip_weapon("bow_lv40_normal_p1","archer"): _fail("bow_re_equip_failed"); return
  skills.reset_for_test()
