@@ -115,10 +115,8 @@ func _play_attack_animation(hero: Node3D,class_id: String) -> void:
   push_warning("Approved attack clip missing: "+wanted)
 
 func _spawn_floating_damage(target: Node3D,amount: int,critical: bool) -> void:
- var old := target.get_node_or_null("FloatingDamage")
- if old != null: old.queue_free()
  var label := Label3D.new()
- label.name = "FloatingDamage"
+ label.name = "FloatingDamage" if target.get_node_or_null("FloatingDamage") == null else "FloatingDamage_" + str(target.get_child_count())
  label.text = str(amount) + ("!" if critical else "")
  label.font_size = 64 if critical else 52
  label.pixel_size = 0.004
