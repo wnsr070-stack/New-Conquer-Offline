@@ -98,6 +98,8 @@ func apply_skill_damage(hero: Node3D,target: Node3D,skill_multiplier: float,skil
 
 func _apply_damage(target: Node3D,damage: int,critical: bool,hero: Node3D,source: String) -> Dictionary:
  var hp_before := int(target.current_hp)
+ if target.has_method("play_hit") and hp_before > damage:
+  target.call("play_hit")
  target.current_hp = maxi(0,hp_before-damage)
  var actual_damage := hp_before-int(target.current_hp)
  _spawn_floating_damage(target,actual_damage,critical)
