@@ -148,7 +148,11 @@ func _make_sprite(effect_type: String, variant: int, tint: Color, scale_value: f
  sprite.animation = "play"
  sprite.speed_scale = fps/18.0
  sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
- sprite.material_override = _make_material(tint)
+ sprite.transparent = true
+ sprite.shaded = false
+ sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+ sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+ sprite.modulate = Color(minf(tint.r, 1.0), minf(tint.g, 1.0), minf(tint.b, 1.0), 0.9)
  sprite.modulate = Color(minf(tint.r,1.0),minf(tint.g,1.0),minf(tint.b,1.0),minf(tint.a,1.0))
  sprite.pixel_size = 0.004
  sprite.scale = Vector3.ONE*scale_value
