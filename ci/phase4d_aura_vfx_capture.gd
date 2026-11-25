@@ -24,8 +24,17 @@ func _ready() -> void:
  await RenderingServer.frame_post_draw
  RenderingServer.force_sync()
  print("PHASE4D_POST_CAPTURE_STACK_RELEASE_FRAMES_OK")
- # Release the only script-level member variable before exiting.
+ # Release every remaining root child, including all ten Autoloads, in reverse order.
  _capture_failed = false
+ var remaining_root_children := root.get_children()
+ for index in range(remaining_root_children.size() - 1, -1, -1):
+  var node := remaining_root_children[index]
+  if is_instance_valid(node):
+   root.remove_child(node)
+   node.free()
+ print("PHASE4D_ALL_ROOT_CHILDREN_FREED: remaining=",root.get_child_count())
+ await process_frame
+ print("PHASE4D_FINAL_ROOT_RELEASE_FRAME_OK")
  quit(0)
 func _run_capture() -> void:
  _configure_input_map()
