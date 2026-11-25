@@ -104,7 +104,9 @@ func _run() -> void:
   var socket_result: Dictionary = forging.open_socket("weapon")
   if not socket_result.get("ok",false): _fail("socket_"+str(i+1)+"_failed: "+str(socket_result)); return
  var gem_result: Dictionary = forging.socket_gem("DragonGem",0,"weapon")
- if not gem_result.get("ok",false): _fail("dragon_gem_socket_failed: "+str(gem_result)); return
+ if not gem_result.get("ok",false): _fail("dragon_gem_socket_1_failed: "+str(gem_result)); return
+ var gem_result_2: Dictionary = forging.socket_gem("DragonGem",1,"weapon")
+ if not gem_result_2.get("ok",false): _fail("dragon_gem_socket_2_failed: "+str(gem_result_2)); return
  var item: Dictionary = gear.get_equipped("weapon")
  if int(item.get("plus",0)) != 12 or String(item.get("quality","")) != "Super" or item.get("sockets",[]).size() != 2 or String(item.sockets[0]) != "DragonGem" or String(item.sockets[1]) != "DragonGem":
   _fail("final_weapon_state_invalid: "+str(item)); return
