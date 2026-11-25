@@ -184,7 +184,7 @@ jobs:
           PHASE4A_CAPTURE: "0"
         run: |
           set -euo pipefail
-          xvfb-run -a -s "-screen 0 1600x1000x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x1000 --script res://ci/phase4d_aura_vfx_capture.gd 2>&1 | tee artifacts/phase4c_step3_forging_capture.log
+          xvfb-run -a -s "-screen 0 1600x1000x24" timeout 900s "$GODOT_BIN" --verbose --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x1000 --script res://ci/phase4d_aura_vfx_capture.gd 2>&1 | tee artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FORGING_FINAL_STATE_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4D_SPRITE_AURA_VISUAL_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4D_WEAPON_ARMOR_PLUS12_ANIMA_P18_OK" artifacts/phase4c_step3_forging_capture.log
