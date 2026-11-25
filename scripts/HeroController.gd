@@ -349,6 +349,11 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   family_scale = 1.2 / source_length
   print("HERO_BOW_AABB_MEASURED: path=", path, " source_aabb=", bounds, " source_length=", source_length, " target_world_length=1.2m scale=", family_scale)
  weapon.scale = Vector3.ONE * family_scale
+ if family == "bow":
+  # The approved bow GLB imports laid over the forearm; rotate it upright in hand.
+  # Local Z is the bow's roll axis in the hand socket (90 degrees, string toward hero).
+  weapon.rotation = Vector3(0.0, 0.0, PI / 2.0)
+  print("PHASE4C_BOW_UPRIGHT_ORIENTATION_APPLIED: local_z=90deg string_facing_hero=true")
  var grip := bounds.get_center()
  if family in ["dual_knives", "dual_blades", "greatsword", "magic_staff"]:
   var size := bounds.size
