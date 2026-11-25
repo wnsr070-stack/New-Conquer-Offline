@@ -12,6 +12,7 @@ GearSystem="*res://autoloads/GearSystem.gd"
 GlobalEconomy="*res://autoloads/GlobalEconomy.gd"
 GameState="*res://autoloads/GameState.gd"
 CombatSystem="*res://scripts/CombatSystem.gd"
+SkillSystem="*res://autoloads/SkillSystem.gd"
 [display]
 window/size/viewport_width=1600
 window/size/viewport_height=900
