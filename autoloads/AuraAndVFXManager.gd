@@ -3,7 +3,7 @@ extends Node
 ## no procedural meshes or generated geometry are created here.
 const EFFECT_ROOT := "res://assets/phase3b/effects/"
 const FRAME_COLUMNS := 8
-const FRAME_ROWS := 8
+const FRAME_ROWS := 7
 const EFFECT_FILES := {
  "explosion": ["explosion_blueish_flame.png","explosion_blueish_smoke.png","explosion_fire.png","explosion_fire_smoke.png","explosion_magic.png"],
  "flame": ["flame_blueish_flame.png","flame_blueish_smoke.png","flame_fire.png","flame_fire_smoke.png","flame_magic.png"],
@@ -106,7 +106,7 @@ func _get_or_create_anchor(target: Node3D, anchor_name: String) -> Node3D:
 
 func _clear_anchor(target: Node3D, anchor_name: String) -> void:
  var old := target.get_node_or_null(anchor_name)
- if old != null: old.queue_free()
+ if old != null: old.free()
 
 func attach_equipment_aura(target_node: Node3D, plus_level: int) -> bool:
  if target_node == null or not is_instance_valid(target_node): return false
