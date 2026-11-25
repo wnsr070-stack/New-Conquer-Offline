@@ -1,0 +1,44 @@
+name: Phase 4C Step 2 Conquer Skills Validation
+on:
+  push:
+    branches: ['test/phase4c-combat-skills-forging']
+    paths:
+      - 'autoloads/SkillSystem.gd'
+      - 'scripts/CombatSystem.gd'
+      - 'autoloads/GameState.gd'
+      - 'project.godot'
+      - 'ci/phase4c_step2_skills_test.gd'
+      - '.github/workflows/phase4c-step2-skills.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-conquer-skills:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.3
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1-mesa-dri
+          mkdir -p .cache/godot artifacts
+          curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          unzip -o /tmp/godot.zip -d .cache/godot
+          chmod +x .cache/godot/Godot_v4.3-stable_linux.x86_64
+      - name: Import project and validate official skill logic
+        run: |
+          set -euo pipefail
+          GODOT=.cache/godot/Godot_v4.3-stable_linux.x86_64
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --editor --quit 2>&1 | tee artifacts/godot_import.log
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 "$GODOT" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --script res://ci/phase4c_step2_skills_test.gd 2>&1 | tee artifacts/phase4c_step2_skills_test.log
+          grep -q "PHASE4C_STEP2_CONQUER_SKILLS_OK" artifacts/phase4c_step2_skills_test.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP2_FAILED" artifacts/phase4c_step2_skills_test.log
+          echo PHASE4C_STEP2_EXIT_CODE_0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4c-step2-skills-test-${{ github.run_number }}
+          path: artifacts/
+          retention-days: 14
