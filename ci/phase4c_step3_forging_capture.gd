@@ -384,9 +384,9 @@ func _ensure_loot_albedo(model: Node3D, loot_name: String) -> bool:
   for surface in range(mesh_instance.mesh.get_surface_count()):
    var source_material := mesh_instance.get_active_material(surface)
    var material := source_material.duplicate() as StandardMaterial3D if source_material is StandardMaterial3D else StandardMaterial3D.new()
-   if material.texture_albedo == null:
-    material.texture_albedo = colormap
-   if material.texture_albedo == null:
+   if material.albedo_texture == null:
+    material.albedo_texture = colormap
+   if material.albedo_texture == null:
     push_error("PHASE4C_LOOT_TEXTURE_ALBEDO_INVALID: loot=" + loot_name + " mesh=" + mesh_instance.name + " surface=" + str(surface))
     return false
    mesh_instance.set_surface_override_material(surface, material)
