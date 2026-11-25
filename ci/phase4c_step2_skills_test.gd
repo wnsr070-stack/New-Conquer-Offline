@@ -1,7 +1,8 @@
 extends SceneTree
 class DummyMonster extends Node3D:
  var current_hp: int = 100
- var max_hp: int = 100
+ var max_hp: int = 500
+ var rest_secs: float = 0.2
  var definition: Dictionary = {"defense":0,"exp":1}
  var is_king: bool = false
  var dead: bool = false
@@ -69,10 +70,13 @@ func _run() -> void:
  result = skills.use_skill(hero,"cyclone")
  if not result.get("ok",false) or not skills.buffs.has("cyclone"): _fail("cyclone_failed: "+str(result)); return
  var before_cyclone := float(skills.buffs["cyclone"])
- skills.on_monster_killed()
+ mobs[0].revive()
+ mobs[0].current_hp = 1
+ combat.apply_skill_damage(hero,mobs[0],1.0,"cyclone_test_kill")
  if float(skills.buffs["cyclone"]) < before_cyclone+1.99: _fail("cyclone_kill_extension_failed"); return
  checks += 1
  hero.set_meta("active_class","warrior")
+ state.player_data["stamina"] = 100
  skills.reset_for_test()
  result = skills.use_skill(hero,"wide_strike")
  if not result.get("ok",false): _fail("wide_strike_failed: "+str(result)); return
@@ -86,10 +90,13 @@ func _run() -> void:
  result = skills.use_skill(hero,"superman")
  if not result.get("ok",false): _fail("superman_failed: "+str(result)); return
  var before_superman := float(skills.buffs["superman"])
- skills.on_monster_killed()
+ mobs[1].revive()
+ mobs[1].current_hp = 1
+ combat.apply_skill_damage(hero,mobs[1],1.0,"superman_test_kill")
  if float(skills.buffs["superman"]) < before_superman+1.99: _fail("superman_kill_extension_failed"); return
  checks += 1
  hero.set_meta("active_class","taoist")
+ state.player_data["mana"] = 100
  skills.reset_for_test()
  result = skills.use_skill(hero,"thunder",mobs[2])
  if not result.get("ok",false): _fail("thunder_failed: "+str(result)); return
@@ -105,6 +112,7 @@ func _run() -> void:
  checks += 1
  skills.reset_for_test()
  for i in range(mobs.size()):
+  mobs[i].max_hp = 500
   mobs[i].revive()
   mobs[i].position = Vector3(float(i)*1.2,0,-2.0)
  state.xp = 100.0; state.xp_ready_time_left = 20.0
