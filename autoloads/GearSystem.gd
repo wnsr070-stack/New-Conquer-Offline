@@ -93,3 +93,9 @@ func _apply_runtime_aura() -> void:
  var xp_active := state != null and float(state.xp_ready_time_left)>0.0
  vfx.attach_character_aura(hero,min_set_plus,xp_active)
  if state != null: vfx.attach_anima_aura(hero,int(state.anima_phase))
+
+func clear_cache() -> void:
+ equipped.clear()
+ database = null
+ initialized = false
+ print("PHASE4D_GEAR_SYSTEM_CACHE_CLEARED")
