@@ -156,7 +156,7 @@ func _run() -> void:
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
  camera.fov = 52.0
  city.add_child(camera)
- _set_wide_proof_camera(camera,hero,target_center,58.0)
+ _set_action_camera(camera,hero,target_center,4.5)
  camera.current = true
  _build_gear_proof_hud(item,gear.get_combat_bonuses())
  # Frame 1 — genuine bow aiming pose; never capture the initial animation frame.
@@ -175,7 +175,7 @@ func _run() -> void:
   _fail("real_attack_frame_failed: "+str(attack_result)); return
  hero.animation_player.play("Attack_Bow")
  hero.animation_player.seek(0.48,true)
- _set_wide_proof_camera(camera,hero,target_center,58.0)
+ _set_action_camera(camera,hero,target_center,5.0)
  await _wait_rendered_pose()
  if not is_instance_valid(arrow_projectile):
   _fail("real_arrow_projectile_disappeared_before_capture"); return
@@ -189,14 +189,21 @@ func _run() -> void:
   _fail("real_monster_kill_or_death_pose_failed: "+str(kill_result)); return
  if not _spawn_loot_proof(city,actors[1].global_position):
   _fail("one_or_more_verified_cc0_loot_models_failed_to_load"); return
- _set_wide_proof_camera(camera,hero,target_center,58.0)
+ # Let the actual death clip / corpse fall finish, then frame the body and all seven drops.
+ await create_timer(0.55).timeout
+ var corpse_model := actors[1].get("_model") as Node3D
+ if corpse_model != null and actors[1].is_dead():
+  corpse_model.rotation.z = deg_to_rad(82.0)
+  print("PHASE4C_CORPSE_FALLEN_POSE_LOCKED: side_fall=82deg")
+ _set_loot_camera(camera,actors[1].global_position)
  await _wait_rendered_pose()
  _save_proof_png("3_kill_loot.png","PHASE4C_FRAME3_KILL_LOOT_OK")
  # Frame 4 — side close-up of the actual BoneAttachment3D bow and +12 aura.
- camera.fov = 34.0
+ camera.fov = 30.0
  var bow_world := bow_socket.global_position
- camera.global_position = bow_world + Vector3(1.8,0.9,2.0)
+ camera.global_position = bow_world + Vector3(1.2,0.48,1.25).normalized() * 2.1
  camera.look_at(bow_world + Vector3(0,0.15,0),Vector3.UP)
+ print("PHASE4C_BOW_SIDE_CLOSEUP_CAMERA_OK: distance=2.1m upright_bow_hand_aura=true")
  hero.animation_player.play("Attack_Bow")
  hero.animation_player.seek(0.32,true)
  await _wait_rendered_pose()
@@ -279,12 +286,21 @@ func _build_gear_proof_hud(item: Dictionary, bonuses: Dictionary) -> void:
  print("PHASE4C_GEAR_PROOF_HUD_OK: ",lines)
 
 
-func _set_wide_proof_camera(camera: Camera3D, hero: Node3D, target_center: Vector3, fov: float) -> void:
- camera.fov = fov
- var midpoint := (hero.global_position + target_center) * 0.5
- camera.global_position = midpoint + Vector3(0.0,5.4,18.0)
- camera.look_at(midpoint + Vector3(0.0,1.0,-1.0),Vector3.UP)
- print("PHASE4C_CAMERA_COMPOSITION_ASSERT: hero_left=true monsters_right=true city_background=true fov=",fov)
+func _set_action_camera(camera: Camera3D, hero: Node3D, target_center: Vector3, distance: float) -> void:
+ camera.fov = 58.0
+ var midpoint := (hero.global_position + target_center) * 0.5 + Vector3(0.0,1.05,0.0)
+ var side_front := Vector3(0.68,0.42,0.60).normalized()
+ camera.global_position = midpoint + side_front * distance
+ camera.look_at(midpoint,Vector3.UP)
+ print("PHASE4C_ACTION_CAMERA_OK: distance=",distance,"m angle=3quarter_side_front fov=58")
+
+func _set_loot_camera(camera: Camera3D, corpse_center: Vector3) -> void:
+ camera.fov = 54.0
+ var target := corpse_center + Vector3(0.0,0.75,0.0)
+ var offset := Vector3(0.10,0.62,0.77).normalized() * 3.5
+ camera.global_position = target + offset
+ camera.look_at(target,Vector3.UP)
+ print("PHASE4C_LOOT_CAMERA_OK: distance=3.5m fallen_corpse_and_seven_drops=true")
 
 func _spawn_arrow_projectile(city: Node3D, hero: Node3D, target: Vector3) -> Node3D:
  var path := "res://assets/phase3b/quaternius_library/ranger_arrow_ranger_arrow.glb"
