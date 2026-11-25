@@ -188,8 +188,8 @@ func _apply_aura_to_meshes(node: Node,level: int) -> void:
    var mesh := child as MeshInstance3D
    for surface in range(mesh.mesh.get_surface_count()):
     var material := mesh.get_active_material(surface)
-    var aura_material := StandardMaterial3D.new()
-    if material is StandardMaterial3D: aura_material = (material as StandardMaterial3D).duplicate()
+    var aura_material: StandardMaterial3D = StandardMaterial3D.new()
+    if material is StandardMaterial3D: aura_material = (material as StandardMaterial3D).duplicate() as StandardMaterial3D
     aura_material.emission_enabled = true
     aura_material.emission = Color(0.18,0.55,1.0) if level < 3 else Color(0.55,0.18,1.0)
     aura_material.emission_energy_multiplier = 0.35+float(level)*0.55
@@ -238,7 +238,8 @@ func _display_name(item: Dictionary) -> String:
  return "%s Lv.%d %s +%d" % [String(item.get("family","weapon")).replace("_"," ").capitalize(),int(item.get("level",10)),String(item.get("quality","Normal")),int(item.get("plus",0))]
 
 func _commit(state: Node) -> void:
- state.player_data["equipped"] = get_node("/root/GearSystem").equipped.duplicate(true)
+ var gear := get_node_or_null("/root/GearSystem")
+ if gear != null: state.player_data["equipped"] = gear.get("equipped").duplicate(true)
  state.player_data["inventory"] = state.inventory.duplicate(true)
  state.save_game()
 
