@@ -24,6 +24,8 @@ func _ready() -> void:
  await RenderingServer.frame_post_draw
  RenderingServer.force_sync()
  print("PHASE4D_POST_CAPTURE_STACK_RELEASE_FRAMES_OK")
+ # Release the only script-level member variable before exiting.
+ _capture_failed = false
  quit(0)
 func _run_capture() -> void:
  _configure_input_map()
