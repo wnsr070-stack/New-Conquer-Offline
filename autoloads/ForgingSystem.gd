@@ -20,7 +20,8 @@ func compose_plus(slot: String = "weapon", material_id: String = "Plus1Stone") -
  if item.is_empty(): return _fail("no_equipped_item")
  var plus := int(item.get("plus",0))
  if plus >= 12: return _fail("plus_maximum_reached")
- if material_id not in ["Plus1Stone","plus1_equipment"]: return _fail("invalid_composition_material")
+ var valid_plus_piece := material_id.ends_with("_p1") or material_id == "plus1_equipment"
+ if material_id != "Plus1Stone" and not valid_plus_piece: return _fail("invalid_composition_material")
  if not _consume_inventory(state,material_id,1): return _fail("composition_material_missing")
  var next_plus := plus+1
  var points := int(PLUS_COMPOSITION[next_plus])
