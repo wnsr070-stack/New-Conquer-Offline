@@ -54,6 +54,10 @@ func _run() -> void:
  if state.xp < 8.9:
   _fail("xp_increment_failed: "+str(state.xp))
   return
+ state.add_xp(91.0)
+ if state.xp != 100.0 or absf(state.xp_ready_time_left-20.0) > 0.01:
+  _fail("xp_ready_state_failed xp="+str(state.xp)+" duration="+str(state.xp_ready_time_left))
+  return
  if chicken.get_node_or_null("AutoRespawn") == null or (chicken.get_node("AutoRespawn") as Timer).is_stopped():
   _fail("auto_respawn_timer_not_started")
   return
@@ -62,7 +66,7 @@ func _run() -> void:
   _fail("auto_respawn_failed")
   return
  await create_timer(0.5).timeout
- print("PHASE4C_STEP1_COMBAT_LOOP_OK: chicken_hp=33->3->0 damage_label=true exp=15 gold=",state.gold," xp=",state.xp," respawn=true")
+ print("PHASE4C_STEP1_COMBAT_LOOP_OK: chicken_hp=33->3->0 damage_label=true exp=15 gold=",state.gold," xp=",state.xp," respawn=true xp_ready_20s=true")
  quit(0)
 
 func _fail(reason: String) -> void:
