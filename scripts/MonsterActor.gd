@@ -155,7 +155,7 @@ func _build_nameplate() -> void:
 	_nameplate.text = "[Lv.%d] %s" % [level, display_name]
 	_nameplate.font = ThemeDB.fallback_font
 	_nameplate.font_size = 48
-	_nameplate.pixel_size = 0.004
+	_nameplate.pixel_size = 0.008
 	_nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_nameplate.no_depth_test = true
 	_nameplate.outline_size = 8
@@ -166,8 +166,11 @@ func _build_nameplate() -> void:
 		_nameplate.modulate = Color(1.0, 0.9, 0.12, 1.0)
 	else:
 		_nameplate.modulate = Color.WHITE
-	_nameplate.position.y = maxf(0.12, _model_height * 0.82)
-	_nameplate.position.y += 0.08
+	_nameplate.position.y = maxf(0.35, _model_height * 1.12)
+	_nameplate.position.y += 0.18
+	assert(_nameplate.billboard == BaseMaterial3D.BILLBOARD_ENABLED)
+	assert(_nameplate.pixel_size >= 0.008)
+	print("MONSTER_NAMEPLATE_VISIBILITY_ASSERT_OK: id=", display_name, " y=", _nameplate.position.y, " pixel_size=", _nameplate.pixel_size, " billboard=true")
 	add_child(_nameplate)
 
 func _process(delta: float) -> void:
