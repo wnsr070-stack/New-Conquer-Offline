@@ -17,7 +17,7 @@ permissions:
   contents: read
 concurrency:
   group: phase4c-step3-forging-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 env:
   GODOT_VERSION: "4.3"
   GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
@@ -140,6 +140,7 @@ jobs:
           grep -q "PHASE4C_FORGING_AURA_VISUAL_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FORGING_SCATTER_IN_CAMP_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_STEP3_IN_GAME_PNG_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_STEP3_DETAIL_PNG_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_STEP3_FORGING_OK" artifacts/phase4c_step3_forging_capture.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP3_FAILED|HERO_.*MISSING" artifacts/phase4c_step3_forging_capture.log
       - name: Validate the real in-game forging PNG
@@ -147,12 +148,13 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import pathlib,struct
-          p=pathlib.Path("artifacts/phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png")
-          data=p.read_bytes()
-          if data[:8]!=bytes.fromhex("89504e470d0a1a0a"): raise SystemExit("Invalid in-game forging PNG")
-          w,h=struct.unpack(">II",data[16:24])
-          if (w,h)!=(1600,1000) or len(data)<20000: raise SystemExit(f"Bad forging PNG: {(w,h)} bytes={len(data)}")
-          print("PHASE4C_STEP3_PNG_VALIDATED:",p.name,"dimensions=",w,"x",h,"bytes=",len(data))
+          for name in ["phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png","phase4c_step3_bow_aura_detail.png"]:
+            p=pathlib.Path("artifacts")/name
+            data=p.read_bytes()
+            if data[:8]!=bytes.fromhex("89504e470d0a1a0a"): raise SystemExit("Invalid in-game forging PNG: "+name)
+            w,h=struct.unpack(">II",data[16:24])
+            if (w,h)!=(1600,1000) or len(data)<20000: raise SystemExit(f"Bad forging PNG {name}: {(w,h)} bytes={len(data)}")
+            print("PHASE4C_STEP3_PNG_VALIDATED:",p.name,"dimensions=",w,"x",h,"bytes=",len(data))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -160,6 +162,7 @@ jobs:
           name: phase4c-step3-forging-proof-${{ github.run_number }}
           path: |
             artifacts/phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png
+            artifacts/phase4c_step3_bow_aura_detail.png
             artifacts/phase4c_step3_forging_capture.log
             artifacts/godot_import.log
             artifacts/hero_animation_builder.log
