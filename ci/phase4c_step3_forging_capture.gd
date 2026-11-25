@@ -60,10 +60,11 @@ func _run() -> void:
  for child in camp.get_children():
   if child is MonsterActor and not child.is_dead(): actors.append(child as MonsterActor)
  if actors.size() < 8: _fail("chicken_camp_population_less_than_8: "+str(actors.size())); return
- var slots := [Vector3(2.0,0,5.5),Vector3(4.0,0,6.0),Vector3(6.0,0,5.4),Vector3(8.0,0,6.2),Vector3(3.0,0,8.0),Vector3(5.0,0,8.4),Vector3(7.0,0,8.0),Vector3(9.0,0,8.5)]
+ var slots := [Vector3(2.0,0,-5.5),Vector3(4.0,0,-6.0),Vector3(6.0,0,-5.4),Vector3(8.0,0,-6.2),Vector3(3.0,0,-8.0),Vector3(5.0,0,-8.4),Vector3(7.0,0,-8.0),Vector3(9.0,0,-8.5)]
  for i in range(8):
   actors[i].global_position = hero.global_position + slots[i]
   actors[i].rotation.y = PI
+  actors[i].scale = Vector3.ONE * 0.48
   actors[i].max_hp = 5000
   actors[i].current_hp = 5000
   actors[i].set("_target",actors[i].global_position)
@@ -127,10 +128,10 @@ func _run() -> void:
  var world_env := city.find_child("WorldEnvironment",true,false) as WorldEnvironment
  if world_env != null and world_env.environment != null:
   world_env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-  world_env.environment.tonemap_exposure = 0.82
-  world_env.environment.ambient_light_energy = 0.72
+  world_env.environment.tonemap_exposure = 0.58
+  world_env.environment.ambient_light_energy = 0.52
   world_env.environment.adjustment_enabled = true
-  world_env.environment.adjustment_saturation = 0.82
+  world_env.environment.adjustment_saturation = 0.68
  var old_camera := hero.get("camera") as Camera3D
  if old_camera != null: old_camera.current = false
  var camera := Camera3D.new()
@@ -138,8 +139,8 @@ func _run() -> void:
  camera.fov = 36.0
  city.add_child(camera)
  # Front/bow-side 3/4 framing: hero left, a spaced monster arc right, horizon retained.
- camera.global_position = hero.global_position + Vector3(6.0,3.4,10.5)
- camera.look_at(hero.global_position + Vector3(2.2,1.0,4.2),Vector3.UP)
+ camera.global_position = hero.global_position + Vector3(6.0,3.4,-10.5)
+ camera.look_at(hero.global_position + Vector3(2.2,1.0,-4.2),Vector3.UP)
  camera.current = true
  await process_frame
  await RenderingServer.frame_post_draw
@@ -155,8 +156,8 @@ func _run() -> void:
  if bytes < 20000: _fail("forging_png_too_small: "+str(bytes)); return
  # Second genuine in-game angle, tighter on the approved bow grip and forging aura.
  camera.fov = 29.0
- camera.global_position = hero.global_position + Vector3(3.4,2.4,6.2)
- camera.look_at(hero.global_position + Vector3(0.0,1.0,1.4),Vector3.UP)
+ camera.global_position = hero.global_position + Vector3(3.4,2.4,-6.2)
+ camera.look_at(hero.global_position + Vector3(0.0,1.0,-1.4),Vector3.UP)
  await process_frame
  await RenderingServer.frame_post_draw
  await RenderingServer.frame_post_draw
