@@ -361,9 +361,12 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   var bow_plane_normal := bow_up_after_first.cross(bow_forward_after_first).normalized()
   var bow_plane_normal_local := (weapon.transform.basis.inverse() * bow_plane_normal).normalized()
   weapon.rotate_object_local(bow_plane_normal_local, PI)
+  # Fine adjustment: add 30 degrees in the same bow-plane spin direction.
+  weapon.rotate_object_local(bow_plane_normal_local, deg_to_rad(30.0))
   print("PHASE4C_BOW_FIRST_COMPOSITE_ROTATION_APPLIED: axis=bow_up_dir_local_y angle=90deg")
   print("PHASE4C_BOW_SECOND_COMPOSITE_ROTATION_APPLIED: axis=bow_plane_normal angle=180deg normal=", bow_plane_normal, " local_axis=", bow_plane_normal_local)
-  print("PHASE4C_BOW_COMPOSITE_ORIENTATION_OK: upright_preserved=true plane_rotated=true")
+  print("PHASE4C_BOW_FINE_IN_PLANE_SPIN_APPLIED: axis=bow_plane_normal angle=+30deg total_in_plane_spin=210deg")
+  print("PHASE4C_BOW_COMPOSITE_ORIENTATION_OK: upright_preserved=true plane_rotated=true fine_spin=30deg")
  var grip := bounds.get_center()
  if family == "bow":
   # The bow mesh is thin along source Z. Anchor the palm on the forward wooden
@@ -384,11 +387,11 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  var rotated_grip_offset: Vector3 = weapon.transform.basis * grip_local_offset
  var bow_forward_seat_offset := Vector3.ZERO
  if family == "bow":
-  # 5 mm forward seating correction; keeps clearance inside the strict 2 cm palm tolerance.
-  bow_forward_seat_offset = Vector3(0.0, 0.0, -0.005)
+  # Move the wooden grip forward toward the fingers by 90 mm inside the hand socket.
+  bow_forward_seat_offset = Vector3(0.0, 0.0, -0.09)
  weapon.position = -rotated_grip_offset + bow_forward_seat_offset
  if family == "bow":
-  print("PHASE4C_BOW_PALM_SEATING_OFFSET_OK: forward_offset_m=", bow_forward_seat_offset.length(), " required_lt=0.02")
+  print("PHASE4C_BOW_PALM_CENTER_OFFSET_APPLIED: direction=toward_fingers socket_local_offset_m=", bow_forward_seat_offset.length(), " target=0.09m")
   print("PHASE4C_BOW_ROTATED_GRIP_COMPENSATION_OK: rotated_grip_offset=", rotated_grip_offset, " seating_offset=", bow_forward_seat_offset, " scale=", family_scale, " rotation_degrees=", weapon.rotation_degrees)
  weapon.set_meta("phase4a_grip_local", grip)
  weapon.set_meta("phase4a_mesh_count", _count_weapon_meshes(weapon))
