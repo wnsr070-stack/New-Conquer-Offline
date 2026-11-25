@@ -31,8 +31,12 @@ func compose_plus(slot: String = "weapon", material_id: String = "Plus1Stone") -
   return _fail("insufficient_gold")
  item["composition_points"] = int(item.get("composition_points",0))+points
  item["plus"] = next_plus
- item["attack_bonus"] = int(item.get("base_attack",80))+next_plus*12
- item["defense_bonus"] = int(item.get("base_defense",0))+next_plus*6
+ if slot == "armor":
+  item["attack_bonus"] = 0
+  item["defense_bonus"] = int(item.get("base_defense",0))+next_plus*12
+ else:
+  item["attack_bonus"] = int(item.get("base_attack",80))+next_plus*12
+  item["defense_bonus"] = int(item.get("base_defense",0))+next_plus*6
  item["display_name"] = _display_name(item)
  gear.update_equipped_item(slot,item)
  _commit(state)
