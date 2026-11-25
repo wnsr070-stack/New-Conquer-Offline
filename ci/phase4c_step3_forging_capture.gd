@@ -40,7 +40,7 @@ func _run() -> void:
  if bow_socket == null or bow_socket.get_child_count() == 0:
   _fail("approved_archer_bow_socket_or_mesh_missing"); return
  var bow_metrics: Dictionary = hero.call("_weapon_visual_metrics",bow_socket) if hero.has_method("_weapon_visual_metrics") else {}
- if int(bow_metrics.get("mesh_count",0)) < 1 or float(bow_metrics.get("grip_distance",999.0)) > 0.08:
+ if int(bow_metrics.get("mesh_count",0)) < 1 or float(bow_metrics.get("grip_distance",999.0)) >= 0.02:
   _fail("approved_bow_visual_alignment_failed: "+str(bow_metrics)); return
  var bow_node := bow_socket.get_child(0) as Node3D
  if bow_node == null or bow_node.scale.length() < 0.1:
@@ -48,7 +48,7 @@ func _run() -> void:
   return
  bow_socket.visible = true
  bow_node.visible = true
- print("PHASE4C_PROOF_BOW_VISIBLE_OK: mesh_count=",bow_metrics.get("mesh_count")," grip_distance=",bow_metrics.get("grip_distance")," bone=",bow_metrics.get("actual_bone_name")," scale=",bow_node.scale," rotation_degrees=",bow_node.rotation_degrees," global_bounds=",bow_node.get_global_transform())
+ print("PHASE4C_PROOF_BOW_VISIBLE_OK: mesh_count=",bow_metrics.get("mesh_count")," grip_distance_m=",bow_metrics.get("grip_distance")," required_lt=0.02 bone=",bow_metrics.get("actual_bone_name")," scale=",bow_node.scale," rotation_degrees=",bow_node.rotation_degrees," global_bounds=",bow_node.get_global_transform())
  hero.velocity = Vector3.ZERO
  hero.set("has_move_target",false)
  spawner.set_hero(hero)
@@ -338,6 +338,8 @@ func _spawn_loot_proof(city: Node3D, center: Vector3) -> bool:
   if packed == null: return false
   var model := packed.instantiate() as Node3D
   if model == null: return false
+  if not _ensure_loot_albedo(model, String(entry.name)):
+   return false
   model.name = "Loot3D_" + String(entry.name).replace(" ","_")
   city.add_child(model)
   model.global_position = center + offsets[i]
@@ -361,6 +363,38 @@ func _spawn_loot_proof(city: Node3D, center: Vector3) -> bool:
   label.position = Vector3(0,0.85,0)
   model.add_child(label)
  print("PHASE4C_REAL_3D_LOOT_MODELS_OK: seven_models=true labels=true emissive_glow=true")
+ return true
+
+func _ensure_loot_albedo(model: Node3D, loot_name: String) -> bool:
+ var texture_path := "res://assets/items_and_consumables/models/Textures/colormap.png"
+ if not ResourceLoader.exists(texture_path):
+  push_error("PHASE4C_LOOT_COLORMAP_MISSING: " + texture_path + " loot=" + loot_name)
+  return false
+ var colormap := load(texture_path) as Texture2D
+ if colormap == null or colormap.get_width() <= 0 or colormap.get_height() <= 0:
+  push_error("PHASE4C_LOOT_COLORMAP_INVALID: " + texture_path + " loot=" + loot_name)
+  return false
+ var mesh_count := 0
+ var surface_count := 0
+ for node in model.find_children("*", "MeshInstance3D", true, false):
+  var mesh_instance := node as MeshInstance3D
+  if mesh_instance.mesh == null:
+   continue
+  mesh_count += 1
+  for surface in range(mesh_instance.mesh.get_surface_count()):
+   var source_material := mesh_instance.get_active_material(surface)
+   var material := source_material.duplicate() as StandardMaterial3D if source_material is StandardMaterial3D else StandardMaterial3D.new()
+   if material.texture_albedo == null:
+    material.texture_albedo = colormap
+   if material.texture_albedo == null:
+    push_error("PHASE4C_LOOT_TEXTURE_ALBEDO_INVALID: loot=" + loot_name + " mesh=" + mesh_instance.name + " surface=" + str(surface))
+    return false
+   mesh_instance.set_surface_override_material(surface, material)
+   surface_count += 1
+ if mesh_count == 0 or surface_count == 0:
+  push_error("PHASE4C_LOOT_RENDERABLE_SURFACES_MISSING: loot=" + loot_name)
+  return false
+ print("PHASE4C_LOOT_TEXTURE_ALBEDO_OK: loot=", loot_name, " meshes=", mesh_count, " surfaces=", surface_count, " colormap=", texture_path)
  return true
 
 func _fail(reason: String) -> void:
