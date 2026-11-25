@@ -35,16 +35,29 @@ func _run() -> void:
  hero.set("has_move_target",false)
  spawner.set_hero(hero)
  for i in range(3): await process_frame
+ for other_point in spawner.spawn_points:
+  if other_point == camp: continue
+  for other_actor in other_point.get_children():
+   if other_actor is MonsterActor:
+    other_actor.visible = false
+    other_actor.set_process(false)
+    other_actor.set_physics_process(false)
  var actors: Array[MonsterActor] = []
  for child in camp.get_children():
   if child is MonsterActor and not child.is_dead(): actors.append(child as MonsterActor)
  if actors.size() < 8: _fail("chicken_camp_population_less_than_8: "+str(actors.size())); return
- var slots := [Vector3(-3.5,0,-4.0),Vector3(-2.5,0,-5.0),Vector3(-1.5,0,-4.5),Vector3(-0.5,0,-5.5),Vector3(0.5,0,-4.5),Vector3(1.5,0,-5.5),Vector3(2.5,0,-4.5),Vector3(3.5,0,-5.0)]
+ var slots := [Vector3(-2.4,0,-4.2),Vector3(-1.7,0,-5.1),Vector3(-0.9,0,-4.6),Vector3(-0.2,0,-5.5),Vector3(0.5,0,-4.5),Vector3(1.2,0,-5.4),Vector3(1.9,0,-4.6),Vector3(2.5,0,-5.2)]
  for i in range(8):
   actors[i].global_position = hero.global_position + slots[i]
   actors[i].max_hp = 5000
   actors[i].current_hp = 5000
   actors[i].set("_target",actors[i].global_position)
+  actors[i].set_process(false)
+  actors[i].set_physics_process(false)
+  var plate := actors[i].get_nameplate()
+  if plate != null: plate.visible = i < 2
+ for i in range(8,actors.size()):
+  actors[i].visible = false
   actors[i].set_process(false)
   actors[i].set_physics_process(false)
  var state := root.get_node("GameState")
@@ -96,10 +109,10 @@ func _run() -> void:
  if old_camera != null: old_camera.current = false
  var camera := Camera3D.new()
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
- camera.fov = 42.0
+ camera.fov = 45.0
  city.add_child(camera)
- camera.global_position = hero.global_position + Vector3(6.0,4.0,7.0)
- camera.look_at(hero.global_position + Vector3(0.0,1.1,-1.2),Vector3.UP)
+ camera.global_position = hero.global_position + Vector3(-5.0,3.5,6.0)
+ camera.look_at(hero.global_position + Vector3(0.0,1.15,-1.8),Vector3.UP)
  camera.current = true
  await process_frame
  await RenderingServer.frame_post_draw
