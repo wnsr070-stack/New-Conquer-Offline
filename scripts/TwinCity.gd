@@ -304,7 +304,8 @@ func _build_plaza_and_palace() -> bool:
     var cobble := _cobble()
     if cobble == null:
         return false
-    _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.105, 0), cobble)
+    var central_square := _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.105, 0), cobble)
+    assert(central_square.material_override == cobble and cobble.albedo_texture != null, "Twin City central ground must use cobblestone_diffuse")
     print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only")
     var platform := MeshInstance3D.new()
     platform.name = "RoyalPalaceCobblestonePlatform_34x26x3_5"
@@ -313,7 +314,9 @@ func _build_plaza_and_palace() -> bool:
     platform.mesh = platform_mesh
     platform.position = Vector3(0, 1.75, -75)
     platform.material_override = cobble
+    assert(platform.material_override == cobble and cobble.albedo_texture != null, "Twin City raised rectangular strip must use cobblestone_diffuse")
     add_child(platform)
+    print("TWIN_CITY_BEIGE_STRIP_MATERIAL_FIXED: node=RoyalPalaceCobblestonePlatform material=cobblestone_diffuse")
     var catalog := Assets._read_catalog()
     if not catalog.has(PALACE_ID):
         push_error("CHECKPOINT1_PALACE_SOURCE_MISSING: " + PALACE_ID)
