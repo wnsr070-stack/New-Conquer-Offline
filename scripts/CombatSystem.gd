@@ -168,3 +168,11 @@ func _is_alive_monster(node: Node) -> bool:
 func _gear_bonuses() -> Dictionary:
  var gear := get_node_or_null("/root/GearSystem")
  return gear.get_combat_bonuses() if gear != null else {"attack":0,"defense":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}
+
+func apply_incoming_damage(hero: Node3D,raw_damage: int) -> int:
+ if hero == null or raw_damage <= 0: return 0
+ var bonuses: Dictionary = _gear_bonuses()
+ var reduced := maxi(0,raw_damage-int(bonuses.get("defense",0)))
+ reduced = int(round(float(reduced)*(1.0-float(bonuses.get("damage_reduction",0.0)))))
+ print("COMBAT_INCOMING_DAMAGE_REDUCED: raw=",raw_damage," final=",reduced," defense=",bonuses.get("defense",0)," gem_reduction=",bonuses.get("damage_reduction",0.0))
+ return reduced
