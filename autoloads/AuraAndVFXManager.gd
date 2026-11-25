@@ -16,7 +16,7 @@ const ANIMA_COLORS := {
  "gold": [Color(1.0,0.78,0.18)],
  "fire": [Color(1.0,0.32,0.08)],
  "purple": [Color(0.72,0.28,1.0)],
- "dual": [Color(1.0,0.72,0.16),Color(0.68,0.22,1.0)]
+ "dual": [Color(1.0,0.84,0.22),Color(0.12,0.82,1.0)]
 }
 var _frames_cache: Dictionary = {}
 var _atlas_cache: Dictionary = {}
@@ -239,12 +239,9 @@ func attach_equipment_aura(target_node: Node3D, plus_level: int, weapon_aura: bo
     var glow_material := source_material.duplicate() as StandardMaterial3D if source_material is StandardMaterial3D else StandardMaterial3D.new()
     glow_material.emission_enabled = true
     glow_material.emission = tint
-    glow_material.emission_energy_multiplier = 1.35 + float(tier)*0.15
+    # Keep the weapon's engraved purple surface detail readable beneath its aura.
+    glow_material.emission_energy_multiplier = 0.45
     mesh_instance.set_surface_override_material(surface,glow_material)
-    var pulse := mesh_instance.create_tween()
-    pulse.set_loops()
-    pulse.tween_property(glow_material,"emission_energy_multiplier",1.15+float(tier)*0.12,0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-    pulse.tween_property(glow_material,"emission_energy_multiplier",1.65+float(tier)*0.20,0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
   if not has_bounds: return false
   var axis := 0
   if bounds.size.y > bounds.size.x: axis = 1
@@ -306,7 +303,8 @@ func attach_anima_aura(player_node: Node3D, anima_phase: int) -> bool:
  var colors: Array = style.colors
  for i in range(count):
   var tint: Color = colors[i%colors.size()]
-  var orb := _make_sprite("flame",0,tint,0.24+float(phase)*0.009,float(style.speed)*18.0)
+  # P18 spirits are deliberately larger and brighter around the torso and shoulders.
+  var orb := _make_sprite("flame",0,tint,(0.24+float(phase)*0.009)*2.2,float(style.speed)*18.0)
   if orb == null: continue
   orb.name = "AnimaOrb_%02d" % i
   controller.add_child(orb)
