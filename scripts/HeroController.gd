@@ -385,14 +385,10 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  # This maps the unscaled source AABB grip point into the socket's local space.
  var grip_local_offset: Vector3 = grip
  var rotated_grip_offset: Vector3 = weapon.transform.basis * grip_local_offset
- var bow_forward_seat_offset := Vector3.ZERO
+ weapon.position = -(weapon.transform.basis * grip_local_offset)
  if family == "bow":
-  # Move the wooden grip forward toward the fingers by 90 mm inside the hand socket.
-  bow_forward_seat_offset = Vector3(0.0, 0.0, -0.09)
- weapon.position = -rotated_grip_offset + bow_forward_seat_offset
- if family == "bow":
-  print("PHASE4C_BOW_PALM_CENTER_OFFSET_APPLIED: direction=toward_fingers socket_local_offset_m=", bow_forward_seat_offset.length(), " target=0.09m")
-  print("PHASE4C_BOW_ROTATED_GRIP_COMPENSATION_OK: rotated_grip_offset=", rotated_grip_offset, " seating_offset=", bow_forward_seat_offset, " scale=", family_scale, " rotation_degrees=", weapon.rotation_degrees)
+  print("PHASE4C_BOW_PALM_CENTER_TRANSFORM_APPLIED: weapon_position=-(weapon_basis*grip_local_point) extra_seating_offset=0.0m")
+  print("PHASE4C_BOW_ROTATED_GRIP_COMPENSATION_OK: rotated_grip_offset=", rotated_grip_offset, " seating_offset=Vector3.ZERO", " scale=", family_scale, " rotation_degrees=", weapon.rotation_degrees)
  weapon.set_meta("phase4a_grip_local", grip)
  weapon.set_meta("phase4a_mesh_count", _count_weapon_meshes(weapon))
  weapon_nodes.append(socket)
