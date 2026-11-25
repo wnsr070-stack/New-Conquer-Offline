@@ -7,7 +7,7 @@ const MALE_MODEL := "res://assets/phase3b/characters/Male_Ranger.glb"
 const CLIPS := ["Idle", "Run", "Jump", "Attack_Bow", "Attack_Assassin", "Attack_Trojan", "Attack_SwordShield", "Attack_Staff", "Hit", "Death"]
 const POSES := {
  "Idle": [
-  {"t":0.0,"p":{"upperarm_l":Vector3(0,0,-58),"upperarm_r":Vector3(0,0,58),"hand_l":Vector3.ZERO,"lowerarm_l":Vector3(-22,0,-10),"lowerarm_r":Vector3(-22,0,10),"thigh_l":Vector3(-7,0,0),"thigh_r":Vector3(-7,0,0),"calf_l":Vector3(12,0,0),"calf_r":Vector3(12,0,0),"spine_01":Vector3(-2,0,0)}},
+  {"t":0.0,"p":{"upperarm_l":Vector3(0,0,-58),"upperarm_r":Vector3(0,0,58),"lowerarm_l":Vector3(-22,0,-10),"lowerarm_r":Vector3(-22,0,10),"thigh_l":Vector3(-7,0,0),"thigh_r":Vector3(-7,0,0),"calf_l":Vector3(12,0,0),"calf_r":Vector3(12,0,0),"spine_01":Vector3(-2,0,0)}},
   {"t":0.6,"p":{"upperarm_l":Vector3(0,0,-55),"upperarm_r":Vector3(0,0,55),"lowerarm_l":Vector3(-24,0,-10),"lowerarm_r":Vector3(-24,0,10),"thigh_l":Vector3(-9,0,0),"thigh_r":Vector3(-9,0,0),"calf_l":Vector3(14,0,0),"calf_r":Vector3(14,0,0),"spine_01":Vector3(-1,0,0)}}
  ],
  "Run": [
@@ -21,9 +21,9 @@ const POSES := {
   {"t":0.8,"p":{"upperarm_l":Vector3(-68,0,-45),"upperarm_r":Vector3(-68,0,45),"lowerarm_l":Vector3(-8,0,0),"lowerarm_r":Vector3(-8,0,0),"thigh_l":Vector3(-48,0,0),"thigh_r":Vector3(-48,0,0),"calf_l":Vector3(92,0,0),"calf_r":Vector3(92,0,0),"spine_01":Vector3(-8,0,0)}}
  ],
  "Attack_Bow": [
-  {"t":0.0,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"hand_l":Vector3.ZERO,"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}},
+  {"t":0.0,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}},
   {"t":0.32,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-10,0,0),"thigh_r":Vector3(-10,0,0),"calf_l":Vector3(18,0,0),"calf_r":Vector3(18,0,0),"upperarm_l":Vector3(88,0,10),"lowerarm_l":Vector3(-4,0,0),"upperarm_r":Vector3(88,0,-10),"lowerarm_r":Vector3.ZERO}},
-  {"t":0.58,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"hand_l":Vector3.ZERO,"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}}
+  {"t":0.58,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}}
  ],
  "Attack_Assassin": [
   {"t":0.0,"p":{"spine_01":Vector3(-4,0,0),"spine_02":Vector3(-4,0,0),"spine_03":Vector3(-4,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(18,0,0),"calf_r":Vector3(18,0,0),"upperarm_l":Vector3(72,0,28),"upperarm_r":Vector3(72,0,-28),"lowerarm_l":Vector3(-28,0,0),"lowerarm_r":Vector3(-28,0,0)}},
