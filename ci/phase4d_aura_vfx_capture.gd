@@ -1,15 +1,28 @@
 extends SceneTree
 # Zero Procedural Geometry: approved GLB weapon assets only; no generated projectile meshes.
-const SpawnerScript = preload("res://scripts/MonsterSpawner.gd")
-const MonsterActorScript = preload("res://scripts/MonsterActor.gd")
 var _capture_failed := false
 func _initialize() -> void:
  call_deferred("_ready")
 func _ready() -> void:
  await _run_capture()
  if _capture_failed: return
+ # _run_capture has returned, so all of its local scene/resource references are out of scope.
+ var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager"]
+ var preserved_autoloads: Array[Node] = []
+ for child in root.get_children():
+  if child.name in autoload_names:
+   preserved_autoloads.append(child)
+ for child in root.get_children().duplicate():
+  if child in preserved_autoloads:
+   continue
+  if is_instance_valid(child):
+   child.free()
+ current_scene = null
+ print("PHASE4D_NON_AUTOLOAD_ROOT_CHILDREN_FREED: preserved_autoloads=",preserved_autoloads.size())
  await process_frame
  await process_frame
+ await RenderingServer.frame_post_draw
+ RenderingServer.force_sync()
  print("PHASE4D_POST_CAPTURE_STACK_RELEASE_FRAMES_OK")
  quit(0)
 func _run_capture() -> void:
@@ -287,34 +300,6 @@ func _run_capture() -> void:
  RenderingServer.force_sync()
  print("PHASE4D_QUEUED_SCENE_RELEASE_FRAME_COMPLETE")
 
- var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager"]
- for child in root.get_children():
-  if child.name in autoload_names: continue
-  if is_instance_valid(child): child.free()
- packed = null
- city = null
- hero = null
- spawner = null
- camp = null
- bow_socket = null
- bow_node = null
- actors.clear()
- state = null
- gear = null
- forging = null
- combat = null
- skills = null
- vfx = null
- equipment_sprite_aura = null
- armor_sprite_aura = null
- anima_orbit = null
- target_center = Vector3.ZERO
- camera = null
- old_camera = null
- world_env = null
- arrow_projectile = null
- corpse_model = null
- item.clear()
  print("PHASE4D_CAPTURE_LOCAL_REFERENCES_RELEASED")
  print("PHASE4D_CAPTURE_FUNCTION_RETURNING")
 
