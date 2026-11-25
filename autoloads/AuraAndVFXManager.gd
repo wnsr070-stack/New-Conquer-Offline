@@ -52,6 +52,17 @@ func cleanup_all() -> void:
  _material_cache.clear()
  print("PHASE4D_AURA_VFX_CLEANUP_OK: roots=",freed_roots," frames=0 atlases=0 textures=0 materials=0 orbits=0")
 
+func clear_cache() -> void:
+ # Release all manager-owned nodes and strong Resource references before renderer shutdown.
+ cleanup_all()
+ _active_orbits.clear()
+ _active_effect_roots.clear()
+ _frames_cache.clear()
+ _atlas_cache.clear()
+ _texture_cache.clear()
+ _material_cache.clear()
+ print("PHASE4D_AURA_CACHE_CLEARED")
+
 func _exit_tree() -> void:
  cleanup_all()
 
