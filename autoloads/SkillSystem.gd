@@ -85,7 +85,7 @@ func use_skill(hero: Node3D, skill_id: String, target: Node3D = null) -> Diction
   if skill_id in ["fly","cyclone","superman"]:
    _start_buff(skill_id,float(data.get("duration",20.0)),hero)
   elif skill_id == "arrow_rain":
-   _start_buff("arrow_rain",float(data.get("duration",20.0)),hero)
+   hit_count = _start_buff("arrow_rain",float(data.get("duration",20.0)),hero)
   elif skill_id == "chain_lightning":
    hit_count = _chain_lightning(hero,combat,data)
  else:
@@ -200,7 +200,7 @@ func _set_hero_hp(hero: Node3D,value: int) -> void:
    return
  hero.set_meta("current_hp",value)
 
-func _start_buff(buff_id: String,duration: float,hero: Node3D) -> void:
+func _start_buff(buff_id: String,duration: float,hero: Node3D) -> int:
  buffs[buff_id] = duration
  _buff_durations[buff_id] = duration
  if buff_id == "fly":
@@ -215,9 +215,14 @@ func _start_buff(buff_id: String,duration: float,hero: Node3D) -> void:
   hero.set_meta("physical_damage_multiplier",2.0)
  elif buff_id == "arrow_rain":
   var combat := get_node_or_null("/root/CombatSystem")
+  var hits := 0
   for victim in _select_targets(hero,null,{"kind":"aoe","radius":6.0,"max_targets":8}):
-   combat.apply_skill_damage(hero,victim,1.35,"arrow_rain")
+   var result: Dictionary = combat.apply_skill_damage(hero,victim,1.35,"arrow_rain")
+   if result.get("ok",false): hits += 1
+  buff_changed.emit(buff_id,duration)
+  return hits
  buff_changed.emit(buff_id,duration)
+ return 0
 
 func _end_buff(buff_id: String) -> void:
  buffs.erase(buff_id)
