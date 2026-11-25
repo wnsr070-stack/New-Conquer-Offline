@@ -30,7 +30,18 @@ func _run() -> void:
    break
  if camp == null: _fail("chicken_camp_missing"); return
  hero.global_position = camp.global_position + Vector3(-1.5,0,4.5)
- hero.look_at(hero.global_position+Vector3(0,0,-1),Vector3.UP)
+ # Face the camera so the approved Ranger, bow grip and attack pose are visible.
+ hero.look_at(hero.global_position+Vector3(0,0,1),Vector3.UP)
+ if hero.has_method("_switch_class"):
+  hero.call("_switch_class","archer")
+ for i in range(3): await process_frame
+ var bow_socket := hero.find_child("HeroWeapon_bow_hand_l",true,false) as Node3D
+ if bow_socket == null or bow_socket.get_child_count() == 0:
+  _fail("approved_archer_bow_socket_or_mesh_missing"); return
+ var bow_metrics: Dictionary = hero.call("_weapon_visual_metrics",bow_socket) if hero.has_method("_weapon_visual_metrics") else {}
+ if int(bow_metrics.get("mesh_count",0)) < 1 or float(bow_metrics.get("grip_distance",999.0)) > 0.08:
+  _fail("approved_bow_visual_alignment_failed: "+str(bow_metrics)); return
+ print("PHASE4C_PROOF_BOW_VISIBLE_OK: mesh_count=",bow_metrics.get("mesh_count")," grip_distance=",bow_metrics.get("grip_distance"))
  hero.velocity = Vector3.ZERO
  hero.set("has_move_target",false)
  spawner.set_hero(hero)
@@ -93,6 +104,7 @@ func _run() -> void:
  if aura_light == null or aura_particles == null: _fail("aura_light_or_particles_missing"); return
  if hero.animation_player != null and hero.animation_player.has_animation("Attack_Bow"):
   hero.animation_player.play("Attack_Bow")
+ await create_timer(0.35).timeout
  var skill_result: Dictionary = skills.use_skill(hero,"scatter")
  if not skill_result.get("ok",false) or int(skill_result.get("targets_hit",0)) < 1:
   _fail("scatter_skill_did_not_hit_camp: "+str(skill_result)); return
@@ -109,10 +121,11 @@ func _run() -> void:
  if old_camera != null: old_camera.current = false
  var camera := Camera3D.new()
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
- camera.fov = 40.0
+ camera.fov = 30.0
  city.add_child(camera)
- camera.global_position = hero.global_position + Vector3(-6.0,3.5,-2.5)
- camera.look_at(hero.global_position + Vector3(0.0,1.15,-1.6),Vector3.UP)
+ # Close bow-side 3/4 composition: show the Ranger's face/weapon and the Chicken camp together.
+ camera.global_position = hero.global_position + Vector3(4.2,2.8,4.2)
+ camera.look_at(hero.global_position + Vector3(0.0,1.0,-2.0),Vector3.UP)
  camera.current = true
  await process_frame
  await RenderingServer.frame_post_draw
@@ -133,7 +146,7 @@ func _run() -> void:
  print("PHASE4C_FORGING_FINAL_STATE_OK: weapon=+12 Super sockets=2 DragonGem=true composition=",item.composition_points," attack_bonus=",bonuses.attack," gold_remaining=",state.gold)
  print("PHASE4C_FORGING_AURA_VISUAL_OK: aura_level=4 light=true particles=true")
  print("PHASE4C_FORGING_SCATTER_IN_CAMP_OK: targets_hit=",skill_result.targets_hit," floating_damage=true approved_hero=true approved_monsters=true")
- print("PHASE4C_STEP3_IN_GAME_PNG_OK: ",out_path," bytes=",bytes," camera=close_3_quarter")
+ print("PHASE4C_STEP3_IN_GAME_PNG_OK: ",out_path," bytes=",bytes," camera=close_bow_side_3_quarter fov=30 bow_visible=true")
  print("PHASE4C_STEP3_FORGING_OK")
  print("PHASE4C_STEP3_EXIT_CODE_0")
  quit(0)
