@@ -4,6 +4,7 @@ const MonsterActorScript = preload("res://scripts/MonsterActor.gd")
 func _initialize() -> void:
  call_deferred("_run")
 func _run() -> void:
+ _configure_input_map()
  get_root().size = Vector2i(1600,1000)
  await process_frame
  var manager := root.get_node_or_null("WorldMapManager")
@@ -123,3 +124,11 @@ func _run() -> void:
 func _fail(reason: String) -> void:
  push_error("PHASE4C_STEP3_FAILED: "+reason)
  quit(1)
+
+func _configure_input_map() -> void:
+ var bindings := {"move_left":KEY_A,"move_right":KEY_D,"move_forward":KEY_W,"move_back":KEY_S}
+ for action in bindings:
+  if not InputMap.has_action(action): InputMap.add_action(action)
+  var key := InputEventKey.new()
+  key.physical_keycode = bindings[action]
+  if not InputMap.action_has_event(action,key): InputMap.action_add_event(action,key)
