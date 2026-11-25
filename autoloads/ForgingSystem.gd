@@ -149,8 +149,8 @@ func apply_equipped_weapon_aura(hero: Node3D) -> bool:
   var aura := OmniLight3D.new()
   aura.name = "ForgingPlusAuraLight"
   aura.light_color = Color(0.25,0.78,1.0) if aura_level < 3 else Color(0.7,0.28,1.0)
-  aura.light_energy = 0.35+float(aura_level)*0.22
-  aura.omni_range = 0.9+float(aura_level)*0.18
+  aura.light_energy = 0.12+float(aura_level)*0.055
+  aura.omni_range = 0.72+float(aura_level)*0.10
   aura.position = Vector3.ZERO
   weapon.add_child(aura)
   var particles := GPUParticles3D.new()
@@ -175,7 +175,7 @@ func apply_equipped_weapon_aura(hero: Node3D) -> bool:
   particle_mat.albedo_color = aura.light_color
   particle_mat.emission_enabled = true
   particle_mat.emission = aura.light_color
-  particle_mat.emission_energy_multiplier = 1.5+float(aura_level)*0.8
+  particle_mat.emission_energy_multiplier = 0.75+float(aura_level)*0.18
   sphere.material = particle_mat
   particles.draw_pass_1 = sphere
   weapon.add_child(particles)
@@ -193,7 +193,7 @@ func _apply_aura_to_meshes(node: Node,level: int) -> void:
     if material is StandardMaterial3D: aura_material = (material as StandardMaterial3D).duplicate() as StandardMaterial3D
     aura_material.emission_enabled = true
     aura_material.emission = Color(0.18,0.55,1.0) if level < 3 else Color(0.55,0.18,1.0)
-    aura_material.emission_energy_multiplier = 0.35+float(level)*0.55
+    aura_material.emission_energy_multiplier = 0.18+float(level)*0.16
     aura_material.metallic = maxf(aura_material.metallic,0.55)
     mesh.set_surface_override_material(surface,aura_material)
   _apply_aura_to_meshes(child,level)
