@@ -1,7 +1,7 @@
 extends Node
 signal state_loaded
 signal xp_changed(value: float, ready: bool)
-const SAVE_VERSION := 6
+const SAVE_VERSION := 7
 const SAVE_PATH := "user://conquer_save_v6.cfg"
 var initialized := false
 var current_zone: String = "boot_test"
@@ -11,6 +11,7 @@ var exp: int = 0
 var xp: float = 0.0
 var xp_ready_time_left: float = 0.0
 var inventory: Dictionary = {}
+var anima_phase: int = 0
 func _ready() -> void: _initialize()
 func _initialize() -> void:
  _load_save()
@@ -26,6 +27,7 @@ func _load_save() -> void:
   gold = 0
   exp = 0
   inventory = {}
+  anima_phase = 0
   return
  var version := int(config.get_value("meta","version",0))
  if version > SAVE_VERSION:
@@ -43,6 +45,7 @@ func _load_save() -> void:
  inventory = player_data.get("inventory",{}).duplicate(true)
 func save_game() -> bool:
  player_data["exp"] = exp
+ player_data["anima_phase"] = anima_phase
  player_data["inventory"] = inventory.duplicate(true)
  var config := ConfigFile.new()
  config.set_value("meta","version",SAVE_VERSION)
@@ -84,3 +87,20 @@ func tick_xp(delta: float) -> void:
    xp = 0.0
    xp_changed.emit(xp,false)
  else: xp_changed.emit(xp,false)
+
+func set_anima_phase(value: int) -> void:
+ anima_phase = clampi(value,0,18)
+ player_data["anima_phase"] = anima_phase
+ save_game()
+ var hero := get_tree().root.find_child("PlayableHero",true,false)
+ if not hero is Node3D: hero = get_tree().root.find_child("TwinCityPlayableHero",true,false)
+ var vfx := get_node_or_null("/root/AuraAndVFXManager")
+ if vfx != null and hero is Node3D: vfx.attach_anima_aura(hero,anima_phase)
+
+func get_anima_bonuses() -> Dictionary:
+ var phase := clampi(anima_phase,0,18)
+ return {
+  "attack_multiplier":1.0+float(phase)*0.015,
+  "defense_bonus":phase*3,
+  "hp_multiplier":1.0+float(phase)*0.025
+ }
