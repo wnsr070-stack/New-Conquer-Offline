@@ -246,7 +246,9 @@ func _run_capture() -> void:
  # freeing the scene. This breaks mesh/material dependency chains before Node teardown.
  var render_nodes := city.find_children("*","GeometryInstance3D",true,false) if is_instance_valid(city) else []
  var render_node_count := render_nodes.size()
- for render_node in render_nodes:
+ for render_index in range(render_nodes.size()-1,-1,-1):
+  var render_node: Node = render_nodes[render_index]
+  if not is_instance_valid(render_node): continue
   var geometry := render_node as GeometryInstance3D
   if geometry is MeshInstance3D:
    var mesh_instance := geometry as MeshInstance3D
