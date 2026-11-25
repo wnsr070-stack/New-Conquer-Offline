@@ -1,6 +1,7 @@
 extends Node
 signal target_changed(target: Node3D)
 signal damage_dealt(target: Node3D, amount: int, critical: bool)
+signal loot_visual_registered(loot_node: Node3D, item_rarity: String, item_type: String)
 const RANGED_RANGE := 18.0
 const MELEE_RANGE := 3.5
 const CRITICAL_MULTIPLIER := 1.5
@@ -206,3 +207,11 @@ func _sync_anima_stats(hero: Node3D) -> void:
   hero.set("max_hp",desired_hp)
   if hero.get_property_list().any(func(p): return String(p.name)=="current_hp"):
    hero.set("current_hp",clampi(current_hp+(desired_hp-old_max),0,desired_hp))
+
+func attach_loot_drop_aura(loot_node: Node3D,item_rarity: String,item_type: String) -> bool:
+ if loot_node == null or not is_instance_valid(loot_node): return false
+ var vfx := get_node_or_null("/root/AuraAndVFXManager")
+ if vfx == null: return false
+ var attached: bool = vfx.attach_loot_aura(loot_node,item_rarity,item_type)
+ if attached: loot_visual_registered.emit(loot_node,item_rarity,item_type)
+ return attached
