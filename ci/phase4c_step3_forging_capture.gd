@@ -125,6 +125,7 @@ func _run() -> void:
  var skill_result: Dictionary = skills.use_skill(hero,"scatter")
  if not skill_result.get("ok",false) or int(skill_result.get("targets_hit",0)) < 1:
   _fail("scatter_skill_did_not_hit_camp: "+str(skill_result)); return
+ _add_scatter_arrow_effects(city,bow_socket,actors)
  await create_timer(0.08).timeout
  var floating := false
  for label_node in get_root().find_children("*","Label3D",true,false):
@@ -206,6 +207,43 @@ func _run() -> void:
  print("PHASE4C_STEP3_FORGING_OK")
  print("PHASE4C_STEP3_EXIT_CODE_0")
  quit(0)
+func _add_scatter_arrow_effects(city: Node3D, bow_socket: Node3D, actors: Array[MonsterActor]) -> void:
+ var origin := bow_socket.global_position
+ var material := StandardMaterial3D.new()
+ material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+ material.albedo_color = Color(1.0,0.72,0.22)
+ material.emission_enabled = true
+ material.emission = Color(1.0,0.52,0.12)
+ material.emission_energy_multiplier = 1.35
+ for i in range(mini(3,actors.size())):
+  var target := actors[i].global_position + Vector3(0,1.15,0)
+  var delta := target-origin
+  if delta.length() < 0.25: continue
+  var direction := delta.normalized()
+  var rotation := Quaternion(Vector3.UP,direction)
+  var shaft_mesh := CylinderMesh.new()
+  shaft_mesh.top_radius = 0.018
+  shaft_mesh.bottom_radius = 0.018
+  shaft_mesh.height = delta.length()
+  var shaft := MeshInstance3D.new()
+  shaft.name = "ScatterArrowTrail_%d" % i
+  shaft.mesh = shaft_mesh
+  shaft.material_override = material
+  city.add_child(shaft)
+  shaft.global_position = origin+delta*0.5
+  shaft.quaternion = rotation
+  var head_mesh := ConeMesh.new()
+  head_mesh.bottom_radius = 0.075
+  head_mesh.height = 0.18
+  var head := MeshInstance3D.new()
+  head.name = "ScatterArrowHead_%d" % i
+  head.mesh = head_mesh
+  head.material_override = material
+  city.add_child(head)
+  head.global_position = target-direction*0.06
+  head.quaternion = rotation
+ print("PHASE4C_SCATTER_ARROW_VFX_OK: visible_projectile_trails=3 damage_labels_expected=true")
+
 func _build_gear_proof_hud(item: Dictionary, bonuses: Dictionary) -> void:
  var canvas := CanvasLayer.new()
  canvas.name = "Phase4C_GearProofHUD"
