@@ -75,7 +75,7 @@ func _run() -> void:
   actors[i].max_hp = 5000
   actors[i].current_hp = 5000
   actors[i].set("_target",actors[i].global_position)
-  actors[i].set_process(false)
+  actors[i].set_process(true)
   actors[i].set_physics_process(false)
   var plate := actors[i].get_nameplate()
   if plate != null: plate.visible = i < 2
@@ -134,24 +134,19 @@ func _run() -> void:
    floating = true
    break
  if not floating: _fail("floating_damage_numbers_missing_global_search"); return
- # Freeze the hero controller so its idle updater cannot cancel the attack pose.
+ # Freeze controller input only; AnimationPlayer and monster actors continue advancing.
  hero.set_process(false)
  hero.set_physics_process(false)
- if hero.animation_player != null and hero.animation_player.has_animation("Attack_Bow"):
-  hero.animation_player.play("Attack_Bow")
-  await create_timer(0.55).timeout
- else:
-  _fail("approved_attack_bow_clip_missing"); return
  var world_env := city.find_child("WorldEnvironment",true,false) as WorldEnvironment
  if world_env != null and world_env.environment != null:
-  world_env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+  world_env.environment.tonemap_mode = Environment.TONE_MAPPER_ACES
   world_env.environment.tonemap_exposure = 0.0
   world_env.environment.ambient_light_energy = 0.20
   world_env.environment.ambient_light_color = Color(0.78,0.82,0.88)
   world_env.environment.adjustment_enabled = true
-  world_env.environment.adjustment_saturation = 0.92
+  world_env.environment.adjustment_saturation = 0.96
  for light in city.find_children("*","DirectionalLight3D",true,false):
-  light.light_energy = minf(light.light_energy,0.48)
+  light.light_energy = 0.85
  for light in hero.find_children("ForgingPlusAuraLight","OmniLight3D",true,false):
   light.light_energy = minf(light.light_energy,0.34)
   light.omni_range = minf(light.omni_range,1.05)
@@ -159,43 +154,50 @@ func _run() -> void:
  if old_camera != null: old_camera.current = false
  var camera := Camera3D.new()
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
- camera.fov = 48.0
+ camera.fov = 52.0
  city.add_child(camera)
- # Clean 45-degree 3/4 full-body framing; keep city skyline and the whole monster arc.
- camera.global_position = hero.global_position + Vector3(8.0,8.0,-14.0)
- camera.look_at(hero.global_position + Vector3(2.0,1.5,-4.8),Vector3.UP)
+ camera.global_position = hero.global_position + Vector3(3.2,2.1,3.1)
+ camera.look_at(hero.global_position + Vector3(2.2,1.0,-4.0),Vector3.UP)
  camera.current = true
- await process_frame
- await RenderingServer.frame_post_draw
- await RenderingServer.frame_post_draw
- var actual_item: Dictionary = gear.get_equipped("weapon")
- var actual_bonuses: Dictionary = gear.get_combat_bonuses()
- _build_gear_proof_hud(actual_item,actual_bonuses)
- await process_frame
- await RenderingServer.frame_post_draw
- var image := get_root().get_texture().get_image()
- if image == null or image.is_empty(): _fail("forging_proof_framebuffer_empty"); return
- var out_dir := ProjectSettings.globalize_path("res://artifacts")
- DirAccess.make_dir_recursive_absolute(out_dir)
- var out_path := out_dir.path_join("phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png")
- var save_error := image.save_png(out_path)
- if save_error != OK: _fail("forging_png_save_failed: "+str(save_error)); return
- var bytes := FileAccess.get_file_as_bytes(out_path).size()
- if bytes < 20000: _fail("forging_png_too_small: "+str(bytes)); return
- # Second genuine in-game angle, tighter on the approved bow grip and forging aura.
- camera.fov = 48.0
- camera.global_position = hero.global_position + Vector3(8.0,8.0,-14.0)
- camera.look_at(hero.global_position + Vector3(2.0,1.5,-4.8),Vector3.UP)
- await process_frame
- await RenderingServer.frame_post_draw
- await RenderingServer.frame_post_draw
- var detail_image := get_root().get_texture().get_image()
- if detail_image == null or detail_image.is_empty(): _fail("forging_detail_framebuffer_empty"); return
- var detail_path := out_dir.path_join("phase4c_step3_bow_aura_detail.png")
- var detail_error := detail_image.save_png(detail_path)
- if detail_error != OK: _fail("forging_detail_png_save_failed: "+str(detail_error)); return
- var detail_bytes := FileAccess.get_file_as_bytes(detail_path).size()
- if detail_bytes < 20000: _fail("forging_detail_png_too_small: "+str(detail_bytes)); return
+ _build_gear_proof_hud(item,gear.get_combat_bonuses())
+ # Frame 1 — genuine bow aiming pose; never capture the initial animation frame.
+ if hero.animation_player == null or not hero.animation_player.has_animation("Attack_Bow"):
+  _fail("approved_attack_bow_clip_missing"); return
+ hero.animation_player.play("Attack_Bow")
+ hero.animation_player.seek(0.32,true)
+ await _wait_rendered_pose()
+ _save_proof_png("1_stance_aim.png","PHASE4C_FRAME1_STANCE_OK")
+ # Frame 2 — run the real combat skill and preserve the live HP/damage feedback.
+ var attack_result: Dictionary = combat.perform_attack(hero,actors[0],true)
+ if not attack_result.get("ok",false):
+  _fail("real_attack_frame_failed: "+str(attack_result)); return
+ hero.animation_player.play("Attack_Bow")
+ hero.animation_player.seek(0.48,true)
+ camera.global_position = hero.global_position + Vector3(3.0,2.0,3.0)
+ camera.look_at(target_center + Vector3(0,0.8,0),Vector3.UP)
+ await _wait_rendered_pose()
+ _save_proof_png("2_attack_hit.png","PHASE4C_FRAME2_ATTACK_HIT_OK")
+ # Frame 3 — force a real lethal combat result; MonsterActor now plays its death clip
+ # or remains as a visible fallen corpse until the respawn timer expires.
+ actors[1].current_hp = 1
+ var kill_result: Dictionary = combat.perform_attack(hero,actors[1],true)
+ if not kill_result.get("ok",false) or not actors[1].is_dead():
+  _fail("real_monster_kill_or_death_pose_failed: "+str(kill_result)); return
+ camera.global_position = hero.global_position + Vector3(4.2,2.8,4.0)
+ camera.look_at(target_center + Vector3(0,0.4,0),Vector3.UP)
+ await _wait_rendered_pose()
+ _save_proof_png("3_kill_loot.png","PHASE4C_FRAME3_KILL_LOOT_OK")
+ # Frame 4 — side close-up of the actual BoneAttachment3D bow and +12 aura.
+ camera.fov = 34.0
+ var bow_world := bow_socket.global_position
+ camera.global_position = bow_world + Vector3(1.8,0.9,2.0)
+ camera.look_at(bow_world + Vector3(0,0.15,0),Vector3.UP)
+ hero.animation_player.play("Attack_Bow")
+ hero.animation_player.seek(0.32,true)
+ await _wait_rendered_pose()
+ _save_proof_png("4_closeup_weapon.png","PHASE4C_FRAME4_BOW_CLOSEUP_OK")
+ var bytes := FileAccess.get_file_as_bytes(out_dir.path_join("1_stance_aim.png")).size()
+ var detail_bytes := FileAccess.get_file_as_bytes(out_dir.path_join("4_closeup_weapon.png")).size()
  var bonuses: Dictionary = gear.get_combat_bonuses()
  if int(bonuses.attack) < 100: _fail("forged_attack_bonus_not_applied"); return
  if int(state.gold) >= 2000000: _fail("gold_cost_was_not_charged"); return
@@ -203,11 +205,35 @@ func _run() -> void:
  print("PHASE4C_FORGING_FINAL_STATE_OK: weapon=+12 Super sockets=2 DragonGemx2=true composition=",item.composition_points," attack_bonus=",bonuses.attack," gold_remaining=",state.gold)
  print("PHASE4C_FORGING_AURA_VISUAL_OK: aura_level=4 light=true particles=true")
  print("PHASE4C_FORGING_SCATTER_IN_CAMP_OK: targets_hit=",skill_result.targets_hit," floating_damage=true approved_hero=true approved_monsters=true")
- print("PHASE4C_STEP3_IN_GAME_PNG_OK: ",out_path," bytes=",bytes," camera=front_bow_side_3_quarter hero_left_monster_arc_right")
- print("PHASE4C_STEP3_DETAIL_PNG_OK: ",detail_path," bytes=",detail_bytes," camera=close_bow_aura_detail")
+ print("PHASE4C_STEP3_FOUR_SEQUENTIAL_PNGS_OK: 1_stance_aim 2_attack_hit 3_kill_loot 4_closeup_weapon")
+ print("PHASE4C_STEP3_CLOSEUP_PNG_OK: bytes=",detail_bytes)
  print("PHASE4C_STEP3_FORGING_OK")
  print("PHASE4C_STEP3_EXIT_CODE_0")
  quit(0)
+
+func _wait_rendered_pose() -> void:
+ for frame in range(5):
+  await process_frame
+  await RenderingServer.frame_post_draw
+
+func _save_proof_png(file_name: String, marker: String) -> void:
+ var out_dir := ProjectSettings.globalize_path("res://artifacts")
+ DirAccess.make_dir_recursive_absolute(out_dir)
+ var image := get_root().get_texture().get_image()
+ if image == null or image.is_empty():
+  _fail("proof_framebuffer_empty: "+file_name)
+  return
+ var path := out_dir.path_join(file_name)
+ var err := image.save_png(path)
+ if err != OK:
+  _fail("proof_png_save_failed: "+file_name+" err="+str(err))
+  return
+ var size := FileAccess.get_file_as_bytes(path).size()
+ if size < 20000:
+  _fail("proof_png_too_small: "+file_name+" bytes="+str(size))
+  return
+ print(marker,": ",path," bytes=",size," width=",image.get_width()," height=",image.get_height())
+
 func _build_gear_proof_hud(item: Dictionary, bonuses: Dictionary) -> void:
  var canvas := CanvasLayer.new()
  canvas.name = "Phase4C_GearProofHUD"
