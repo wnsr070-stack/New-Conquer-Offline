@@ -326,5 +326,9 @@ func _apply_slow(target: Node3D,multiplier: float,duration: float) -> void:
 
 
 func clear_cache() -> void:
+ cooldowns.clear()
+ buffs.clear()
+ _buff_durations.clear()
  slowed_targets.clear()
- print("PHASE4D_SKILL_NODE_REFERENCES_CLEARED")
+ _flight_original_y = 0.0
+ print("PHASE4D_SKILL_NODE_REFERENCES_CLEARED: cooldowns=0 buffs=0 slowed_targets=0")
