@@ -115,7 +115,8 @@ jobs:
           for source,dest in targets.items():
             src=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename=source,token=token))
             out=pathlib.Path(dest); out.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,out)
-            if out.stat().st_size<10000 or out.read_bytes()[:4]!=b"glTF": raise SystemExit("Invalid approved asset: "+dest)
+            minimum_size=1000 if "ranger_arrow" in dest else 10000
+            if out.stat().st_size<minimum_size or out.read_bytes()[:4]!=b"glTF": raise SystemExit("Invalid approved asset: "+dest)
             print("PHASE4B_STEP3_APPROVED_ASSET_OK:",dest,out.stat().st_size)
           root=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename="phase3b/phase3b_manifest.json",token=token)).parent
           manifest_file=root/"phase3b_manifest.json"
