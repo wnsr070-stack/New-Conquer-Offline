@@ -20,8 +20,40 @@ const ANIMA_COLORS := {
 }
 var _frames_cache: Dictionary = {}
 var _atlas_cache: Dictionary = {}
+var _texture_cache: Dictionary = {}
+var _material_cache: Dictionary = {}
 var _active_orbits: Dictionary = {}
+var _active_effect_roots: Array[Node] = []
 var _orbit_clock := 0.0
+
+func _track_effect_root(node: Node) -> void:
+ if node != null and is_instance_valid(node) and not _active_effect_roots.has(node):
+  _active_effect_roots.append(node)
+
+func cleanup_all() -> void:
+ set_process(false)
+ _active_orbits.clear()
+ var freed_roots := 0
+ for node in _active_effect_roots:
+  if not is_instance_valid(node):
+   continue
+  if node.is_inside_tree():
+   node.queue_free()
+  else:
+   node.free()
+  freed_roots += 1
+ _active_effect_roots.clear()
+ # Drop every strong cache reference. SpriteFrames owns its AtlasTexture frames,
+ # which in turn own the loaded textures; clearing in this order releases them
+ # when no scene node or other resource owner still references them.
+ _frames_cache.clear()
+ _atlas_cache.clear()
+ _texture_cache.clear()
+ _material_cache.clear()
+ print("PHASE4D_AURA_VFX_CLEANUP_OK: roots=",freed_roots," frames=0 atlases=0 textures=0 materials=0 orbits=0")
+
+func _exit_tree() -> void:
+ cleanup_all()
 
 func _process(delta: float) -> void:
  _orbit_clock += delta
@@ -43,6 +75,9 @@ func _ready() -> void:
  print("PHASE4D_AURA_VFX_MANAGER_READY: sprite_frames=true billboard=true blend_add=true procedural_geometry=false")
 
 func _make_material(tint: Color = Color.WHITE) -> StandardMaterial3D:
+ var key := "%0.4f:%0.4f:%0.4f:%0.4f" % [tint.r,tint.g,tint.b,tint.a]
+ if _material_cache.has(key):
+  return _material_cache[key] as StandardMaterial3D
  var material := StandardMaterial3D.new()
  material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
  material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -53,6 +88,7 @@ func _make_material(tint: Color = Color.WHITE) -> StandardMaterial3D:
  material.emission = Color(tint.r,tint.g,tint.b,1.0)
  material.emission_energy_multiplier = 1.35
  material.no_depth_test = false
+ _material_cache[key] = material
  return material
 
 func _build_frames(effect_type: String, variant: int) -> SpriteFrames:
@@ -64,8 +100,11 @@ func _build_frames(effect_type: String, variant: int) -> SpriteFrames:
  if not ResourceLoader.exists(path):
   push_warning("PHASE4D_VFX_ASSET_MISSING: "+path)
   return null
- var texture := load(path) as Texture2D
- if texture == null: return null
+ var texture: Texture2D = _texture_cache.get(path) as Texture2D
+ if texture == null:
+  texture = load(path) as Texture2D
+  if texture == null: return null
+  _texture_cache[path] = texture
  var frames := SpriteFrames.new()
  frames.add_animation("play")
  frames.set_animation_loop("play",true)
@@ -98,15 +137,20 @@ func _make_sprite(effect_type: String, variant: int, tint: Color, scale_value: f
 
 func _get_or_create_anchor(target: Node3D, anchor_name: String) -> Node3D:
  var found := target.get_node_or_null(anchor_name)
- if found is Node3D: return found as Node3D
+ if found is Node3D:
+  _track_effect_root(found)
+  return found as Node3D
  var anchor := Node3D.new()
  anchor.name = anchor_name
  target.add_child(anchor)
+ _track_effect_root(anchor)
  return anchor
 
 func _clear_anchor(target: Node3D, anchor_name: String) -> void:
  var old := target.get_node_or_null(anchor_name)
- if old != null: old.free()
+ if old != null:
+  _active_effect_roots.erase(old)
+  old.free()
 
 func attach_equipment_aura(target_node: Node3D, plus_level: int) -> bool:
  if target_node == null or not is_instance_valid(target_node): return false
@@ -164,6 +208,7 @@ func attach_anima_aura(player_node: Node3D, anima_phase: int) -> bool:
  var controller := Node3D.new()
  controller.name = "AnimaOrbitController"
  player_node.add_child(controller)
+ _track_effect_root(controller)
  var count := clampi(int(style.count),1,6)
  var colors: Array = style.colors
  for i in range(count):
@@ -235,6 +280,7 @@ func play_skill_vfx(vfx_type: String, color_style: String, world_pos: Vector3, d
  if effect_parent == null:
   effect_parent = get_tree().root
  effect_parent.add_child(sprite)
+ _track_effect_root(sprite)
  sprite.global_position = world_pos
  if direction.length_squared()>0.001: sprite.look_at(world_pos+direction,Vector3.UP)
  sprite.scale = Vector3.ONE*1.0
