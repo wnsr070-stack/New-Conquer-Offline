@@ -25,10 +25,26 @@ var cooldowns: Dictionary = {}
 var buffs: Dictionary = {}
 var _buff_durations: Dictionary = {}
 var _flight_original_y: float = 0.0
+var slowed_targets: Dictionary = {}
 
 func _process(delta: float) -> void:
+ var hero := _find_hero()
+ var attack_rate := float(hero.get_meta("attack_speed_multiplier",1.0)) if hero != null else 1.0
  for key in cooldowns.keys():
-  cooldowns[key] = maxf(0.0,float(cooldowns[key])-delta)
+  cooldowns[key] = maxf(0.0,float(cooldowns[key])-delta*attack_rate)
+ for key in slowed_targets.keys():
+  var entry: Dictionary = slowed_targets[key]
+  entry.remaining = float(entry.remaining)-delta
+  if entry.remaining <= 0.0:
+   var target: Node3D = entry.target
+   if is_instance_valid(target):
+    for property in target.get_property_list():
+     if String(property.name) == "move_speed":
+      target.set("move_speed",float(entry.original))
+      break
+    target.remove_meta("movement_slow_multiplier")
+    target.remove_meta("movement_slow_time")
+   slowed_targets.erase(key)
  for key in buffs.keys():
   buffs[key] = maxf(0.0,float(buffs[key])-delta)
   if buffs[key] <= 0.0:
@@ -110,8 +126,7 @@ func use_skill(hero: Node3D, skill_id: String, target: Node3D = null) -> Diction
     if result.get("ok",false):
      hit_count += 1
      if skill_id == "shield_bash":
-      victim.set_meta("movement_slow_multiplier",float(data.get("slow",0.5)))
-      victim.set_meta("movement_slow_time",float(data.get("slow_duration",3.0)))
+      _apply_slow(victim,float(data.get("slow",0.5)),float(data.get("slow_duration",3.0)))
  if kind == "buff" or kind == "fly": hit_count = 1
  skill_used.emit(skill_id,hit_count)
  print("PHASE4C_SKILL_USED: id=",skill_id," class=",class_id," weapon=",get_equipped_mode(hero)," targets=",hit_count)
@@ -218,6 +233,12 @@ func _start_buff(buff_id: String,duration: float,hero: Node3D) -> int:
  elif buff_id == "cyclone":
   hero.set_meta("movement_speed_multiplier",2.0)
   hero.set_meta("attack_speed_multiplier",2.0)
+  for property in hero.get_property_list():
+   if String(property.name) == "move_speed":
+    var base_speed := float(hero.get("move_speed"))
+    hero.set_meta("_skill_base_move_speed",base_speed)
+    hero.set("move_speed",base_speed*2.0)
+    break
  elif buff_id == "superman":
   hero.set_meta("physical_damage_multiplier",2.0)
  elif buff_id == "arrow_rain":
@@ -243,6 +264,12 @@ func _end_buff(buff_id: String) -> void:
   elif buff_id == "cyclone":
    hero.set_meta("movement_speed_multiplier",1.0)
    hero.set_meta("attack_speed_multiplier",1.0)
+   if hero.has_meta("_skill_base_move_speed"):
+    for property in hero.get_property_list():
+     if String(property.name) == "move_speed":
+      hero.set("move_speed",float(hero.get_meta("_skill_base_move_speed")))
+      break
+    hero.remove_meta("_skill_base_move_speed")
   elif buff_id == "superman":
    hero.set_meta("physical_damage_multiplier",1.0)
  buff_changed.emit(buff_id,0.0)
@@ -272,3 +299,15 @@ func _effective_skill_class(hero: Node3D) -> String:
  if class_id == "archer" and get_equipped_mode(hero) == "dual_daggers":
   return "oriental_assassin"
  return class_id
+
+func _apply_slow(target: Node3D,multiplier: float,duration: float) -> void:
+ var key := target.get_instance_id()
+ var original_speed := 0.0
+ for property in target.get_property_list():
+  if String(property.name) == "move_speed":
+   original_speed = float(target.get("move_speed"))
+   target.set("move_speed",original_speed*multiplier)
+   break
+ target.set_meta("movement_slow_multiplier",multiplier)
+ target.set_meta("movement_slow_time",duration)
+ slowed_targets[key] = {"target":target,"remaining":duration,"original":original_speed}
