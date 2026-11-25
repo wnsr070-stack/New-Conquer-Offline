@@ -231,7 +231,10 @@ func play_skill_vfx(vfx_type: String, color_style: String, world_pos: Vector3, d
   "smoke": variant=3; tint=Color(0.72,0.72,0.78)
  var sprite := _make_sprite(effect,variant,tint,1.0,22.0)
  if sprite == null: return null
- get_tree().current_scene.add_child(sprite)
+ var effect_parent: Node = get_tree().current_scene
+ if effect_parent == null:
+  effect_parent = get_tree().root
+ effect_parent.add_child(sprite)
  sprite.global_position = world_pos
  if direction.length_squared()>0.001: sprite.look_at(world_pos+direction,Vector3.UP)
  sprite.scale = Vector3.ONE*1.0
