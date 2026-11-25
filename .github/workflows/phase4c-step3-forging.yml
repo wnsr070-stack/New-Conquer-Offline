@@ -11,6 +11,7 @@ on:
       - 'scripts/SkillSystem.gd'
       - 'project.godot'
       - 'ci/phase4c_step3_forging_capture.gd'
+      - 'ci/fetch_consumable_assets.py'
       - 'ci/fetch_items_consumables.py'
       - 'scripts/HeroController.gd'
       - 'scripts/MonsterActor.gd'
@@ -134,6 +135,14 @@ jobs:
             out=pathlib.Path("assets/phase3b")/item["file"]; out.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,out)
           print("PHASE4B_STEP3_APPROVED_MONSTERS_OK: normal=15 bosses=5 sha256_verified=20")
           PY
+      - name: Fetch pinned Kenney and KayKit CC0 consumable and loot assets; publish to HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          .venv/bin/python ci/fetch_consumable_assets.py 2>&1 | tee artifacts/cc0_consumable_asset_fetch.log
+          test -s assets/items_and_consumables/asset_manifest.json
+          grep -q 'PHASE4C_CC0_ASSET_BUNDLE_HF_UPLOAD_OK' artifacts/cc0_consumable_asset_fetch.log
       - name: Import assets and generate the approved read-only hero animation resource
         run: |
           set -euo pipefail
@@ -187,6 +196,8 @@ jobs:
             artifacts/hero_animation_builder.log
             artifacts/city_asset_fetch.log
             artifacts/city_scene_asset_prepare.log
+            artifacts/cc0_consumable_asset_fetch.log
+            assets/items_and_consumables/asset_manifest.json
             artifacts/items_consumables_fetch.log
           if-no-files-found: warn
           retention-days: 30
