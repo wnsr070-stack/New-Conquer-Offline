@@ -11,6 +11,9 @@ on:
       - 'scripts/SkillSystem.gd'
       - 'project.godot'
       - 'ci/phase4c_step3_forging_capture.gd'
+      - 'scripts/HeroController.gd'
+      - 'scripts/MonsterActor.gd'
+      - 'scripts/CombatSystem.gd'
       - '.github/workflows/phase4c-step3-forging.yml'
   workflow_dispatch:
 permissions:
@@ -139,8 +142,10 @@ jobs:
           grep -q "PHASE4C_FORGING_FINAL_STATE_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FORGING_AURA_VISUAL_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_FORGING_SCATTER_IN_CAMP_OK" artifacts/phase4c_step3_forging_capture.log
-          grep -q "PHASE4C_STEP3_IN_GAME_PNG_OK" artifacts/phase4c_step3_forging_capture.log
-          grep -q "PHASE4C_STEP3_DETAIL_PNG_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_FRAME1_STANCE_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_FRAME2_ATTACK_HIT_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_FRAME3_KILL_LOOT_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4C_FRAME4_BOW_CLOSEUP_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4C_STEP3_FORGING_OK" artifacts/phase4c_step3_forging_capture.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE4C_STEP3_FAILED|HERO_.*MISSING" artifacts/phase4c_step3_forging_capture.log
       - name: Validate the real in-game forging PNG
@@ -148,7 +153,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import pathlib,struct
-          for name in ["phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png","phase4c_step3_bow_aura_detail.png"]:
+          for name in ["1_stance_aim.png","2_attack_hit.png","3_kill_loot.png","4_closeup_weapon.png"]:
             p=pathlib.Path("artifacts")/name
             data=p.read_bytes()
             if data[:8]!=bytes.fromhex("89504e470d0a1a0a"): raise SystemExit("Invalid in-game forging PNG: "+name)
@@ -161,8 +166,10 @@ jobs:
         with:
           name: phase4c-step3-forging-proof-${{ github.run_number }}
           path: |
-            artifacts/phase4c_step3_plus12_super_2socket_dragon_gem_scatter.png
-            artifacts/phase4c_step3_bow_aura_detail.png
+            artifacts/1_stance_aim.png
+            artifacts/2_attack_hit.png
+            artifacts/3_kill_loot.png
+            artifacts/4_closeup_weapon.png
             artifacts/phase4c_step3_forging_capture.log
             artifacts/godot_import.log
             artifacts/hero_animation_builder.log
