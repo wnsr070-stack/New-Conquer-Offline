@@ -127,9 +127,12 @@ func _run() -> void:
  if not result.get("ok",false) or not bool(hero.get_meta("flight_active",false)) or absf(hero.position.y-3.5)>0.01: _fail("fly_failed: "+str(result)); return
  checks += 1
  skills.reset_for_test()
+ for i in range(mobs.size()):
+  mobs[i].revive()
+  mobs[i].position = hero.position + Vector3(float(i%3)*1.0,0,-2.0-float(i/3)*1.0)
  state.xp = 100.0; state.xp_ready_time_left = 20.0
  result = skills.use_skill(hero,"arrow_rain")
- if not result.get("ok",false) or not skills.buffs.has("arrow_rain"): _fail("arrow_rain_failed: "+str(result)); return
+ if not result.get("ok",false) or not skills.buffs.has("arrow_rain") or int(result.get("targets_hit",0)) < 1: _fail("arrow_rain_aoe_failed: "+str(result)); return
  checks += 1
  print("PHASE4C_STEP2_CONQUER_SKILLS_OK: skills_checked=",checks," aoe=true cyclone_extend=+2 superman_extend=+2 cure=true chain_max=6 xp_gate=true")
  quit(0)
