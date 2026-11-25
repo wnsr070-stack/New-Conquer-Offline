@@ -211,6 +211,10 @@ jobs:
       - name: Validate the real in-game forging PNG
         run: |
           set -euo pipefail
+          grep -q "PHASE4D_AURA_VFX_RENDER_OK" artifacts/phase4c_step3_forging_capture.log
+          for name in 1_stance_aim.png 2_attack_hit.png 3_kill_loot.png 4_closeup_weapon.png; do
+            test -s "artifacts/$name"
+          done
           python3 - <<'PY'
           import pathlib,struct
           for name in ["1_stance_aim.png","2_attack_hit.png","3_kill_loot.png","4_closeup_weapon.png"]:
