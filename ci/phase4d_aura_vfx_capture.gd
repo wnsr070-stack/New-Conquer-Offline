@@ -251,11 +251,9 @@ func _run_capture() -> void:
   autoload.clear_cache()
  current_scene = null
  var geometry_count := city.find_children("*","GeometryInstance3D",true,false).size() if is_instance_valid(city) else 0
- # Leave the scene tree first so every GeometryInstance3D receives its normal
- # EXIT_WORLD notification; queue the scene for safe destruction on the next frame.
- if is_instance_valid(city):
-  root.remove_child(city)
-  city.queue_free()
+ # Queue while the scene is still in the SceneTree so Godot processes EXIT_WORLD
+ # and releases every renderer instance before the queued scene is destroyed.
+ if is_instance_valid(city): city.queue_free()
  print("PHASE4D_SCENE_DETACHED_FOR_SAFE_RENDERER_TEARDOWN: geometry_instances=",geometry_count)
  packed = null
  city = null
