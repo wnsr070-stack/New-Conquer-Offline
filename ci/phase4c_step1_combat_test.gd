@@ -62,7 +62,7 @@ func _run() -> void:
   _fail("auto_respawn_failed")
   return
  await create_timer(0.5).timeout
- print("PHASE4C_STEP1_COMBAT_LOOP_OK: chicken_hp=33->13->0 damage_label=true exp=15 gold=",state.gold," xp=",state.xp," respawn=true")
+ print("PHASE4C_STEP1_COMBAT_LOOP_OK: chicken_hp=33->3->0 damage_label=true exp=15 gold=",state.gold," xp=",state.xp," respawn=true")
  quit(0)
 
 func _fail(reason: String) -> void:
