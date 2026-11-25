@@ -364,8 +364,11 @@ func _attach_weapon(hand_side: String,family: String) -> void:
   else:
    grip.z = bounds.position.z + size.z * 0.18
  # Apply local rotation to the grip point before translating it back to the hand origin.
- var rotated_grip := weapon.rotation * grip
- weapon.position = -(rotated_grip * family_scale)
+ var grip_basis := Basis(weapon.rotation)
+ var grip_local_offset := grip_basis * (grip * family_scale)
+ weapon.position = -grip_local_offset
+ if family == "bow":
+  print("PHASE4C_BOW_ZERO_OFFSET_GRIP_OK: grip_local_offset=", grip_local_offset, " resulting_socket_offset=", weapon.position, " rotation_degrees=", weapon.rotation_degrees)
  if family == "bow":
   print("PHASE4C_BOW_ROTATED_GRIP_COMPENSATION_OK: rotated_grip=", rotated_grip, " scale=", family_scale)
  weapon.set_meta("phase4a_grip_local", grip)
