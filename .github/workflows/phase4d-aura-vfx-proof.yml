@@ -178,6 +178,12 @@ jobs:
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee -a artifacts/godot_import.log
           test -s assets/phase3b/quaternius_library/ranger_arrow_ranger_arrow.glb
           echo PHASE4B_STEP3_APPROVED_HERO_RESOURCE_READY
+      - name: Check all project GDScript syntax before rendering
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path "$GITHUB_WORKSPACE" --check-only --quit 2>&1 | tee artifacts/godot_check_only.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" artifacts/godot_check_only.log
+          echo PHASE4D_GDSCRIPT_CHECK_ONLY_OK
       - name: Run actual Twin City forging test and capture +12 weapon aura proof
         env:
           CI_CAPTURE: "0"
@@ -223,6 +229,7 @@ jobs:
             artifacts/phase4c_step3_forging_capture.log
             artifacts/godot_import.log
             artifacts/hero_animation_builder.log
+            artifacts/godot_check_only.log
             artifacts/city_asset_fetch.log
             artifacts/city_scene_asset_prepare.log
             artifacts/items_consumables_fetch.log
