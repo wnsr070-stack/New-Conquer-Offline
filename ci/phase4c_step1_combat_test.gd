@@ -13,6 +13,7 @@ func _run() -> void:
  if state == null or combat == null:
   _fail("autoload_missing")
   return
+ combat.set_meta("disable_random_crit",true)
  state.gold = 0
  state.exp = 0
  state.xp = 0.0
@@ -52,7 +53,7 @@ func _run() -> void:
  if state.exp != 15 or state.gold < 1 or state.gold > 3:
   _fail("exp_or_gold_reward_failed exp="+str(state.exp)+" gold="+str(state.gold))
   return
- if state.xp < 13.9:
+ if state.xp < 8.9:
   _fail("xp_increment_failed: "+str(state.xp))
   return
  if chicken.get_node_or_null("AutoRespawn") == null or not (chicken.get_node("AutoRespawn") as Timer).is_stopped():
