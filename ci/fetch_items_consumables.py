@@ -52,6 +52,8 @@ def main():
       ("3d/platformer/arrow.glb","models/kenney_arrow_reference.glb"),
     ]
     for src,dst in kenney_files: copied.append(copy_file(k/src,dst))
+    # Kenney Platformer atlas: resolves the external colormap.png URI used by the imported loot GLBs.
+    copied.append(copy_file(k/"3d/platformer/Textures/colormap.png", "models/Textures/colormap.png"))
     kaykit_files = [
       ("addons/kaykit_dungeon_remastered/Assets/gltf/coin_stack_medium.gltf.glb","models/gold_stack.glb"),
       ("addons/kaykit_dungeon_remastered/Assets/gltf/chest_gold.glb","models/gold_chest.glb"),
