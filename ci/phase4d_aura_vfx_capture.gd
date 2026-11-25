@@ -242,13 +242,13 @@ func _run_capture() -> void:
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
  # Clear autoload-held scene references and stop VFX processing before detaching the city.
-  var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem"]
-  for autoload_name in cache_autoloads:
-   var autoload := root.get_node_or_null(autoload_name)
-   if autoload == null or not autoload.has_method("clear_cache"):
-    _fail("required_autoload_clear_cache_missing: "+autoload_name)
-    return
-   autoload.clear_cache()
+ var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem"]
+ for autoload_name in cache_autoloads:
+  var autoload := root.get_node_or_null(autoload_name)
+  if autoload == null or not autoload.has_method("clear_cache"):
+   _fail("required_autoload_clear_cache_missing: "+autoload_name)
+   return
+  autoload.clear_cache()
  current_scene = null
  var geometry_count := city.find_children("*","GeometryInstance3D",true,false).size() if is_instance_valid(city) else 0
  # Leave the scene tree first so every GeometryInstance3D receives its normal
