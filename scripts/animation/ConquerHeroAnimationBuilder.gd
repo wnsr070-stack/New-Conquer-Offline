@@ -7,7 +7,7 @@ const MALE_MODEL := "res://assets/phase3b/characters/Male_Ranger.glb"
 const CLIPS := ["Idle", "Run", "Jump", "Attack_Bow", "Attack_Assassin", "Attack_Trojan", "Attack_SwordShield", "Attack_Staff", "Hit", "Death"]
 const POSES := {
  "Idle": [
-  {"t":0.0,"p":{"upperarm_l":Vector3(0,0,-58),"upperarm_r":Vector3(0,0,58),"lowerarm_l":Vector3(-22,0,-10),"lowerarm_r":Vector3(-22,0,10),"thigh_l":Vector3(-7,0,0),"thigh_r":Vector3(-7,0,0),"calf_l":Vector3(12,0,0),"calf_r":Vector3(12,0,0),"spine_01":Vector3(-2,0,0)}},
+  {"t":0.0,"p":{"upperarm_l":Vector3(0,0,-58),"upperarm_r":Vector3(0,0,58),"hand_l":Vector3.ZERO,"lowerarm_l":Vector3(-22,0,-10),"lowerarm_r":Vector3(-22,0,10),"thigh_l":Vector3(-7,0,0),"thigh_r":Vector3(-7,0,0),"calf_l":Vector3(12,0,0),"calf_r":Vector3(12,0,0),"spine_01":Vector3(-2,0,0)}},
   {"t":0.6,"p":{"upperarm_l":Vector3(0,0,-55),"upperarm_r":Vector3(0,0,55),"lowerarm_l":Vector3(-24,0,-10),"lowerarm_r":Vector3(-24,0,10),"thigh_l":Vector3(-9,0,0),"thigh_r":Vector3(-9,0,0),"calf_l":Vector3(14,0,0),"calf_r":Vector3(14,0,0),"spine_01":Vector3(-1,0,0)}}
  ],
  "Run": [
@@ -21,9 +21,9 @@ const POSES := {
   {"t":0.8,"p":{"upperarm_l":Vector3(-68,0,-45),"upperarm_r":Vector3(-68,0,45),"lowerarm_l":Vector3(-8,0,0),"lowerarm_r":Vector3(-8,0,0),"thigh_l":Vector3(-48,0,0),"thigh_r":Vector3(-48,0,0),"calf_l":Vector3(92,0,0),"calf_r":Vector3(92,0,0),"spine_01":Vector3(-8,0,0)}}
  ],
  "Attack_Bow": [
-  {"t":0.0,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}},
+  {"t":0.0,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"hand_l":Vector3.ZERO,"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}},
   {"t":0.32,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-10,0,0),"thigh_r":Vector3(-10,0,0),"calf_l":Vector3(18,0,0),"calf_r":Vector3(18,0,0),"upperarm_l":Vector3(88,0,10),"lowerarm_l":Vector3(-4,0,0),"upperarm_r":Vector3(88,0,-10),"lowerarm_r":Vector3.ZERO}},
-  {"t":0.58,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}}
+  {"t":0.58,"p":{"spine_01":Vector3(-5,0,0),"spine_02":Vector3(-5,0,0),"spine_03":Vector3(-5,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(16,0,0),"calf_r":Vector3(16,0,0),"upperarm_l":Vector3(82,0,12),"hand_l":Vector3.ZERO,"lowerarm_l":Vector3(-8,0,0),"upperarm_r":Vector3(82,0,-12),"lowerarm_r":Vector3.ZERO}}
  ],
  "Attack_Assassin": [
   {"t":0.0,"p":{"spine_01":Vector3(-4,0,0),"spine_02":Vector3(-4,0,0),"spine_03":Vector3(-4,0,0),"thigh_l":Vector3(-8,0,0),"thigh_r":Vector3(-8,0,0),"calf_l":Vector3(18,0,0),"calf_r":Vector3(18,0,0),"upperarm_l":Vector3(72,0,28),"upperarm_r":Vector3(72,0,-28),"lowerarm_l":Vector3(-28,0,0),"lowerarm_r":Vector3(-28,0,0)}},
@@ -163,6 +163,53 @@ func _make_animation(clip: String, skeleton: Skeleton3D, skeleton_path: NodePath
     # Keep the elbow completely straight; no forearm bend.
     delta_quat = Quaternion.IDENTITY
    animation.track_insert_key(track, float(frame["t"]), (rest_quat * delta_quat).normalized())
+ if clip in ["Idle", "Attack_Bow"] and mapping.has("hand_l") and mapping.has("lowerarm_l"):
+  var hand_index := skeleton.find_bone(str(mapping["hand_l"]))
+  var forearm_index := skeleton.find_bone(str(mapping["lowerarm_l"]))
+  var hand_rest_global := skeleton.get_bone_global_rest(hand_index)
+  var forearm_to_wrist := hand_rest_global.basis.inverse() * (skeleton.get_bone_global_rest(forearm_index).origin - hand_rest_global.origin)
+  var forearm_axis_local := forearm_to_wrist.normalized()
+  var hand_track := animation.add_track(Animation.TYPE_ROTATION_3D)
+  animation.track_set_path(hand_track, NodePath(str(skeleton_path) + ":" + str(mapping["hand_l"])))
+  animation.track_set_interpolation_type(hand_track, Animation.INTERPOLATION_LINEAR)
+  var hand_rest_rotation := skeleton.get_bone_rest(hand_index).basis.get_rotation_quaternion()
+  var palm_inward_rotation := Quaternion(forearm_axis_local, deg_to_rad(90.0))
+  for frame in frames:
+   animation.track_insert_key(hand_track, float(frame["t"]), (hand_rest_rotation * palm_inward_rotation).normalized())
+  var finger_track_count := 0
+  var finger_names: Array[String] = []
+  for finger_index in range(skeleton.get_bone_count()):
+   var ancestor := skeleton.get_bone_parent(finger_index)
+   while ancestor >= 0 and ancestor != hand_index:
+    ancestor = skeleton.get_bone_parent(ancestor)
+   if ancestor != hand_index:
+    continue
+   var finger_name := skeleton.get_bone_name(finger_index)
+   var finger_normalized := finger_name.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
+   var is_finger := "index" in finger_normalized or "middle" in finger_normalized or "ring" in finger_normalized or "pinky" in finger_normalized or "little" in finger_normalized or "thumb" in finger_normalized
+   if not is_finger:
+    continue
+   var curl_degrees := 42.0
+   if "thumb" in finger_normalized:
+    curl_degrees = 34.0
+   elif "3" in finger_normalized or "distal" in finger_normalized:
+    curl_degrees = 24.0
+   elif "2" in finger_normalized or "middle" in finger_normalized:
+    curl_degrees = 38.0
+   else:
+    curl_degrees = 48.0
+   var finger_rest_rotation := skeleton.get_bone_rest(finger_index).basis.get_rotation_quaternion()
+   var finger_curl := Quaternion(Vector3.RIGHT, deg_to_rad(curl_degrees))
+   var finger_track := animation.add_track(Animation.TYPE_ROTATION_3D)
+   animation.track_set_path(finger_track, NodePath(str(skeleton_path) + ":" + finger_name))
+   animation.track_set_interpolation_type(finger_track, Animation.INTERPOLATION_LINEAR)
+   for frame in frames:
+    animation.track_insert_key(finger_track, float(frame["t"]), (finger_rest_rotation * finger_curl).normalized())
+   finger_track_count += 1
+   finger_names.append(finger_name)
+  print("PHASE4C_LEFT_HAND_GRIP_POSE_BUILT: hand_bone=", mapping["hand_l"], " forearm_axis_local=", forearm_axis_local, " palm_rotation_deg=90 finger_tracks=", finger_track_count, " fingers=", finger_names)
+  if finger_track_count < 4:
+   push_error("PHASE4C_LEFT_HAND_FINGER_CURL_INCOMPLETE: tracks=" + str(finger_track_count) + " fingers=" + str(finger_names))
  if clip == "Jump" and mapping.has("pelvis"):
   var pelvis := str(mapping["pelvis"])
   var idx := skeleton.find_bone(pelvis)
