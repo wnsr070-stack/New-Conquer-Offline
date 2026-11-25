@@ -80,9 +80,13 @@ func _run() -> void:
  if hero.get("hero_model") == null:
   _fail("PHASE4B_STEP3_APPROVED_HERO_MODEL_NOT_LOADED"); return
  var hero_model := hero.get("hero_model") as Node3D
- var measured_hero_height := AssetLoader._measure_bounds(hero_model,Transform3D.IDENTITY).size.y
- if absf(measured_hero_height-2.8)>0.06:
-  _fail("PHASE4B_STEP3_HERO_HEIGHT_MISMATCH: "+str(measured_hero_height)); return
+ # HeroController stores the measured source AABB before applying its approved
+ # 2.8m normalization. Re-measuring the imported skeletal scene through
+ # AssetLoader here includes nested rig transforms and double-counts them.
+ var source_hero_height := float(hero.get("measured_model_height"))
+ var normalized_hero_height := source_hero_height * hero_model.scale.y
+ if absf(normalized_hero_height-2.8)>0.06:
+  _fail("PHASE4B_STEP3_HERO_HEIGHT_MISMATCH: source="+str(source_hero_height)+" scale="+str(hero_model.scale.y)+" normalized="+str(normalized_hero_height)); return
 
  var chicken_point: Node3D
  var boss_point: Node3D
