@@ -11,6 +11,7 @@ on:
       - 'scripts/SkillSystem.gd'
       - 'project.godot'
       - 'ci/phase4c_step3_forging_capture.gd'
+      - 'ci/fetch_items_consumables.py'
       - 'scripts/HeroController.gd'
       - 'scripts/MonsterActor.gd'
       - 'scripts/CombatSystem.gd'
@@ -84,7 +85,15 @@ jobs:
           grep -q '"leafy_grass_diffuse"' .cache/hf-assets/twin_city_runtime_assets.json
           grep -q '"snow_02_diffuse"' .cache/hf-assets/twin_city_runtime_assets.json
           echo PHASE4B_STEP3_CITY_ASSET_CATALOG_READY
-      - name: Restore the exact approved Phase 3B monster, Ranger and weapon assets
+      - name: Fetch pinned CC0 Kenney and KayKit loot plus inventory icon assets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          .venv/bin/python ci/fetch_items_consumables.py 2>&1 | tee artifacts/items_consumables_fetch.log
+          test -s assets/items_and_consumables/asset_manifest.json
+          grep -q 'PHASE4C_CC0_ITEMS_HF_UPLOAD_OK' artifacts/items_consumables_fetch.log
+      - name: Restore the exact approved Phase 3B monster, Ranger, weapons and arrow assets
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -101,7 +110,8 @@ jobs:
             "phase3b/weapons/dual_blades_beginner.glb":"assets/phase3b/weapons/dual_blades_beginner.glb",
             "phase3b/weapons/shield_beginner.glb":"assets/phase3b/weapons/shield_beginner.glb",
             "phase3b/weapons/greatsword_beginner.glb":"assets/phase3b/weapons/greatsword_beginner.glb",
-            "phase3b/weapons/magic_staff_beginner.glb":"assets/phase3b/weapons/magic_staff_beginner.glb"}
+            "phase3b/weapons/magic_staff_beginner.glb":"assets/phase3b/weapons/magic_staff_beginner.glb",
+            "phase3b/quaternius_library/ranger_arrow_ranger_arrow.glb":"assets/phase3b/quaternius_library/ranger_arrow_ranger_arrow.glb"}
           for source,dest in targets.items():
             src=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename=source,token=token))
             out=pathlib.Path(dest); out.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,out)
@@ -131,6 +141,7 @@ jobs:
           test -s assets/phase4/animations/conquer_hero_anims.res
           grep -q "PHASE4A_ANIMATION_LIBRARY_OK" artifacts/hero_animation_builder.log
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee -a artifacts/godot_import.log
+          test -s assets/phase3b/quaternius_library/ranger_arrow_ranger_arrow.glb
           echo PHASE4B_STEP3_APPROVED_HERO_RESOURCE_READY
       - name: Run actual Twin City forging test and capture +12 weapon aura proof
         env:
@@ -175,5 +186,6 @@ jobs:
             artifacts/hero_animation_builder.log
             artifacts/city_asset_fetch.log
             artifacts/city_scene_asset_prepare.log
+            artifacts/items_consumables_fetch.log
           if-no-files-found: warn
           retention-days: 30
