@@ -242,7 +242,24 @@ func _run_capture() -> void:
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
  current_scene = null
+ # Explicitly detach renderer-owned resources from every GeometryInstance3D before
+ # freeing the scene. This breaks mesh/material dependency chains before Node teardown.
+ var render_nodes := city.find_children("*","GeometryInstance3D",true,false) if is_instance_valid(city) else []
+ var render_node_count := render_nodes.size()
+ for render_node in render_nodes:
+  var geometry := render_node as GeometryInstance3D
+  if geometry is MeshInstance3D:
+   var mesh_instance := geometry as MeshInstance3D
+   if mesh_instance.mesh != null:
+    for surface in range(mesh_instance.mesh.get_surface_count()):
+     mesh_instance.set_surface_override_material(surface,null)
+   mesh_instance.mesh = null
+  geometry.material_override = null
+  if is_instance_valid(geometry): geometry.free()
+ render_nodes.clear()
+ print("PHASE4D_GEOMETRY_INSTANCES_DETACHED_AND_FREED: count=",render_node_count)
  if is_instance_valid(city): city.free()
+ RenderingServer.force_sync()
  var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem"]
  for autoload_name in cache_autoloads:
   var autoload := root.get_node_or_null(autoload_name)
