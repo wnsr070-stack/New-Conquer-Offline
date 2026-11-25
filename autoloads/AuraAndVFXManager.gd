@@ -21,6 +21,23 @@ const ANIMA_COLORS := {
 var _frames_cache: Dictionary = {}
 var _atlas_cache: Dictionary = {}
 var _active_orbits: Dictionary = {}
+var _orbit_clock := 0.0
+
+func _process(delta: float) -> void:
+ _orbit_clock += delta
+ for orbit_id in _active_orbits.keys():
+  var entry: Dictionary = _active_orbits[orbit_id]
+  var controller := entry.get("node") as Node3D
+  if not is_instance_valid(controller):
+   _active_orbits.erase(orbit_id)
+   continue
+  for orb in controller.get_children():
+   if not orb is AnimatedSprite3D: continue
+   var angle := _orbit_clock*float(orb.get_meta("orbit_speed",1.0))+float(orb.get_meta("orbit_phase",0.0))
+   var radius := float(orb.get_meta("orbit_radius",0.8))
+   var wobble := float(orb.get_meta("orbit_wobble",0.15))
+   var height := float(orb.get_meta("orbit_height",1.2))+sin(angle*1.7)*wobble
+   orb.position = Vector3(cos(angle)*radius,height,sin(angle)*radius*0.72)
 
 func _ready() -> void:
  print("PHASE4D_AURA_VFX_MANAGER_READY: sprite_frames=true billboard=true blend_add=true procedural_geometry=false")
@@ -131,11 +148,11 @@ func attach_character_aura(player_node: Node3D, min_set_plus: int, is_xp_active:
  return attached or (min_set_plus < 3 and not is_xp_active)
 
 func _anima_style(phase: int) -> Dictionary:
- if phase <= 3: return {"colors":ANIMA_COLORS.green_blue,"count":1+int(ceil(float(phase)/1.0)),"speed":0.8+phase*0.12}
- if phase <= 6: return {"colors":ANIMA_COLORS.gold,"count":3+int(ceil(float(phase-3)/2.0)),"speed":1.2+phase*0.10}
- if phase <= 9: return {"colors":ANIMA_COLORS.fire,"count":4+int(ceil(float(phase-6)/2.0)),"speed":1.7+phase*0.08}
- if phase <= 12: return {"colors":ANIMA_COLORS.purple,"count":5,"speed":2.0+phase*0.07}
- return {"colors":ANIMA_COLORS.dual,"count":6,"speed":2.4+phase*0.06}
+ if phase <= 3: return {"colors":ANIMA_COLORS.green_blue,"count":1+int(floor(float(phase-1)/3.0)),"speed":0.8+phase*0.12}
+ if phase <= 6: return {"colors":ANIMA_COLORS.gold,"count":2+int(floor(float(phase-4)/3.0)),"speed":1.2+phase*0.10}
+ if phase <= 9: return {"colors":ANIMA_COLORS.fire,"count":3+int(floor(float(phase-7)/3.0)),"speed":1.7+phase*0.08}
+ if phase <= 12: return {"colors":ANIMA_COLORS.purple,"count":4,"speed":2.0+phase*0.07}
+ return {"colors":ANIMA_COLORS.dual,"count":5+int(floor(float(phase-13)/3.0)),"speed":2.4+phase*0.06}
 
 func attach_anima_aura(player_node: Node3D, anima_phase: int) -> bool:
  if player_node == null or not is_instance_valid(player_node): return false
@@ -163,17 +180,9 @@ func attach_anima_aura(player_node: Node3D, anima_phase: int) -> bool:
   orb.set_meta("orbit_speed",float(style.speed)*(1.0 if i%2==0 else -0.82))
   orb.set_meta("orbit_wobble",0.13+float(phase)*0.006)
  _active_orbits[player_node.get_instance_id()] = {"node":controller,"clock":0.0}
- controller.set_process(true)
  controller.set_meta("anima_phase",phase)
- _ensure_orbit_process(controller)
  print("PHASE4D_ANIMA_ORBIT_ATTACHED: phase=P",phase," orbs=",count," speed=",style.speed)
  return controller.get_child_count()>0
-
-func _ensure_orbit_process(controller: Node3D) -> void:
- var script := GDScript.new()
- script.source_code = "extends Node3D\nvar clock := 0.0\nfunc _process(delta: float) -> void:\n clock += delta\n for orb in get_children():\n  if not orb is AnimatedSprite3D: continue\n  var angle := clock*float(orb.get_meta('orbit_speed',1.0))+float(orb.get_meta('orbit_phase',0.0))\n  var radius := float(orb.get_meta('orbit_radius',0.8))\n  var wobble := float(orb.get_meta('orbit_wobble',0.15))\n  var height := float(orb.get_meta('orbit_height',1.2))+sin(angle*1.7)*wobble\n  orb.position = Vector3(cos(angle)*radius,height,sin(angle)*radius*0.72)\n"
- script.reload()
- controller.set_script(script)
 
 func attach_loot_aura(loot_node: Node3D, item_rarity: String, item_type: String) -> bool:
  if loot_node == null or not is_instance_valid(loot_node): return false
