@@ -355,10 +355,10 @@ func _spawn_loot_proof(city: Node3D, center: Vector3) -> bool:
   city.add_child(model)
   model.global_position = center + offsets[i]
   model.scale = Vector3.ONE * (0.34 if i not in [0,5] else 0.42)
-  var vfx := get_root().get_node_or_null("AuraAndVFXManager")
-  if vfx != null:
+  var combat := get_root().get_node_or_null("CombatSystem")
+  if combat != null:
    var rarity := "Super" if String(entry.name)=="Dragon Gem" else "Elite" if String(entry.name)=="Meteor" else "Unique"
-   vfx.attach_loot_aura(model,rarity,String(entry.name))
+   combat.attach_loot_drop_aura(model,rarity,String(entry.name))
   var glow := StandardMaterial3D.new()
   glow.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
   glow.albedo_color = Color(1,1,1,0.18)
