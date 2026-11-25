@@ -15,6 +15,7 @@ func _run() -> void:
  if packed == null: _fail("twin_city_scene_missing"); return
  var city := packed.instantiate() as Node3D
  root.add_child(city)
+ current_scene = city
  var hero: CharacterBody3D
  var spawner: MonsterSpawner
  for i in range(240):
@@ -231,6 +232,18 @@ func _run() -> void:
  print("PHASE4C_STEP3_FOUR_SEQUENTIAL_PNGS_OK: 1_stance_aim 2_attack_hit 3_kill_loot 4_closeup_weapon")
  print("PHASE4C_STEP3_CLOSEUP_PNG_OK: bytes=",detail_bytes)
  print("PHASE4D_AURA_VFX_RENDER_OK")
+ print("PHASE4D_CLEANUP_BEGIN")
+ var vfx_manager := root.get_node_or_null("AuraAndVFXManager")
+ if vfx_manager != null and vfx_manager.has_method("cleanup_all"):
+  vfx_manager.cleanup_all()
+ else:
+  _fail("aura_vfx_cleanup_method_missing")
+  return
+ if current_scene != null and is_instance_valid(current_scene):
+  current_scene.free()
+  current_scene = null
+ await process_frame
+ print("PHASE4D_CLEANUP_COMPLETE: current_scene_freed=true frame_waited=true")
  print("PHASE4D_AURA_VFX_EXIT_CODE_0")
  quit(0)
 
