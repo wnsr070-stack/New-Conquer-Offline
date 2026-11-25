@@ -288,11 +288,12 @@ func _build_gear_proof_hud(item: Dictionary, bonuses: Dictionary) -> void:
 
 func _set_action_camera(camera: Camera3D, hero: Node3D, target_center: Vector3, distance: float) -> void:
  camera.fov = 58.0
- var midpoint := (hero.global_position + target_center) * 0.5 + Vector3(0.0,1.05,0.0)
+ var hero_focus := hero.global_position + Vector3(0.0,1.05,0.0)
+ var midpoint := (hero.global_position + target_center) * 0.5 + Vector3(0.0,1.0,0.0)
  var side_front := Vector3(0.68,0.42,0.60).normalized()
- camera.global_position = midpoint + side_front * distance
+ camera.global_position = hero_focus + side_front * distance
  camera.look_at(midpoint,Vector3.UP)
- print("PHASE4C_ACTION_CAMERA_OK: distance=",distance,"m angle=3quarter_side_front fov=58")
+ print("PHASE4C_ACTION_CAMERA_OK: hero_distance=",distance,"m angle=3quarter_side_front fov=58")
 
 func _set_loot_camera(camera: Camera3D, corpse_center: Vector3) -> void:
  camera.fov = 54.0
