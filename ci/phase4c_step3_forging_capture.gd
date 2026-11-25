@@ -196,6 +196,7 @@ func _run() -> void:
  hero.animation_player.seek(0.32,true)
  await _wait_rendered_pose()
  _save_proof_png("4_closeup_weapon.png","PHASE4C_FRAME4_BOW_CLOSEUP_OK")
+ var out_dir := ProjectSettings.globalize_path("res://artifacts")
  var bytes := FileAccess.get_file_as_bytes(out_dir.path_join("1_stance_aim.png")).size()
  var detail_bytes := FileAccess.get_file_as_bytes(out_dir.path_join("4_closeup_weapon.png")).size()
  var bonuses: Dictionary = gear.get_combat_bonuses()
