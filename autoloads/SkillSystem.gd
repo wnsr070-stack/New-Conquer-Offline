@@ -53,7 +53,7 @@ func get_equipped_mode(hero: Node3D) -> String:
  return "bow"
 
 func get_available_skills(hero: Node3D) -> Array[String]:
- var class_id := _hero_class(hero)
+ var class_id := _effective_skill_class(hero)
  var mode := get_equipped_mode(hero)
  var result: Array[String] = []
  for skill_id in SKILL_DATA:
@@ -67,7 +67,7 @@ func use_skill(hero: Node3D, skill_id: String, target: Node3D = null) -> Diction
  if hero == null or not is_instance_valid(hero): return _fail("invalid_hero")
  if not SKILL_DATA.has(skill_id): return _fail("unknown_skill")
  var data: Dictionary = SKILL_DATA[skill_id]
- var class_id := _hero_class(hero)
+ var class_id := _effective_skill_class(hero)
  if String(data.get("class","")) != class_id: return _fail("wrong_class")
  if class_id == "archer" and String(data.get("weapon","bow")) != get_equipped_mode(hero): return _fail("wrong_weapon")
  var state := get_node_or_null("/root/GameState")
@@ -128,7 +128,7 @@ func _select_targets(hero: Node3D, primary: Node3D, data: Dictionary) -> Array[N
  var radius := float(data.get("radius",data.get("range",18.0)))
  var max_targets := int(data.get("max_targets",8))
  var forward := -hero.global_transform.basis.z
- for candidate in get_tree().root.find_children("*","",true,false):
+ for candidate in get_tree().root.find_children("*","Node3D",true,false):
   if not candidate is Node3D or not combat._is_alive_monster(candidate): continue
   var victim := candidate as Node3D
   if victim == hero or victim.is_in_group("players"): continue
@@ -254,3 +254,9 @@ func reset_for_test() -> void:
  cooldowns.clear()
  buffs.clear()
  _buff_durations.clear()
+
+func _effective_skill_class(hero: Node3D) -> String:
+ var class_id := _hero_class(hero)
+ if class_id == "archer" and get_equipped_mode(hero) == "dual_daggers":
+  return "oriental_assassin"
+ return class_id
