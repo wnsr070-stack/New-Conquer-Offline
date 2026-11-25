@@ -80,7 +80,7 @@ func _apply_runtime_aura() -> void:
  for socket in weapon_nodes:
   if not is_instance_valid(socket) or not socket is Node3D: continue
   var mesh_root := socket.get_child(0) as Node3D if socket.get_child_count()>0 else socket as Node3D
-  if mesh_root != null: vfx.attach_equipment_aura(mesh_root,int(weapon.get("plus",0)))
+  if mesh_root != null: vfx.attach_equipment_aura(mesh_root,int(weapon.get("plus",0)),true)
  var min_set_plus := 13
  var set_count := 0
  for slot in equipped:

@@ -2,9 +2,17 @@ extends SceneTree
 # Zero Procedural Geometry: approved GLB weapon assets only; no generated projectile meshes.
 const SpawnerScript = preload("res://scripts/MonsterSpawner.gd")
 const MonsterActorScript = preload("res://scripts/MonsterActor.gd")
+var _capture_failed := false
 func _initialize() -> void:
- call_deferred("_run")
-func _run() -> void:
+ call_deferred("_ready")
+func _ready() -> void:
+ await _run_capture()
+ if _capture_failed: return
+ await process_frame
+ await process_frame
+ print("PHASE4D_POST_CAPTURE_STACK_RELEASE_FRAMES_OK")
+ quit(0)
+func _run_capture() -> void:
  _configure_input_map()
  get_root().size = Vector2i(1600,1000)
  await process_frame
@@ -233,6 +241,8 @@ func _run() -> void:
  print("PHASE4C_STEP3_CLOSEUP_PNG_OK: bytes=",detail_bytes)
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
+ current_scene = null
+ if is_instance_valid(city): city.free()
  var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager"]
  for autoload_name in cache_autoloads:
   var autoload := root.get_node_or_null(autoload_name)
@@ -240,25 +250,36 @@ func _run() -> void:
    _fail("required_autoload_clear_cache_missing: "+autoload_name)
    return
   autoload.clear_cache()
- # The current scene is a non-autoload root child; clear the SceneTree pointer first.
- current_scene = null
  var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager"]
- var freed_root_children := 0
  for child in root.get_children():
-  if child.name in autoload_names:
-   continue
-  if is_instance_valid(child):
-   child.free()
-   freed_root_children += 1
- print("PHASE4D_ROOT_CHILDREN_FREED: count=",freed_root_children)
- # Flush two complete process/render frames so RenderingServer can retire scene-cull RIDs.
- await process_frame
- await RenderingServer.frame_post_draw
- await process_frame
- await RenderingServer.frame_post_draw
- print("PHASE4D_CLEANUP_COMPLETE: autoload_caches_cleared=true non_autoload_root_children_freed=",freed_root_children," render_frames_waited=2")
- print("PHASE4D_AURA_VFX_EXIT_CODE_0")
- quit(0)
+  if child.name in autoload_names: continue
+  if is_instance_valid(child): child.free()
+ packed = null
+ city = null
+ hero = null
+ spawner = null
+ camp = null
+ bow_socket = null
+ bow_node = null
+ actors.clear()
+ state = null
+ gear = null
+ forging = null
+ combat = null
+ skills = null
+ vfx = null
+ equipment_sprite_aura = null
+ armor_sprite_aura = null
+ anima_orbit = null
+ target_center = Vector3.ZERO
+ camera = null
+ old_camera = null
+ world_env = null
+ arrow_projectile = null
+ corpse_model = null
+ item.clear()
+ print("PHASE4D_CAPTURE_LOCAL_REFERENCES_RELEASED")
+ print("PHASE4D_CAPTURE_FUNCTION_RETURNING")
 
 func _wait_rendered_pose() -> void:
  for frame in range(5):
@@ -411,10 +432,23 @@ func _ensure_loot_albedo(model: Node3D, loot_name: String) -> bool:
  if not ResourceLoader.exists(texture_path):
   push_error("PHASE4C_LOOT_COLORMAP_MISSING: " + texture_path + " loot=" + loot_name)
   return false
- var colormap := load(texture_path) as Texture2D
- if colormap == null or colormap.get_width() <= 0 or colormap.get_height() <= 0:
+ var source_colormap := load(texture_path) as Texture2D
+ if source_colormap == null or source_colormap.get_width() <= 0 or source_colormap.get_height() <= 0:
   push_error("PHASE4C_LOOT_COLORMAP_INVALID: " + texture_path + " loot=" + loot_name)
   return false
+ var loot_image := source_colormap.get_image()
+ if loot_image == null or loot_image.is_empty(): return false
+ loot_image.convert(Image.FORMAT_RGBA8)
+ var white_pixels_removed := 0
+ for py in range(loot_image.get_height()):
+  for px in range(loot_image.get_width()):
+   var pixel := loot_image.get_pixel(px,py)
+   if pixel.r > 0.90 and pixel.g > 0.90 and pixel.b > 0.90:
+    pixel.a = 0.0
+    loot_image.set_pixel(px,py,pixel)
+    white_pixels_removed += 1
+ var colormap := ImageTexture.create_from_image(loot_image)
+ print("PHASE4D_LOOT_WHITE_ALPHA_EXTRACTION_OK: loot=",loot_name," transparent_white_pixels=",white_pixels_removed," format=RGBA8")
  var mesh_count := 0
  var surface_count := 0
  for node in model.find_children("*", "MeshInstance3D", true, false):
@@ -427,6 +461,8 @@ func _ensure_loot_albedo(model: Node3D, loot_name: String) -> bool:
    var material := source_material.duplicate() as StandardMaterial3D if source_material is StandardMaterial3D else StandardMaterial3D.new()
    if material.albedo_texture == null:
     material.albedo_texture = colormap
+   material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+   material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
    if material.albedo_texture == null:
     push_error("PHASE4C_LOOT_TEXTURE_ALBEDO_INVALID: loot=" + loot_name + " mesh=" + mesh_instance.name + " surface=" + str(surface))
     return false
@@ -439,6 +475,7 @@ func _ensure_loot_albedo(model: Node3D, loot_name: String) -> bool:
  return true
 
 func _fail(reason: String) -> void:
+ _capture_failed = true
  push_error("PHASE4C_STEP3_FAILED: "+reason)
  quit(1)
 

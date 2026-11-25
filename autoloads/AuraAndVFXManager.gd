@@ -113,8 +113,17 @@ func _build_frames(effect_type: String, variant: int) -> SpriteFrames:
   return null
  var texture: Texture2D = _texture_cache.get(path) as Texture2D
  if texture == null:
-  texture = load(path) as Texture2D
-  if texture == null: return null
+  var source_texture := load(path) as Texture2D
+  if source_texture == null: return null
+  var alpha_image := source_texture.get_image()
+  if alpha_image == null or alpha_image.is_empty(): return null
+  alpha_image.convert(Image.FORMAT_RGBA8)
+  for py in range(alpha_image.get_height()):
+   for px in range(alpha_image.get_width()):
+    var pixel := alpha_image.get_pixel(px,py)
+    pixel.a = clampf(maxf(pixel.r,maxf(pixel.g,pixel.b))*1.4,0.0,1.0)
+    alpha_image.set_pixel(px,py,pixel)
+  texture = ImageTexture.create_from_image(alpha_image)
   _texture_cache[path] = texture
  var frames := SpriteFrames.new()
  frames.add_animation("play")
@@ -163,7 +172,7 @@ func _clear_anchor(target: Node3D, anchor_name: String) -> void:
   _active_effect_roots.erase(old)
   old.free()
 
-func attach_equipment_aura(target_node: Node3D, plus_level: int) -> bool:
+func attach_equipment_aura(target_node: Node3D, plus_level: int, weapon_aura: bool = false) -> bool:
  if target_node == null or not is_instance_valid(target_node): return false
  _clear_anchor(target_node,"EquipmentSpriteAura")
  if plus_level < 3: return true
@@ -178,6 +187,51 @@ func attach_equipment_aura(target_node: Node3D, plus_level: int) -> bool:
  ring.rotation_degrees.x = -90.0
  anchor.add_child(ring)
  anchor.add_child(flame)
+ if weapon_aura:
+  var mesh_nodes := target_node.find_children("*","MeshInstance3D",true,false)
+  if mesh_nodes.is_empty(): return false
+  var bounds := AABB()
+  var has_bounds := false
+  var inverse_root := target_node.global_transform.affine_inverse()
+  for mesh_node in mesh_nodes:
+   var mesh_instance := mesh_node as MeshInstance3D
+   if mesh_instance.mesh == null: continue
+   var local_bounds := mesh_instance.get_aabb()
+   var relative_transform := inverse_root * mesh_instance.global_transform
+   for corner_index in range(8):
+    var corner := Vector3(local_bounds.position.x + (local_bounds.size.x if (corner_index & 1) != 0 else 0.0),local_bounds.position.y + (local_bounds.size.y if (corner_index & 2) != 0 else 0.0),local_bounds.position.z + (local_bounds.size.z if (corner_index & 4) != 0 else 0.0))
+    var point := relative_transform * corner
+    if not has_bounds:
+     bounds = AABB(point,Vector3.ZERO)
+     has_bounds = true
+    else:
+     bounds = bounds.expand(point)
+   for surface in range(mesh_instance.mesh.get_surface_count()):
+    var source_material := mesh_instance.get_active_material(surface)
+    var glow_material := source_material.duplicate() as StandardMaterial3D if source_material is StandardMaterial3D else StandardMaterial3D.new()
+    glow_material.emission_enabled = true
+    glow_material.emission = tint
+    glow_material.emission_energy_multiplier = 1.35 + float(tier)*0.15
+    mesh_instance.set_surface_override_material(surface,glow_material)
+    var pulse := create_tween()
+    pulse.set_loops()
+    pulse.tween_property(glow_material,"emission_energy_multiplier",1.15+float(tier)*0.12,0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+    pulse.tween_property(glow_material,"emission_energy_multiplier",1.65+float(tier)*0.20,0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+  if not has_bounds: return false
+  var axis := 0
+  if bounds.size.y > bounds.size.x: axis = 1
+  if bounds.size.z > bounds.size[axis]: axis = 2
+  var midpoint := bounds.position + bounds.size*0.5
+  for flame_index in range(6):
+   var sprite := _make_sprite("flame",2,tint,0.32,18.0+float(tier)*2.0)
+   if sprite == null: return false
+   var point := midpoint
+   point[axis] = bounds.position[axis] + bounds.size[axis]*float(flame_index)/5.0
+   sprite.position = point
+   sprite.modulate = Color(minf(tint.r,1.0),minf(tint.g,1.0),minf(tint.b,1.0),0.82)
+   sprite.name = "WeaponLengthFlame_%02d" % flame_index
+   anchor.add_child(sprite)
+  print("PHASE4D_WEAPON_FULL_LENGTH_EMISSION_OK: tier=",tier," flame_segments=6 axis=",axis," bounds=",bounds)
  return true
 
 func attach_character_aura(player_node: Node3D, min_set_plus: int, is_xp_active: bool) -> bool:
