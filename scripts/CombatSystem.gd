@@ -75,7 +75,7 @@ func perform_attack(hero: Node3D,target: Node3D,force_critical: bool = false) ->
  _play_attack_animation(hero,_hero_class(hero))
  var state := get_node_or_null("/root/GameState")
  var player_data: Dictionary = state.player_data if state != null else {}
- var attack := int(player_data.get("attack",100))
+ var attack := int(player_data.get("attack",100))+_gear_bonuses().attack
  var defense := int(target.definition.get("defense",0))
  var critical := force_critical or (not bool(get_meta("disable_random_crit",false)) and _rng.randf() < CRITICAL_CHANCE)
  var multiplier := float(hero.get_meta("physical_damage_multiplier",1.0))
@@ -87,7 +87,7 @@ func apply_skill_damage(hero: Node3D,target: Node3D,skill_multiplier: float,skil
  if hero == null or not _is_alive_monster(target): return {"ok":false,"reason":"invalid_target"}
  var state := get_node_or_null("/root/GameState")
  var player_data: Dictionary = state.player_data if state != null else {}
- var attack := int(player_data.get("attack",100))
+ var attack := int(player_data.get("attack",100))+_gear_bonuses().attack
  var defense := int(target.definition.get("defense",0))
  var physical := skill_id not in ["thunder","tornado","chain_lightning","arrow_rain"]
  var buff_multiplier := float(hero.get_meta("physical_damage_multiplier",1.0)) if physical else 1.0
@@ -134,6 +134,7 @@ func _spawn_floating_damage(target: Node3D,amount: int,critical: bool) -> void:
 func _on_monster_killed(target: Node3D,state: Node) -> void:
  var data: Dictionary = target.definition
  var exp_reward := int(data.get("exp",0))
+ exp_reward = int(round(float(exp_reward)*(1.0+float(_gear_bonuses().exp_bonus))))
  if target.is_king: exp_reward = int(round(exp_reward*1.5))
  if state != null:
   state.add_exp(exp_reward)
@@ -162,3 +163,7 @@ func _grant_combat_xp(delta: float) -> void:
 
 func _is_alive_monster(node: Node) -> bool:
  return node != null and is_instance_valid(node) and node.has_method("is_dead") and not node.is_dead() and int(node.get("current_hp")) > 0
+
+func _gear_bonuses() -> Dictionary:
+ var gear := get_node_or_null("/root/GearSystem")
+ return gear.get_combat_bonuses() if gear != null else {"attack":0,"defense":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}
