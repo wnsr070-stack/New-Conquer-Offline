@@ -215,3 +215,9 @@ func attach_loot_drop_aura(loot_node: Node3D,item_rarity: String,item_type: Stri
  var attached: bool = vfx.attach_loot_aura(loot_node,item_rarity,item_type)
  if attached: loot_visual_registered.emit(loot_node,item_rarity,item_type)
  return attached
+
+
+func clear_cache() -> void:
+ current_target = null
+ _hero = null
+ print("PHASE4D_COMBAT_NODE_REFERENCES_CLEARED")

@@ -243,7 +243,7 @@ func _run_capture() -> void:
  print("PHASE4D_CLEANUP_BEGIN")
  current_scene = null
  if is_instance_valid(city): city.free()
- var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager"]
+ var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem"]
  for autoload_name in cache_autoloads:
   var autoload := root.get_node_or_null(autoload_name)
   if autoload == null or not autoload.has_method("clear_cache"):
@@ -461,7 +461,6 @@ func _ensure_loot_albedo(model: Node3D, loot_name: String) -> bool:
    var material := source_material.duplicate() as StandardMaterial3D if source_material is StandardMaterial3D else StandardMaterial3D.new()
    if material.albedo_texture == null:
     material.albedo_texture = colormap
-   material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
    material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
    if material.albedo_texture == null:
     push_error("PHASE4C_LOOT_TEXTURE_ALBEDO_INVALID: loot=" + loot_name + " mesh=" + mesh_instance.name + " surface=" + str(surface))

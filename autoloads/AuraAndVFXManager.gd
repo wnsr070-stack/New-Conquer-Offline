@@ -213,7 +213,7 @@ func attach_equipment_aura(target_node: Node3D, plus_level: int, weapon_aura: bo
     glow_material.emission = tint
     glow_material.emission_energy_multiplier = 1.35 + float(tier)*0.15
     mesh_instance.set_surface_override_material(surface,glow_material)
-    var pulse := create_tween()
+    var pulse := mesh_instance.create_tween()
     pulse.set_loops()
     pulse.tween_property(glow_material,"emission_energy_multiplier",1.15+float(tier)*0.12,0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
     pulse.tween_property(glow_material,"emission_energy_multiplier",1.65+float(tier)*0.20,0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)

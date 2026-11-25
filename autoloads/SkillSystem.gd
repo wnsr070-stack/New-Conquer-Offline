@@ -323,3 +323,8 @@ func _apply_slow(target: Node3D,multiplier: float,duration: float) -> void:
  target.set_meta("movement_slow_multiplier",multiplier)
  target.set_meta("movement_slow_time",duration)
  slowed_targets[key] = {"target":target,"remaining":duration,"original":original_speed}
+
+
+func clear_cache() -> void:
+ slowed_targets.clear()
+ print("PHASE4D_SKILL_NODE_REFERENCES_CLEARED")
