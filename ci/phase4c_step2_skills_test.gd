@@ -90,6 +90,9 @@ func _run() -> void:
  if float(skills.buffs["cyclone"]) < before_cyclone+1.99: _fail("cyclone_kill_extension_failed"); return
  checks += 1
  hero.active_class = "warrior"
+ for mob in mobs:
+  mob.max_hp = 5000
+  mob.revive()
  state.player_data["stamina"] = 100
  skills.reset_for_test()
  result = skills.use_skill(hero,"wide_strike")
