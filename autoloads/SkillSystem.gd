@@ -43,7 +43,7 @@ func get_equipped_mode(hero: Node3D) -> String:
  var gear := get_node_or_null("/root/GearSystem")
  if gear != null:
   var item: Dictionary = gear.get_equipped("weapon")
-  var weapon_id := String(item.get("id",item.get("name",""))).to_lower()
+  var weapon_id := String(item.get("family",item.get("id",item.get("name","")))).to_lower()
   if weapon_id.contains("dagger") or weapon_id.contains("knife") or weapon_id.contains("dual"):
    return "dual_daggers"
  if hero.has_meta("equipped_weapon"):
