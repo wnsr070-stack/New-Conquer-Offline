@@ -128,6 +128,10 @@ func use_skill(hero: Node3D, skill_id: String, target: Node3D = null) -> Diction
      if skill_id == "shield_bash":
       _apply_slow(victim,float(data.get("slow",0.5)),float(data.get("slow_duration",3.0)))
  if kind == "buff" or kind == "fly": hit_count = 1
+ var vfx := get_node_or_null("/root/AuraAndVFXManager")
+ if vfx != null and hit_count > 0:
+  var style := "fire" if skill_id in ["hercules","blade_tempest","arrow_rain"] else "blue"
+  if target != null: vfx.play_skill_vfx("shockwave",style,target.global_position+Vector3(0,0.65,0),hero.global_position.direction_to(target.global_position))
  skill_used.emit(skill_id,hit_count)
  print("PHASE4C_SKILL_USED: id=",skill_id," class=",class_id," weapon=",get_equipped_mode(hero)," targets=",hit_count)
  return {"ok":true,"skill":skill_id,"targets_hit":hit_count,"cooldown":float(cooldowns.get(skill_id,0.0))}
@@ -225,6 +229,8 @@ func _set_hero_hp(hero: Node3D,value: int) -> void:
 func _start_buff(buff_id: String,duration: float,hero: Node3D) -> int:
  buffs[buff_id] = duration
  _buff_durations[buff_id] = duration
+ var vfx := get_node_or_null("/root/AuraAndVFXManager")
+ if vfx != null: vfx.attach_skill_buff_aura(hero,buff_id,duration)
  if buff_id == "fly":
   _flight_original_y = hero.global_position.y
   hero.global_position.y += 3.5
@@ -255,6 +261,11 @@ func _start_buff(buff_id: String,duration: float,hero: Node3D) -> int:
 func _end_buff(buff_id: String) -> void:
  buffs.erase(buff_id)
  _buff_durations.erase(buff_id)
+ var aura_key := "SkillBuffAura_"+buff_id
+ var aura := _find_hero()
+ if aura != null:
+  var aura_node := aura.get_node_or_null(aura_key)
+  if aura_node != null: aura_node.queue_free()
  var hero := _find_hero()
  if hero != null:
   if buff_id == "fly":
