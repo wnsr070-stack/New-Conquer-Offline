@@ -1,6 +1,6 @@
 extends SceneTree
 class DummyMonster extends Node3D:
- var current_hp: int = 100
+ var current_hp: int = 500
  var max_hp: int = 500
  var rest_secs: float = 0.2
  var definition: Dictionary = {"defense":0,"exp":1}
