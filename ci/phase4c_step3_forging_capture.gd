@@ -109,10 +109,10 @@ func _run() -> void:
  if old_camera != null: old_camera.current = false
  var camera := Camera3D.new()
  camera.name = "Phase4C_Forging_3Quarter_Proof_Camera"
- camera.fov = 45.0
+ camera.fov = 40.0
  city.add_child(camera)
- camera.global_position = hero.global_position + Vector3(-5.0,3.5,6.0)
- camera.look_at(hero.global_position + Vector3(0.0,1.15,-1.8),Vector3.UP)
+ camera.global_position = hero.global_position + Vector3(-6.0,3.5,-2.5)
+ camera.look_at(hero.global_position + Vector3(0.0,1.15,-1.6),Vector3.UP)
  camera.current = true
  await process_frame
  await RenderingServer.frame_post_draw
