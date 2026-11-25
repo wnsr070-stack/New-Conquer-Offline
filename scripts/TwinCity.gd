@@ -102,7 +102,7 @@ func _lighting() -> void:
     sky.sky_material = sky_material
     environment.sky = sky
     environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-    environment.ambient_light_energy = 0.20
+    environment.ambient_light_energy = 0.16
     environment.tonemap_mode = Environment.TONE_MAPPER_ACES
     environment.fog_enabled = false
     environment.fog_light_color = Color(0.72, 0.86, 0.98)
@@ -116,7 +116,7 @@ func _lighting() -> void:
     add_child(world)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
-    sun.light_energy = 0.48
+    sun.light_energy = 0.7
     sun.shadow_enabled = OS.get_environment("CI_CAPTURE") != "1"
     print("CHECKPOINT2_PREVIEW_SHADOWS_DISABLED: ", OS.get_environment("CI_CAPTURE") == "1")
     add_child(sun)
@@ -146,7 +146,7 @@ func _cobble() -> StandardMaterial3D:
     material.normal_enabled = true
     material.normal_texture = normal
     material.roughness_texture = roughness
-    material.uv1_scale = Vector3(0.085, 0.085, 0.085)
+    material.uv1_scale = Vector3(20.0, 20.0, 1.0)
     print("CHECKPOINT1_COBBLE_RUNTIME_IMAGE_TEXTURES_OK: diffuse=true normal=true roughness=true")
     return material
 func _collect_meshes(node: Node, parent_transform: Transform3D, output: Array[Dictionary]) -> void:
@@ -164,7 +164,14 @@ func _build_dirt_ground() -> bool:
     if source == null:
         push_error("CHECKPOINT1_DIRT_ROAD_IMPORT_FAILED")
         return false
-    _plane("Full320mDirtBase_NoGreenGaps", Vector2(CITY_SIZE, CITY_SIZE), Vector3(0, -0.27, 0), _mat(Color(0.30, 0.205, 0.12)))
+    var base_cobble := _cobble()
+    if base_cobble == null:
+        source.free()
+        return false
+    base_cobble.uv1_scale = Vector3(20.0, 20.0, 1.0)
+    var base_road := _plane("Full320mDirtBase_NoGreenGaps", Vector2(CITY_SIZE, CITY_SIZE), Vector3(0, -0.27, 0), base_cobble)
+    assert(base_road.material_override == base_cobble)
+    print("TWIN_CITY_ROAD_BASE_COBBLE_ASSERT_OK: material=cobblestone_diffuse uv1_scale=", base_cobble.uv1_scale)
     var meshes: Array[Dictionary] = []
     _collect_meshes(source, Transform3D.IDENTITY, meshes)
     if meshes.is_empty():
@@ -189,7 +196,7 @@ func _build_dirt_ground() -> bool:
             source.free()
             return false
         dirt_material.roughness = 0.92
-        dirt_material.uv1_scale = Vector3(0.22, 0.22, 0.22)
+        dirt_material.uv1_scale = Vector3(20.0, 20.0, 1.0)
         instance_node.material_override = dirt_material
         add_child(instance_node)
         var index := 0
@@ -203,7 +210,15 @@ func _build_dirt_ground() -> bool:
     source.free()
     print("CHECKPOINT1_UNIFIED_DIRT_GROUND_OK: grab3d-dirt-road tiled ", DIRT_TILES_PER_SIDE, "x", DIRT_TILES_PER_SIDE, " covers 320x320m")
     print("CHECKPOINT1_FULL_GROUND_NO_GREEN_GAPS_OK: 320x320m")
-    print("CHECKPOINT1_GROUND_TEXTURED_ROAD_OK: cobblestone diffuse+normal+roughness tiled UV=0.22; no flat beige override")
+    var road_layers := find_children("Grab3DDirtRoad_TiledSurface", "MultiMeshInstance3D", true, false)
+    assert(road_layers.size() == meshes.size() and road_layers.size() > 0)
+    for road_layer in road_layers:
+        var layer := road_layer as MeshInstance3D
+        var road_material := layer.material_override as StandardMaterial3D
+        assert(road_material != null and road_material.albedo_texture != null and road_material.normal_texture != null and road_material.roughness_texture != null)
+        assert(road_material.uv1_scale == Vector3(20.0, 20.0, 1.0))
+    print("TWIN_CITY_ROAD_ALL_LAYERS_COBBLE_ASSERT_OK: layers=", road_layers.size(), " diffuse=true normal=true roughness=true uv1_scale=20,20,1")
+    print("CHECKPOINT1_GROUND_TEXTURED_ROAD_OK: cobblestone diffuse+normal+roughness tiled UV=20,20,1; no flat beige override")
     return true
 func _build_walls_moat_and_bridges() -> void:
     var wall_material := _mat(Color(0.39, 0.38, 0.34))
