@@ -14,6 +14,7 @@ GameState="*res://autoloads/GameState.gd"
 CombatSystem="*res://scripts/CombatSystem.gd"
 SkillSystem="*res://autoloads/SkillSystem.gd"
 ForgingSystem="*res://autoloads/ForgingSystem.gd"
+AuraAndVFXManager="*res://autoloads/AuraAndVFXManager.gd"
 [display]
 window/size/viewport_width=1600
 window/size/viewport_height=900
