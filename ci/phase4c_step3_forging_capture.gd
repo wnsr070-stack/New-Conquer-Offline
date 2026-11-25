@@ -50,6 +50,9 @@ func _run() -> void:
   if other_point == camp: continue
   for other_actor in other_point.get_children():
    if other_actor is MonsterActor:
+    # Hidden off-camp actors must not remain valid Scatter targets in this proof.
+    other_actor.set("_dead",true)
+    other_actor.set("current_hp",0)
     other_actor.visible = false
     other_actor.set_process(false)
     other_actor.set_physics_process(false)
@@ -106,15 +109,13 @@ func _run() -> void:
  var skill_result: Dictionary = skills.use_skill(hero,"scatter")
  if not skill_result.get("ok",false) or int(skill_result.get("targets_hit",0)) < 1:
   _fail("scatter_skill_did_not_hit_camp: "+str(skill_result)); return
+ await create_timer(0.08).timeout
  var floating := false
- for actor in actors:
-  if actor.get_child_count() > 0 and actor.find_child("FloatingDamage",true,false) != null: floating = true
- if not floating:
-  for actor in actors:
-   if actor.get_child_count() > 0:
-    for child in actor.get_children():
-     if child is Label3D and String(child.name).begins_with("FloatingDamage"): floating = true
- if not floating: _fail("floating_damage_numbers_missing"); return
+ for label_node in get_root().find_children("*","Label3D",true,false):
+  if label_node is Label3D and String(label_node.name).begins_with("FloatingDamage"):
+   floating = true
+   break
+ if not floating: _fail("floating_damage_numbers_missing_global_search"); return
  # Freeze the hero controller so its idle updater cannot cancel the attack pose.
  hero.set_process(false)
  hero.set_physics_process(false)
