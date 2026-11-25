@@ -50,3 +50,8 @@ func _family_attack(family: String) -> int:
  return 10
 func _family_defense(family: String) -> int:
  return 15 if family == "shield" else 0
+
+func clear_cache() -> void:
+ items.clear()
+ initialized = false
+ print("PHASE4D_GEAR_DATABASE_CACHE_CLEARED")
