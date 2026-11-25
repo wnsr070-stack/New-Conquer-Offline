@@ -296,6 +296,31 @@ func _resolve_hand_bone(side: String) -> int:
  push_error("HERO_STRICT_HAND_BONE_NOT_FOUND: side=" + side + " available=" + str(available))
  return -1
 
+func _palm_center_local(hand_bone: int) -> Vector3:
+ if skeleton == null or hand_bone < 0:
+  return Vector3.ZERO
+ var hand_rest := skeleton.get_bone_global_rest(hand_bone)
+ var finger_roots: Array[Vector3] = []
+ var finger_names: Array[String] = []
+ for i in range(skeleton.get_bone_count()):
+  if skeleton.get_bone_parent(i) != hand_bone:
+   continue
+  var bone_name := skeleton.get_bone_name(i)
+  var normalized := bone_name.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
+  if not ("index" in normalized or "middle" in normalized or "ring" in normalized or "pinky" in normalized or "little" in normalized):
+   continue
+  finger_roots.append(hand_rest.affine_inverse() * skeleton.get_bone_global_rest(i).origin)
+  finger_names.append(bone_name)
+ if finger_roots.size() < 4:
+  push_error("PHASE4C_LEFT_PALM_FINGER_ROOTS_INCOMPLETE: found=" + str(finger_names) + " required=4")
+  return Vector3.ZERO
+ var center := Vector3.ZERO
+ for point in finger_roots:
+  center += point
+ center /= float(finger_roots.size())
+ print("PHASE4C_LEFT_PALM_CENTER_DERIVED: finger_roots=", finger_names, " local_center=", center)
+ return center
+
 func _attach_weapon(hand_side: String,family: String) -> void:
  if skeleton == null:
   push_error("HERO_WEAPON_SKELETON_MISSING: " + family)
@@ -330,6 +355,8 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  skeleton.add_child(socket)
  socket.set_meta("phase4a_weapon_socket_id", socket_id)
  socket.set_meta("phase4a_actual_bone_name", actual_bone)
+ var palm_center_local := _palm_center_local(bone) if family == "bow" and hand_side == "l" else Vector3.ZERO
+ socket.set_meta("phase4c_palm_center_local", palm_center_local)
  socket.add_child(weapon)
  var mesh_points: Array[Vector3] = []
  for child in weapon.get_children():
@@ -385,9 +412,9 @@ func _attach_weapon(hand_side: String,family: String) -> void:
  # This maps the unscaled source AABB grip point into the socket's local space.
  var grip_local_offset: Vector3 = grip
  var rotated_grip_offset: Vector3 = weapon.transform.basis * grip_local_offset
- weapon.position = -(weapon.transform.basis * grip_local_offset)
+ weapon.position = (palm_center_local - weapon.transform.basis * grip_local_offset) if family == "bow" and hand_side == "l" else -(weapon.transform.basis * grip_local_offset)
  if family == "bow":
-  print("PHASE4C_BOW_PALM_CENTER_TRANSFORM_APPLIED: weapon_position=-(weapon_basis*grip_local_point) extra_seating_offset=0.0m")
+  print("PHASE4C_BOW_PALM_CENTER_TRANSFORM_APPLIED: weapon_position=palm_center_local-(weapon_basis*grip_local_point) palm_center_local=", palm_center_local)
   print("PHASE4C_BOW_ROTATED_GRIP_COMPENSATION_OK: rotated_grip_offset=", rotated_grip_offset, " seating_offset=Vector3.ZERO", " scale=", family_scale, " rotation_degrees=", weapon.rotation_degrees)
  weapon.set_meta("phase4a_grip_local", grip)
  weapon.set_meta("phase4a_mesh_count", _count_weapon_meshes(weapon))
@@ -454,12 +481,13 @@ func _weapon_visual_metrics(socket: Node3D) -> Dictionary:
   return {"mesh_count": 0, "grip_distance": 999.0}
  var grip: Vector3 = weapon.get_meta("phase4a_grip_local", Vector3.ZERO)
  var grip_world := weapon.to_global(grip)
- var hand_world := (socket as BoneAttachment3D).global_position
+ var palm_local: Vector3 = socket.get_meta("phase4c_palm_center_local", Vector3.ZERO)
+ var palm_world := socket.to_global(palm_local)
  return {
   "mesh_count": _count_weapon_meshes(weapon),
-  "grip_distance": grip_world.distance_to(hand_world),
+  "grip_distance": grip_world.distance_to(palm_world),
   "grip_world": grip_world,
-  "hand_world": hand_world,
+  "hand_world": palm_world,
   "actual_bone_name": socket.get_meta("phase4a_actual_bone_name", ""),
   "socket_type": "BoneAttachment3D"
  }
