@@ -124,7 +124,7 @@ func _run_capture() -> void:
  var combat := root.get_node("CombatSystem")
  var skills := root.get_node("SkillSystem")
  state.gold = 2000000
- state.inventory = {"Plus1Stone":24,"Meteor":4,"DragonBall":5,"ToughDrill":1,"DragonGem":2}
+ state.inventory = {"Plus1Stone":36,"Meteor":4,"DragonBall":5,"ToughDrill":1,"DragonGem":2}
  state.player_data["class"] = "archer"
  state.player_data["level"] = 130
  state.player_data["attack"] = 120
@@ -148,6 +148,17 @@ func _run_capture() -> void:
   var armor_plus: Dictionary = forging.compose_plus("armor","Plus1Stone")
   if not armor_plus.get("ok",false): _fail("armor_plus_upgrade_"+str(i+1)+"_failed: "+str(armor_plus)); return
  if int(gear.get_equipped("armor").get("plus",0)) != 12: _fail("armor_plus_12_not_reached"); return
+ var helmet: Dictionary = root.get_node("GearDatabase").get_armor_item("helmet_05_royal","Normal",1)
+ if helmet.is_empty(): _fail("approved_phase3b_headgear_asset_missing_from_database"); return
+ helmet["plus"] = 0
+ if not gear.equip_item("helmet",helmet): _fail("equip_plus_12_helmet_failed"); return
+ helmet = gear.get_equipped("helmet")
+ helmet["composition_points"] = 104560
+ gear.update_equipped_item("helmet",helmet)
+ for i in range(12):
+  var helmet_plus: Dictionary = forging.compose_plus("helmet","Plus1Stone")
+  if not helmet_plus.get("ok",false): _fail("helmet_plus_upgrade_"+str(i+1)+"_failed: "+str(helmet_plus)); return
+ if int(gear.get_equipped("helmet").get("plus",0)) != 12: _fail("helmet_plus_12_not_reached"); return
  state.set_anima_phase(18)
  var vfx := root.get_node("AuraAndVFXManager")
  if not vfx.attach_anima_aura(hero,18): _fail("anima_p18_orbit_attach_failed"); return
@@ -169,14 +180,16 @@ func _run_capture() -> void:
  if forging.get_plus_aura_level(item) != 4: _fail("plus_12_aura_tier_invalid"); return
  if not forging.apply_equipped_weapon_aura(hero): _fail("plus_12_weapon_aura_not_attached"); return
  var equipment_sprite_aura := bow_node.find_child("EquipmentSpriteAura",true,false)
- var equipment_manager := root.get_node_or_null("EquipmentVisualManager")
- var armor_visual := equipment_manager.get_visual_model("armor") as Node3D if equipment_manager != null else null
- var armor_aura_target := armor_visual.find_child("EquipmentAuraTarget",true,false) as Node3D if armor_visual != null else null
- var armor_sprite_aura := armor_aura_target.find_child("EquipmentSpriteAura",true,false) if armor_aura_target != null else null
+ var character_set_aura := hero.get_node_or_null("CharacterSpriteAura")
  var anima_orbit := hero.get_node_or_null("AnimaOrbitController")
- if equipment_sprite_aura == null or armor_sprite_aura == null: _fail("weapon_or_armor_sprite_aura_missing"); return
+ if int(gear.get_equipped("weapon").get("plus",0)) != 12: _fail("gear_weapon_plus12_state_invalid"); return
+ if int(gear.get_equipped("armor").get("plus",0)) != 12: _fail("gear_armor_plus12_state_invalid"); return
+ if int(gear.get_equipped("helmet").get("plus",0)) != 12: _fail("gear_helmet_plus12_state_invalid"); return
+ if equipment_sprite_aura == null or character_set_aura == null: _fail("weapon_or_ranger_hood_set_aura_missing"); return
  if anima_orbit == null or anima_orbit.get_child_count() != 6: _fail("anima_p18_six_orbs_missing"); return
- print("PHASE4D_WEAPON_ARMOR_PLUS12_ANIMA_P18_OK: weapon=12 armor=12 anima_orbs=6 sprite_only=true")
+ var slot_aura: Dictionary = vfx.get_slot_enhancement_aura(12)
+ if not slot_aura.has("color") or not slot_aura.has("intensity") or float(slot_aura.intensity) <= 0.0: _fail("slot_enhancement_aura_data_invalid"); return
+ print("PHASE4D_WEAPON_ARMOR_HELMET_PLUS12_ANIMA_P18_OK: weapon=12 armor=12 helmet=12 weapon_aura=true ranger_hood_set_aura=true anima_orbs=6 sprite_only=true")
  var target_center := Vector3.ZERO
  for actor in actors:
   target_center += actor.global_position
@@ -274,7 +287,7 @@ func _run_capture() -> void:
  if int(state.gold) >= 2000000: _fail("gold_cost_was_not_charged"); return
  state.save_game()
  print("PHASE4C_FORGING_FINAL_STATE_OK: weapon=+12 Super sockets=2 DragonGemx2=true composition=",item.composition_points," attack_bonus=",bonuses.attack," gold_remaining=",state.gold)
- print("PHASE4D_SPRITE_AURA_VISUAL_OK: weapon_plus12=true armor_plus12=true anima_p18=true procedural_particles=false")
+ print("PHASE4D_SPRITE_AURA_VISUAL_OK: weapon_plus12=true armor_plus12=true helmet_plus12=true ranger_hood_set_aura=true anima_p18=true procedural_particles=false")
  print("PHASE4C_FORGING_SCATTER_IN_CAMP_OK: targets_hit=",skill_result.targets_hit," floating_damage=true approved_hero=true approved_monsters=true")
  print("PHASE4C_STEP3_FOUR_SEQUENTIAL_PNGS_OK: 1_stance_aim 2_attack_hit 3_kill_loot 4_closeup_weapon")
  print("PHASE4C_STEP3_CLOSEUP_PNG_OK: bytes=",detail_bytes)
@@ -315,7 +328,7 @@ func _run_capture() -> void:
  skills = null
  vfx = null
  equipment_sprite_aura = null
- armor_sprite_aura = null
+ character_set_aura = null
  anima_orbit = null
  target_center = Vector3.ZERO
  camera = null
