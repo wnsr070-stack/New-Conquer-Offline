@@ -45,12 +45,13 @@ var measured_model_height := 0.0
 func _ready() -> void:
  name = "PlayableHero"
  floor_snap_length = 0.35
+ _ensure_input_actions()
+ print("INPUTMAP_MOVEMENT_ACTIONS_READY: move_forward,move_back,move_left,move_right")
  await _load_approved_ranger()
  _setup_camera()
  _switch_class("archer")
  var equipment_manager := get_node_or_null("/root/EquipmentVisualManager")
  if equipment_manager != null: equipment_manager.bind_hero(self)
- _ensure_input_actions()
  set_process_unhandled_input(true)
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
 
@@ -561,6 +562,12 @@ func _ensure_input_actions() -> void:
   if not InputMap.has_action(action):
    InputMap.add_action(action)
   for keycode in bindings[action]:
-   var key := InputEventKey.new()
-   key.physical_keycode = keycode
-   InputMap.action_add_event(action,key)
+   var already_bound := false
+   for existing_event in InputMap.action_get_events(action):
+    if existing_event is InputEventKey and (existing_event as InputEventKey).physical_keycode == keycode:
+     already_bound = true
+     break
+   if not already_bound:
+    var key := InputEventKey.new()
+    key.physical_keycode = keycode
+    InputMap.action_add_event(action,key)
