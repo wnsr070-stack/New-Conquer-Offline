@@ -259,18 +259,31 @@ func attach_equipment_aura(target_node: Node3D, plus_level: int, weapon_aura: bo
   print("PHASE4D_WEAPON_FULL_LENGTH_EMISSION_OK: tier=",tier," flame_segments=6 axis=",axis," bounds=",bounds)
  return true
 
+## Pure enhancement presentation data for equipment-slot icons. This function
+## never creates nodes, resources, or scene objects.
+func get_slot_enhancement_aura(plus_level: int) -> Dictionary:
+ var level := clampi(plus_level,0,12)
+ if level <= 0:
+  return {"color":Color(0.0,0.0,0.0,0.0),"intensity":0.0}
+ var tier := clampi(int(ceil(float(level)/3.0)),1,4)
+ var tint := Color(1.0,0.72,0.18).lerp(Color(0.65,0.24,1.0),float(tier-1)/3.0)
+ var intensity := 0.35 + float(level)*0.105
+ return {"color":tint,"intensity":intensity}
+
 func attach_character_aura(player_node: Node3D, min_set_plus: int, is_xp_active: bool) -> bool:
  if player_node == null or not is_instance_valid(player_node): return false
  _clear_anchor(player_node,"CharacterSpriteAura")
  var anchor := _get_or_create_anchor(player_node,"CharacterSpriteAura")
  var attached := false
- if min_set_plus >= 3:
-  var tier := clampi(int(ceil(float(min_set_plus-2)/2.5)),1,4)
-  var tint := Color(1.0,0.72,0.18).lerp(Color(0.65,0.24,1.0),float(tier-1)/3.0)
-  var ring := _make_sprite("ring",2,tint,0.95+float(tier)*0.18,10.0+float(tier))
+ if min_set_plus >= 1:
+  var aura_data: Dictionary = get_slot_enhancement_aura(min_set_plus)
+  var tint: Color = aura_data.color
+  var intensity := float(aura_data.intensity)
+  var ring := _make_sprite("ring",2,tint,0.95+intensity*0.30,10.0+intensity*2.0)
   if ring != null:
    ring.position.y = 0.035
    ring.rotation_degrees.x = -90.0
+   ring.modulate.a = clampf(0.55+intensity*0.25,0.0,1.0)
    anchor.add_child(ring)
    attached = true
  if is_xp_active:
