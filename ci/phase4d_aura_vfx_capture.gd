@@ -126,8 +126,13 @@ func _run_capture() -> void:
  state.gold = 2000000
  state.inventory = {"Plus1Stone":24,"Meteor":4,"DragonBall":5,"ToughDrill":1,"DragonGem":2}
  state.player_data["class"] = "archer"
+ state.player_data["level"] = 130
  state.player_data["attack"] = 120
  if not gear.equip_weapon("bow_lv40_normal_p1","archer"): _fail("equip_approved_bow_failed"); return
+ # Seed already-earned composition progress; this proof validates the final twelve-step +12 application, not farming 104,680 points.
+ var weapon_progress: Dictionary = gear.get_equipped("weapon")
+ weapon_progress["composition_points"] = 104560
+ gear.update_equipped_item("weapon",weapon_progress)
  for i in range(12):
   var plus_result: Dictionary = forging.compose_plus("weapon","Plus1Stone")
   if not plus_result.get("ok",false): _fail("plus_upgrade_"+str(i+1)+"_failed: "+str(plus_result)); return
@@ -136,6 +141,9 @@ func _run_capture() -> void:
  if armor.is_empty(): _fail("approved_phase3b_armor_asset_missing_from_database"); return
  armor["plus"] = 0
  if not gear.equip_item("armor",armor): _fail("equip_plus_12_armor_failed"); return
+ armor = gear.get_equipped("armor")
+ armor["composition_points"] = 104560
+ gear.update_equipped_item("armor",armor)
  for i in range(12):
   var armor_plus: Dictionary = forging.compose_plus("armor","Plus1Stone")
   if not armor_plus.get("ok",false): _fail("armor_plus_upgrade_"+str(i+1)+"_failed: "+str(armor_plus)); return
