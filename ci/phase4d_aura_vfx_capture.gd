@@ -89,6 +89,27 @@ func _run_capture() -> void:
     verified_prompts += 1
  if verified_capsules != 30: _fail("twin_city_npc_capsule_validation_failed: "+str(verified_capsules)+"/30"); return
  if verified_prompts != 30: _fail("twin_city_npc_prompt_height_validation_failed: "+str(verified_prompts)+"/30"); return
+ var verified_ground_rays := 0
+ var visible_npc_models := 0
+ for npc_value: Variant in npc_registry.values():
+  if not is_instance_valid(npc_value): continue
+  var npc_node := npc_value as Node3D
+  if not is_instance_valid(npc_node): continue
+  var visual_meshes := npc_node.find_children("*","MeshInstance3D",true,false)
+  if visual_meshes.size() > 0: visible_npc_models += 1
+  var solid_body := npc_node.get_node_or_null("NPCSolidBody") as StaticBody3D
+  var query := PhysicsRayQueryParameters3D.create(npc_node.global_position+Vector3(0,4,0),npc_node.global_position+Vector3(0,-4,0))
+  query.collision_mask = 1
+  query.collide_with_areas = false
+  query.collide_with_bodies = true
+  if solid_body != null: query.exclude = [solid_body.get_rid()]
+  var ground_hit: Dictionary = city.get_world_3d().direct_space_state.intersect_ray(query)
+  if not ground_hit.is_empty() and absf(float(ground_hit.position.y)-npc_node.global_position.y) <= 0.03:
+   verified_ground_rays += 1
+ if verified_ground_rays != 30: _fail("twin_city_npc_ground_raycast_validation_failed: "+str(verified_ground_rays)+"/30"); return
+ if visible_npc_models != 30: _fail("twin_city_npc_visible_model_validation_failed: "+str(visible_npc_models)+"/30"); return
+ print("PHASE4D_TWIN_CITY_NPC_GROUND_RAYCAST_VALIDATED: hits=",verified_ground_rays,"/30 surface_y=0.105")
+ print("PHASE4D_TWIN_CITY_NPC_VISIBLE_MODELS_VALIDATED: models=",visible_npc_models,"/30 mesh_instances=true")
  print("PHASE4D_TWIN_CITY_30_NPCS_READY: spawned=",live_npc_count," requested=30 overhead_prompt_height=3.2m")
  print("PHASE4D_TWIN_CITY_NPC_PHYSICS_OK: capsules=",verified_capsules," height=2.8m radius=0.55m proximity_area_radius=4.5m")
  # Capture a dedicated wide Twin City preview containing the 30 imported NPCs.
@@ -101,12 +122,15 @@ func _run_capture() -> void:
  var npc_preview_camera := Camera3D.new()
  npc_preview_camera.name = "Phase4D_TwinCity_30_NPC_Preview_Camera"
  npc_preview_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
- npc_preview_camera.size = 46.0
+ npc_preview_camera.size = 68.0
  city.add_child(npc_preview_camera)
- npc_preview_camera.position = Vector3(0.0,52.0,58.0)
- npc_preview_camera.look_at(Vector3(0.0,0.0,0.0),Vector3.UP)
- print("PHASE4D_TWIN_CITY_NPC_PANORAMIC_CAMERA_OK: orthographic_size=46 elevated=true full_body_height=2.8m names=true prompts=true plaza_grid=6x5")
- npc_preview_camera.current = true
+ npc_preview_camera.position = Vector3(0.0,78.0,54.0)
+ npc_preview_camera.look_at(city.to_global(Vector3(0.0,0.5,-20.0)),Vector3.UP)
+ npc_preview_camera.make_current()
+ if get_viewport().get_camera_3d() != npc_preview_camera:
+  _fail("twin_city_npc_preview_camera_not_active")
+  return
+ print("PHASE4D_TWIN_CITY_NPC_PANORAMIC_CAMERA_OK: orthographic_size=68 elevated=true target=plaza_and_palace_stairs full_body_height=2.8m names=true prompts=true plaza_grid=6x5")
  await _wait_rendered_pose()
  _save_proof_png("phase4d_twin_city_30_npcs.png","PHASE4D_TWIN_CITY_NPC_PREVIEW_CAPTURE_OK")
  if is_instance_valid(npc_preview_camera):
