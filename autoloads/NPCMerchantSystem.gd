@@ -47,6 +47,16 @@ func _ready() -> void:
   npc_interacted.connect(forging.handle_npc_interaction)
  print("NPC_MERCHANT_SYSTEM_READY: imported_character_models_only=true")
 
+func _exit_tree() -> void:
+ # NPCs parented to the city are released by that scene; only free detached leftovers here.
+ for npc_value in _npc_nodes.values():
+  var npc := npc_value as Node3D
+  if is_instance_valid(npc) and npc.get_parent() == null:
+   npc.free()
+ _npc_nodes.clear()
+ _city_root = null
+ print("NPC_MERCHANT_SYSTEM_EXIT_CLEANUP_OK: detached_npc_roots=0 registry=0")
+
 func spawn_city_npcs(city_root: Node3D) -> void:
  if city_root == null or not is_instance_valid(city_root):
   return
@@ -76,8 +86,17 @@ func spawn_city_npcs(city_root: Node3D) -> void:
   npc.add_child(character)
   character.call("build_character","archer",1,"male")
   if not bool(character.get("assets_ready")):
-   push_warning("NPC_IMPORTED_CHARACTER_BUILD_FAILED: "+npc_id+" source=res://assets/phase3b/characters/Male_Ranger.glb")
-   npc.free()
+   var resolved_source := String(character.call("_resolve_character_asset_path","Male_Ranger","male"))
+   push_error("NPC_IMPORTED_CHARACTER_BUILD_FAILED: id="+npc_id+
+    " expected=res://assets/phase3b/characters/Male_Ranger.glb"+
+    " resolved="+(resolved_source if not resolved_source.is_empty() else "<none>")+
+    " controller_assets_ready="+str(character.get("assets_ready")))
+   # Free the failed controller (and any partially instantiated model/weapon nodes)
+   # before releasing its NPC parent so no detached scene references survive.
+   if is_instance_valid(character):
+    character.free()
+   if is_instance_valid(npc):
+    npc.free()
    continue
   _fit_character_height(character,1.8)
   _add_name_label(npc,npc_id)
