@@ -286,7 +286,7 @@ func _build_quest_book(layout: VBoxContainer) -> void:
  tabs.add_theme_constant_override("separation",3)
  layout.add_child(tabs)
  for category in categories:
-  var caption := "Login" if category=="DAILY_LOGIN" else category.replace("_"," ").capitalize()
+  var caption: String = str("Login" if category=="DAILY_LOGIN" else category.replace("_"," ").capitalize())
   var tab := _button(caption,_select_quest_category.bind(category))
   tab.custom_minimum_size = Vector2(84,34)
   tab.disabled = category == _quest_category
