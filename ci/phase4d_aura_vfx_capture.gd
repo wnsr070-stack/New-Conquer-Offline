@@ -7,7 +7,7 @@ func _ready() -> void:
  await _run_capture()
  if _capture_failed: return
  # _run_capture has returned, so all of its local scene/resource references are out of scope.
- var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager","LootDropManager"]
+ var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","EquipmentVisualManager","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager","LootDropManager"]
  var preserved_autoloads: Array[Node] = []
  for child in root.get_children():
   if child.name in autoload_names:
@@ -130,7 +130,9 @@ func _run_capture() -> void:
   var plus_result: Dictionary = forging.compose_plus("weapon","Plus1Stone")
   if not plus_result.get("ok",false): _fail("plus_upgrade_"+str(i+1)+"_failed: "+str(plus_result)); return
  if int(gear.get_equipped("weapon").get("plus",0)) != 12: _fail("weapon_plus_12_not_reached"); return
- var armor := {"id":"phase4d_armor","family":"armor","plus":0,"quality":"Normal","level":40,"classes":["archer"],"base_attack":0,"base_defense":80,"attack_bonus":0,"defense_bonus":80,"sockets":[],"gem_bonuses":{"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}}
+ var armor := root.get_node("GearDatabase").get_armor_item("body_05_royal","Normal",1)
+ if armor.is_empty(): _fail("approved_phase3b_armor_asset_missing_from_database"); return
+ armor["plus"] = 0
  if not gear.equip_item("armor",armor): _fail("equip_plus_12_armor_failed"); return
  for i in range(12):
   var armor_plus: Dictionary = forging.compose_plus("armor","Plus1Stone")
@@ -157,7 +159,10 @@ func _run_capture() -> void:
  if forging.get_plus_aura_level(item) != 4: _fail("plus_12_aura_tier_invalid"); return
  if not forging.apply_equipped_weapon_aura(hero): _fail("plus_12_weapon_aura_not_attached"); return
  var equipment_sprite_aura := bow_node.find_child("EquipmentSpriteAura",true,false)
- var armor_sprite_aura := hero.get_node_or_null("EquipmentSpriteAura")
+ var equipment_manager := root.get_node_or_null("EquipmentVisualManager")
+ var armor_visual := equipment_manager.get_visual_model("armor") as Node3D if equipment_manager != null else null
+ var armor_aura_target := armor_visual.find_child("EquipmentAuraTarget",true,false) as Node3D if armor_visual != null else null
+ var armor_sprite_aura := armor_aura_target.find_child("EquipmentSpriteAura",true,false) if armor_aura_target != null else null
  var anima_orbit := hero.get_node_or_null("AnimaOrbitController")
  if equipment_sprite_aura == null or armor_sprite_aura == null: _fail("weapon_or_armor_sprite_aura_missing"); return
  if anima_orbit == null or anima_orbit.get_child_count() != 6: _fail("anima_p18_six_orbs_missing"); return
@@ -267,7 +272,7 @@ func _run_capture() -> void:
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
  # Clear autoload-held scene references and stop VFX processing before detaching the city.
- var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem","LootDropManager"]
+ var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","EquipmentVisualManager","AuraAndVFXManager","CombatSystem","SkillSystem","LootDropManager"]
  for autoload_name in cache_autoloads:
   var autoload := root.get_node_or_null(autoload_name)
   if autoload == null or not autoload.has_method("clear_cache"):

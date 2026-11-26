@@ -48,6 +48,8 @@ func _ready() -> void:
  await _load_approved_ranger()
  _setup_camera()
  _switch_class("archer")
+ var equipment_manager := get_node_or_null("/root/EquipmentVisualManager")
+ if equipment_manager != null: equipment_manager.bind_hero(self)
  _ensure_input_actions()
  set_process_unhandled_input(true)
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
@@ -245,6 +247,8 @@ func _switch_class(class_id: String) -> void:
  _clear_weapons()
  _apply_approved_palette()
  _attach_class_weapons()
+ var equipment_manager := get_node_or_null("/root/EquipmentVisualManager")
+ if equipment_manager != null: equipment_manager.set_active_class(active_class)
  print("HERO_CLASS_SWITCHED: ",active_class," weapon_mode=",("dual_knives" if active_class=="oriental_assassin" else "bow" if active_class=="archer" else active_class))
 
 func _apply_approved_palette() -> void:

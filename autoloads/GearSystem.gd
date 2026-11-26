@@ -29,20 +29,32 @@ func equip_weapon(item_id: String,class_id: String) -> bool:
  _apply_runtime_aura()
  return true
 func equip_item(slot: String,item: Dictionary) -> bool:
- if slot.is_empty() or item.is_empty(): return false
- equipped[slot] = item.duplicate(true)
+ var normalized_slot := "helmet" if slot == "headgear" else slot
+ if normalized_slot.is_empty() or item.is_empty(): return false
+ equipped[normalized_slot] = item.duplicate(true)
  _persist_equipment()
- equipment_changed.emit(slot,equipped[slot])
+ equipment_changed.emit(normalized_slot,equipped[normalized_slot])
+ _apply_runtime_aura()
+ return true
+
+func unequip_item(slot: String) -> bool:
+ var normalized_slot := "helmet" if slot == "headgear" else slot
+ if not equipped.has(normalized_slot): return false
+ equipped.erase(normalized_slot)
+ _persist_equipment()
+ equipment_changed.emit(normalized_slot,{})
  _apply_runtime_aura()
  return true
 func update_equipped_item(slot: String,item: Dictionary) -> void:
- if not equipped.has(slot): return
- equipped[slot] = item.duplicate(true)
+ var normalized_slot := "helmet" if slot == "headgear" else slot
+ if not equipped.has(normalized_slot): return
+ equipped[normalized_slot] = item.duplicate(true)
  _persist_equipment()
- equipment_changed.emit(slot,equipped[slot])
+ equipment_changed.emit(normalized_slot,equipped[normalized_slot])
  _apply_runtime_aura()
 func get_equipped(slot: String = "weapon") -> Dictionary:
- return equipped.get(slot,{}).duplicate(true)
+ var normalized_slot := "helmet" if slot == "headgear" else slot
+ return equipped.get(normalized_slot,{}).duplicate(true)
 func can_equip(item_id: String,class_id: String,level: int) -> bool:
  if database == null: return false
  var item: Dictionary = database.get_item(item_id)
@@ -75,8 +87,6 @@ func _apply_runtime_aura() -> void:
  if vfx == null: return
  var weapon_nodes: Array = hero.get("weapon_nodes") if hero.get("weapon_nodes") is Array else []
  var weapon: Dictionary = equipped.get("weapon",{})
- var armor: Dictionary = equipped.get("armor",{})
- vfx.attach_equipment_aura(hero,int(armor.get("plus",0)))
  for socket in weapon_nodes:
   if not is_instance_valid(socket) or not socket is Node3D: continue
   var mesh_root := socket.get_child(0) as Node3D if socket.get_child_count()>0 else socket as Node3D

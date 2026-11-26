@@ -8,6 +8,8 @@ on:
       - 'autoloads/ForgingSystem.gd'
       - 'autoloads/GearSystem.gd'
       - 'autoloads/GearDatabase.gd'
+      - 'autoloads/EquipmentVisualManager.gd'
+      - 'ci/phase4d_equipment_visual_capture.gd'
       - 'autoloads/GameState.gd'
       - 'scripts/CombatSystem.gd'
       - 'scripts/SkillSystem.gd'
@@ -140,6 +142,35 @@ jobs:
             out=pathlib.Path("assets/phase3b")/item["file"]; out.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,out)
           print("PHASE4B_STEP3_APPROVED_MONSTERS_OK: normal=15 bosses=5 sha256_verified=20")
           PY
+      - name: Restore and SHA256-verify all 33 Phase 3B armor and headgear GLBs
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          .venv/bin/python - <<'PY'
+          import hashlib, json, os, pathlib, shutil
+          from huggingface_hub import hf_hub_download
+          repo="ZzwahwahzZ/clash-of-legends-terrain-assets"
+          token=os.environ.get("HF_TOKEN","")
+          if not token: raise SystemExit("HF_TOKEN secret is missing")
+          manifest_path=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename="phase3b/phase3b_manifest.json",token=token))
+          manifest=json.loads(manifest_path.read_text(encoding="utf-8"))
+          assets=[x for x in manifest.get("assets",[]) if x.get("category")=="armor"]
+          counts={slot:sum(x.get("armor_slot")==slot for x in assets) for slot in ("body","helmet","boots")}
+          if len(assets)!=33 or counts!={"body":15,"helmet":15,"boots":3}:
+            raise SystemExit("Phase 3B armor manifest mismatch: "+str(counts))
+          for item in assets:
+            source="phase3b/"+item["file"]
+            cached=pathlib.Path(hf_hub_download(repo_id=repo,repo_type="dataset",filename=source,token=token))
+            data=cached.read_bytes()
+            if len(data)!=int(item["bytes"]) or hashlib.sha256(data).hexdigest()!=item["sha256"] or data[:4]!=b"glTF":
+              raise SystemExit("Phase 3B armor GLB integrity failure: "+source)
+            destination=pathlib.Path("assets/phase3b")/item["file"]
+            destination.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copy2(cached,destination)
+            print("PHASE4D_ARMOR_ASSET_SHA256_OK:",item["id"],"slot=",item["armor_slot"],"bytes=",len(data))
+          print("PHASE4D_ALL_33_ARMOR_HEADGEAR_ASSETS_READY:",counts)
+          PY
       - name: Fetch and verify all 25 rendered Blender VFX sprite atlases
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -184,7 +215,7 @@ jobs:
         run: |
           set -euo pipefail
           : > artifacts/godot_check_only.log
-          for script in autoloads/AuraAndVFXManager.gd autoloads/LootDropManager.gd autoloads/ForgingSystem.gd autoloads/SkillSystem.gd ci/phase4d_aura_vfx_capture.gd ci/phase4d_loot_drop_test.gd; do
+          for script in autoloads/GearDatabase.gd autoloads/GearSystem.gd autoloads/EquipmentVisualManager.gd autoloads/AuraAndVFXManager.gd autoloads/LootDropManager.gd autoloads/ForgingSystem.gd autoloads/SkillSystem.gd ci/phase4d_aura_vfx_capture.gd ci/phase4d_equipment_visual_capture.gd ci/phase4d_loot_drop_test.gd; do
             echo "CHECKING_GDSCRIPT: $script" | tee -a artifacts/godot_check_only.log
             "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only --script "res://$script" 2>&1 | tee -a artifacts/godot_check_only.log
           done
@@ -243,6 +274,27 @@ jobs:
             if (w,h)!=(1600,1000) or len(data)<20000: raise SystemExit(f"Bad forging PNG {name}: {(w,h)} bytes={len(data)}")
             print("PHASE4C_STEP3_PNG_VALIDATED:",p.name,"dimensions=",w,"x",h,"bytes=",len(data))
           PY
+      - name: Render and validate real +12 armor, headgear and bow in Twin City
+        run: |
+          set -euo pipefail
+          set +e
+          xvfb-run -a -s "-screen 0 1600x1000x24" timeout 600s "$GODOT_BIN" --verbose --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x1000 --script res://ci/phase4d_equipment_visual_capture.gd 2>&1 | tee artifacts/phase4d_equipment_visual_capture.log
+          godot_exit_code=${PIPESTATUS[0]}
+          set -e
+          echo "PHASE4D_EQUIPMENT_GODOT_EXIT_CODE: ${godot_exit_code}"
+          test "$godot_exit_code" -eq 0
+          grep -q "PHASE4D_EQUIPMENT_VISUAL_PLUS12_OK" artifacts/phase4d_equipment_visual_capture.log
+          grep -q "PHASE4D_EQUIPMENT_CAPTURE_PNG_OK" artifacts/phase4d_equipment_visual_capture.log
+          ! grep -Ei "SCRIPT ERROR|Parse Error|PHASE4D_EQUIPMENT_VISUAL_FAILED" artifacts/phase4d_equipment_visual_capture.log
+          python3 - <<'PY'
+          import pathlib,struct
+          p=pathlib.Path("artifacts/phase4d_equipment_visual_plus12.png")
+          data=p.read_bytes()
+          if data[:8]!=bytes.fromhex("89504e470d0a1a0a"): raise SystemExit("Invalid equipment proof PNG")
+          w,h=struct.unpack(">II",data[16:24])
+          if (w,h)!=(1600,1000) or len(data)<20000: raise SystemExit(f"Bad equipment proof PNG: {(w,h)} bytes={len(data)}")
+          print("PHASE4D_EQUIPMENT_PNG_VALIDATED:",p,"dimensions=",w,"x",h,"bytes=",len(data))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -252,6 +304,8 @@ jobs:
             artifacts/2_attack_hit.png
             artifacts/3_kill_loot.png
             artifacts/4_closeup_weapon.png
+            artifacts/phase4d_equipment_visual_plus12.png
+            artifacts/phase4d_equipment_visual_capture.log
             artifacts/phase4c_step3_forging_capture.log
             artifacts/godot_import.log
             artifacts/hero_animation_builder.log
