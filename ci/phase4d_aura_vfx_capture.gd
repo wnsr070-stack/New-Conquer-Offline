@@ -61,12 +61,38 @@ func _run_capture() -> void:
   _fail("approved_hero_or_monster_spawner_not_ready"); return
  var npc_system := root.get_node_or_null("NPCMerchantSystem")
  if npc_system == null: _fail("npc_merchant_system_missing"); return
+ # Explicitly invoke the Phase 4D hub spawn path; it is idempotent for NPCs
+ # already created by TwinCity._ready and reports the live registry total.
+ npc_system.call("spawn_city_npcs",city)
  var npc_registry: Dictionary = npc_system.get("_npc_nodes")
  var live_npc_count := 0
- for npc_value in npc_registry.values():
+ for npc_value: Variant in npc_registry.values():
   if is_instance_valid(npc_value): live_npc_count += 1
  if live_npc_count != 30: _fail("twin_city_npc_spawn_count_invalid: "+str(live_npc_count)+"/30"); return
- print("PHASE4D_TWIN_CITY_30_NPCS_READY: spawned=",live_npc_count," overhead_prompt_height=3.2m")
+ print("PHASE4D_TWIN_CITY_30_NPCS_READY: spawned=",live_npc_count," requested=30 overhead_prompt_height=3.2m")
+ # Capture a dedicated wide Twin City preview containing the 30 imported NPCs.
+ var preview_camera_value: Variant = hero.get("camera")
+ var preview_camera: Camera3D = null
+ if is_instance_valid(preview_camera_value):
+  preview_camera = preview_camera_value as Camera3D
+ if is_instance_valid(preview_camera):
+  preview_camera.current = false
+ var npc_preview_camera := Camera3D.new()
+ npc_preview_camera.name = "Phase4D_TwinCity_30_NPC_Preview_Camera"
+ npc_preview_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+ npc_preview_camera.size = 280.0
+ city.add_child(npc_preview_camera)
+ npc_preview_camera.position = Vector3(0.0,155.0,170.0)
+ npc_preview_camera.look_at(Vector3.ZERO,Vector3.UP)
+ npc_preview_camera.current = true
+ await _wait_rendered_pose()
+ _save_proof_png("phase4d_twin_city_30_npcs.png","PHASE4D_TWIN_CITY_NPC_PREVIEW_CAPTURE_OK")
+ if is_instance_valid(npc_preview_camera):
+  npc_preview_camera.current = false
+  npc_preview_camera.free()
+ if is_instance_valid(preview_camera):
+  preview_camera.current = true
+ if _capture_failed: return
  var camp: Node3D
  for point in spawner.spawn_points:
   if String(point.get_meta("spawn_kind","")) == "monster_camp" and String(point.get_meta("monster_id","")) == "Chicken":
@@ -305,7 +331,7 @@ func _run_capture() -> void:
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
  # Clear autoload-held scene references and stop VFX processing before detaching the city.
- var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","EquipmentVisualManager","AuraAndVFXManager","CombatSystem","SkillSystem","LootDropManager"]
+ var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","EquipmentVisualManager","AuraAndVFXManager","CombatSystem","SkillSystem","LootDropManager","NPCMerchantSystem"]
  for autoload_name in cache_autoloads:
   var autoload := root.get_node_or_null(autoload_name)
   if autoload == null or not autoload.has_method("clear_cache"):
