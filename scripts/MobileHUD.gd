@@ -394,45 +394,51 @@ func _forge_operation(slot: String) -> void:
 func _build_warehouse(layout: VBoxContainer) -> void:
  var state := get_node_or_null("/root/GameState")
  if state == null: return
- layout.add_child(_label("WAREHOUSE 40 SLOTS  |  STACK LIMIT x100"))
- layout.add_child(_label("Bag — select a slot to deposit"))
+ var scroll := ScrollContainer.new()
+ scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+ layout.add_child(scroll)
+ var content := VBoxContainer.new()
+ content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ scroll.add_child(content)
+ content.add_child(_label("WAREHOUSE 40 SLOTS  |  STACK LIMIT x100"))
+ content.add_child(_label("Bag — select a slot to deposit"))
  var bag_grid := GridContainer.new()
  bag_grid.columns = 10
  bag_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
- layout.add_child(bag_grid)
+ content.add_child(bag_grid)
  for index in range(40):
   var item: Dictionary = state.inventory_slots[index] if index < state.inventory_slots.size() else {}
   var cell := _warehouse_cell(item,index,index==_selected_inventory_slot)
   cell.pressed.connect(_select_inventory_warehouse_slot.bind(index))
   bag_grid.add_child(cell)
  var bag_actions := HBoxContainer.new()
- layout.add_child(bag_actions)
+ content.add_child(bag_actions)
  bag_actions.add_child(_button("Deposit x1",_deposit_one))
  bag_actions.add_child(_button("Deposit All",_deposit_all))
  var selected_bag := "None"
  if _selected_inventory_slot >= 0 and _selected_inventory_slot < state.inventory_slots.size():
   var selected: Dictionary = state.inventory_slots[_selected_inventory_slot]
   selected_bag = "%s x%d" % [String(selected.item_id),int(selected.count)]
- layout.add_child(_label("Selected bag slot: " + selected_bag))
- layout.add_child(_label("Warehouse — select a slot to withdraw"))
+ content.add_child(_label("Selected bag slot: " + selected_bag))
+ content.add_child(_label("Warehouse — select a slot to withdraw"))
  var warehouse_grid := GridContainer.new()
  warehouse_grid.columns = 10
  warehouse_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
- layout.add_child(warehouse_grid)
+ content.add_child(warehouse_grid)
  for index in range(40):
   var item: Dictionary = state.warehouse_slots[index] if index < state.warehouse_slots.size() else {}
   var cell := _warehouse_cell(item,index,index==_selected_warehouse_slot)
   cell.pressed.connect(_select_warehouse_storage_slot.bind(index))
   warehouse_grid.add_child(cell)
  var warehouse_actions := HBoxContainer.new()
- layout.add_child(warehouse_actions)
+ content.add_child(warehouse_actions)
  warehouse_actions.add_child(_button("Withdraw x1",_withdraw_one))
  warehouse_actions.add_child(_button("Withdraw All",_withdraw_all))
  var selected_warehouse := "None"
  if _selected_warehouse_slot >= 0 and _selected_warehouse_slot < state.warehouse_slots.size():
   var selected: Dictionary = state.warehouse_slots[_selected_warehouse_slot]
   selected_warehouse = "%s x%d" % [String(selected.item_id),int(selected.count)]
- layout.add_child(_label("Selected warehouse slot: " + selected_warehouse))
+ content.add_child(_label("Selected warehouse slot: " + selected_warehouse))
 
 func _warehouse_cell(item: Dictionary,index: int,selected: bool) -> Button:
  var cell := Button.new()
@@ -516,7 +522,7 @@ func _build_merchant(layout: VBoxContainer) -> void:
    var item_data := _get_item_data(item_id)
    var row := HBoxContainer.new()
    row.add_child(_make_item_icon(item_data,int(slot.get("instance_data",{}).get("plus",0)),Vector2(34,34)))
-   row.add_child(_label("%s x%d" % [_item_display_name(item_id),int(slot.count)]))
+   row.add_child(_label("%s x%d  |  Sell %d Gold ea." % [_item_display_name(item_id),int(slot.count),int(floor(float(npc.get_item_base_price(item_id))*0.5))]))
    row.add_child(_button("Sell x1",_merchant_sell.bind(index,1)))
    row.add_child(_button("Sell All",_merchant_sell.bind(index,int(slot.count))))
    bag_list.add_child(row)
