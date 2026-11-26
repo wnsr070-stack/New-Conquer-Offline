@@ -181,7 +181,7 @@ func _add_name_label(npc: Node3D,npc_id: String) -> void:
  var label := Label3D.new()
  label.name = "NPCName"
  label.text = npc_id
- label.position = Vector3(0,2.96,0)
+ label.position = Vector3(0,3.78,0)
  label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
  label.font_size = 32
  label.outline_size = 8
