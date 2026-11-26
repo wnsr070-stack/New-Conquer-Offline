@@ -18,6 +18,7 @@ var _last_quest_id := ""
 var _quest_category := "MAIN_PROMOTION"
 var _selected_inventory_slot := -1
 var _selected_warehouse_slot := -1
+var _window_menu: VBoxContainer
 
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -80,23 +81,46 @@ func _build_hud() -> void:
  _quest_panel.position=Vector2(12,8)
  _quest_panel.size=Vector2(340,170)
  qcard.add_child(_quest_panel)
- var radar:=_ornate_panel(root,Vector2(-246,14),Vector2(230,220),true)
+
+ var radar_frame:=Panel.new()
+ radar_frame.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ radar_frame.position=Vector2(-202,16)
+ radar_frame.size=Vector2(184,184)
+ radar_frame.add_theme_stylebox_override("panel",_flat_style(Color(0.035,0.045,0.065,0.92),Color(0.92,0.69,0.28),4))
+ root.add_child(radar_frame)
+ var radar:=RadarDisplay.new()
+ radar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ radar_frame.add_child(radar)
  _minimap_label=Label.new()
- _minimap_label.position=Vector2(12,10)
- _minimap_label.size=Vector2(206,195)
+ _minimap_label.set_anchors_preset(Control.PRESET_CENTER)
+ _minimap_label.position=Vector2(-65,-18)
+ _minimap_label.size=Vector2(130,42)
  _minimap_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
  _minimap_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
- radar.add_child(_minimap_label)
+ _minimap_label.add_theme_font_size_override("font_size",11)
+ radar_frame.add_child(_minimap_label)
+
  var quick:=HBoxContainer.new()
  quick.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- quick.position=Vector2(-500,242)
+ quick.position=Vector2(-205,210)
  root.add_child(quick)
- for p in [["Daily","Daily Login"],["Hunt","Auto-Hunt"],["Map","Map"],["Settings","System"]]:
-  var b:=_button(String(p[0]),_quick_action.bind(String(p[1])))
-  b.custom_minimum_size=Vector2(112,32)
+ for p in [["⚙","System"],["日","Daily Login"],["✦","Auto-Hunt"],["☰","Menu"]]:
+  var b:=_round_button(String(p[0]),_toggle_window_menu if String(p[1])=="Menu" else _quick_action.bind(String(p[1])))
   quick.add_child(b)
+
+ _window_menu=VBoxContainer.new()
+ _window_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+ _window_menu.position=Vector2(-205,258)
+ _window_menu.visible=false
+ _window_menu.z_index=30
+ root.add_child(_window_menu)
+ for p in [["الحقيبة","Inventory"],["الشخصية","Character"],["المهارات","Skill"],["المهام","Quests"],["السوق","Merchant"],["النقابة","Guild"],["الإعدادات","System"]]:
+  var b:=_round_button(String(p[0]),_open_window.bind(String(p[1])))
+  _window_menu.add_child(b)
+
  var chat:=_ornate_panel(root,Vector2(16,-390),Vector2(360,165))
  chat.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ chat.z_index=26
  var tabs:=HBoxContainer.new()
  tabs.position=Vector2(8,7)
  for t in ["All","Talk","Whisper","Team","Guild","System"]:
@@ -118,8 +142,10 @@ func _build_hud() -> void:
  send.position=Vector2(290,120)
  send.custom_minimum_size=Vector2(58,30)
  chat.add_child(send)
+
  var joy:=_ornate_panel(root,Vector2(18,-205),Vector2(190,190))
  joy.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ joy.z_index=25
  joy.gui_input.connect(_on_joystick_input)
  var joyart:=TextureRect.new()
  joyart.texture=load("res://assets/ui/joystick.svg")
@@ -127,92 +153,92 @@ func _build_hud() -> void:
  joyart.size=Vector2(174,174)
  joyart.mouse_filter=Control.MOUSE_FILTER_IGNORE
  joy.add_child(joyart)
+
  var bottom:=Control.new()
  bottom.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ bottom.z_index=10
  root.add_child(bottom)
- var hp:=LiquidOrb.new()
- hp.name="HPOrb"
- hp.orb_color=Color(0.86,0.12,0.16)
- hp.label="HP"
- hp.position=Vector2(560,-148)
- hp.size=Vector2(112,112)
- hp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- hp.add_to_group("hud_orbs")
- bottom.add_child(hp)
- var mp:=LiquidOrb.new()
- mp.name="MPOrb"
- mp.orb_color=Color(0.12,0.42,0.95)
- mp.label="MP"
- mp.position=Vector2(928,-148)
- mp.size=Vector2(112,112)
- mp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- mp.add_to_group("hud_orbs")
- bottom.add_child(mp)
+ var orb:=SplitOrb.new()
+ orb.name="SplitHPMPOrb"
+ orb.position=Vector2(560,-150)
+ orb.size=Vector2(132,132)
+ orb.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ orb.add_to_group("hud_orbs")
+ bottom.add_child(orb)
  var exp:=HBoxContainer.new()
  exp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- exp.position=Vector2(680,-115)
+ exp.position=Vector2(704,-105)
  for i in range(10):
   var c:=ColorRect.new()
-  c.custom_minimum_size=Vector2(24,14)
+  c.custom_minimum_size=Vector2(23,12)
   c.color=Color(0.83,0.61,0.17)
   exp.add_child(c)
  bottom.add_child(exp)
  var hot:=HBoxContainer.new()
  hot.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- hot.position=Vector2(630,-205)
+ hot.position=Vector2(704,-72)
  for i in range(10):
   var b:=_button("F%d"%(i+1),_use_skill_at.bind(i))
-  b.custom_minimum_size=Vector2(40,38)
+  b.custom_minimum_size=Vector2(34,34)
   hot.add_child(b)
  bottom.add_child(hot)
- var nav:=HBoxContainer.new()
- nav.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- nav.position=Vector2(620,-58)
- for p in [["Status","Character"],["Skill","Skill"],["Bag","Inventory"],["Quest","Quests"],["Market","Merchant"],["Guild","Guild"],["System","System"]]:
-  var b:=_button(String(p[0]),_open_window.bind(String(p[1])))
-  b.custom_minimum_size=Vector2(66,34)
-  nav.add_child(b)
- bottom.add_child(nav)
- var actions:=VBoxContainer.new()
- actions.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
- actions.position=Vector2(-225,-260)
- root.add_child(actions)
- var row:=HBoxContainer.new()
- row.add_child(_button("Scatter",_use_primary_skill))
- row.add_child(_button("Fly",_jump))
- actions.add_child(row)
- row=HBoxContainer.new()
- var target:=_button("Target",_cycle_target)
- target.custom_minimum_size=Vector2(76,62)
- row.add_child(target)
- var attack:=_button("ATTACK",_attack)
- attack.custom_minimum_size=Vector2(116,82)
- attack.add_theme_font_size_override("font_size",20)
- row.add_child(attack)
- actions.add_child(row)
- row=HBoxContainer.new()
- row.add_child(_button("Arrow Rain",_use_secondary_skill))
- row.add_child(_button("Rapid Fire",_use_primary_skill))
- actions.add_child(row)
+
+ var combat:=Control.new()
+ combat.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+ combat.position=Vector2(-260,-270)
+ combat.size=Vector2(250,250)
+ combat.z_index=20
+ root.add_child(combat)
+ var attack:=_round_button("هجوم",_attack)
+ attack.position=Vector2(138,138)
+ attack.size=Vector2(104,104)
+ combat.add_child(attack)
+ var arc_buttons:=[["قفزة",_jump,Vector2(100,78)],["تشتت",_use_primary_skill,Vector2(48,38)],["طيران",_jump,Vector2(4,78)],["مطر",_use_secondary_skill,Vector2(48,118)],["سريع",_use_primary_skill,Vector2(100,4)],["هدف",_cycle_target,Vector2(4,158)]]
+ for item in arc_buttons:
+  var b:=_round_button(String(item[0]),item[1])
+  b.position=item[2]
+  b.size=Vector2(68,58)
+  combat.add_child(b)
+
  _window_layer=Control.new()
  _window_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  _window_layer.mouse_filter=Control.MOUSE_FILTER_STOP
+ _window_layer.z_index=50
  add_child(_window_layer)
 
-class LiquidOrb extends Control:
- var orb_color:=Color.RED
- var label:="HP"
- var ratio:=1.0
+class SplitOrb extends Control:
+ var hp_ratio:=1.0
+ var mp_ratio:=1.0
  func _draw()->void:
-  var c:=size*0.5
-  var r:=minf(size.x,size.y)*0.43
-  draw_circle(c,r,Color(0.035,0.035,0.06,0.96))
-  var y:=c.y+r-2.0*r*clampf(ratio,0.0,1.0)
-  var pts:=PackedVector2Array([c+Vector2(-r,r),c+Vector2(r,r),Vector2(c.x+r,y),Vector2(c.x-r,y)])
-  draw_colored_polygon(pts,Color(orb_color.r,orb_color.g,orb_color.b,0.9))
-  draw_arc(c,r,0.0,TAU,64,Color(0.95,0.78,0.35),5.0,true)
-  draw_arc(c,r-7.0,0.0,TAU,64,Color(1.0,0.9,0.64,0.65),1.5,true)
-  draw_string(ThemeDB.fallback_font,c+Vector2(-15,5),label,HORIZONTAL_ALIGNMENT_CENTER,48,16,Color.WHITE)
+  var center:=size*0.5
+  var radius:=minf(size.x,size.y)*0.43
+  draw_circle(center,radius,Color(0.025,0.03,0.05,0.98))
+  var left:=PackedVector2Array([center])
+  var right:=PackedVector2Array([center])
+  for i in range(33):
+   var a:=PI*0.5+PI*float(i)/32.0
+   left.append(center+Vector2(cos(a),sin(a))*radius)
+   var b:=-PI*0.5+PI*float(i)/32.0
+   right.append(center+Vector2(cos(b),sin(b))*radius)
+  left.append(center)
+  right.append(center)
+  draw_colored_polygon(left,Color(0.86,0.10,0.16,0.94*clampf(hp_ratio,0.12,1.0)))
+  draw_colored_polygon(right,Color(0.10,0.38,0.94,0.94*clampf(mp_ratio,0.12,1.0)))
+  draw_line(center+Vector2(0,-radius),center+Vector2(0,radius),Color(0.96,0.82,0.52),3.0)
+  draw_arc(center,radius,0.0,TAU,72,Color(0.96,0.76,0.32),5.0,true)
+  draw_string(ThemeDB.fallback_font,center+Vector2(-radius*0.72,5),"HP",HORIZONTAL_ALIGNMENT_CENTER,42,13,Color.WHITE)
+  draw_string(ThemeDB.fallback_font,center+Vector2(radius*0.30,5),"MP",HORIZONTAL_ALIGNMENT_CENTER,42,13,Color.WHITE)
+
+class RadarDisplay extends Control:
+ func _draw()->void:
+  var center:=size*0.5
+  var radius:=minf(size.x,size.y)*0.43
+  draw_circle(center,radius,Color(0.04,0.10,0.12,0.95))
+  for r in [radius*0.35,radius*0.68,radius]:
+   draw_arc(center,r,0.0,TAU,64,Color(0.82,0.68,0.38,0.75),1.5,true)
+  draw_line(center+Vector2(-radius,0),center+Vector2(radius,0),Color(0.55,0.55,0.45,0.35),1.0)
+  draw_line(center+Vector2(0,-radius),center+Vector2(0,radius),Color(0.55,0.55,0.45,0.35),1.0)
+  draw_circle(center,4.0,Color(0.25,0.95,0.55))
 
 func _connect_systems() -> void:
  var npcs := get_node_or_null("/root/NPCMerchantSystem")
@@ -256,7 +282,9 @@ func _refresh_status() -> void:
  var bp:=int(player.get("battle_power",0))
  _status_label.text="البطل: %s  •  المستوى %d\\nالحياة %d/%d  •  الطاقة %d/%d\\nالذهب %d  •  نقاط CP %d  •  قوة BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
  for orb in get_tree().get_nodes_in_group("hud_orbs"):
-  orb.ratio=float(hp)/float(max_hp) if orb.label=="HP" else float(mp)/float(max_mp)
+  if orb is SplitOrb:
+   orb.hp_ratio=float(hp)/float(max_hp)
+   orb.mp_ratio=float(mp)/float(max_mp)
   orb.queue_redraw()
 
 func _refresh_minimap() -> void:
@@ -362,6 +390,16 @@ func _send_chat_message(entry: LineEdit,log: Label) -> void:
 func _set_combat_mode(mode: String) -> void:
  var state:=get_node_or_null("/root/GameState")
  if state!=null: state.player_data["combat_mode"]=mode
+
+func _toggle_window_menu() -> void:
+ if _window_menu != null: _window_menu.visible = not _window_menu.visible
+
+func _round_button(caption: String,callback: Callable) -> Button:
+ var button:=_button(caption,callback)
+ button.custom_minimum_size=Vector2(58,54)
+ button.add_theme_stylebox_override("normal",_flat_style(Color(0.10,0.075,0.045,0.96),Color(0.91,0.69,0.29),3))
+ button.add_theme_stylebox_override("hover",_flat_style(Color(0.24,0.16,0.07,0.98),Color(1.0,0.84,0.45),3))
+ return button
 
 func _quick_action(action: String) -> void:
  if action=="Auto-Hunt": _toggle_auto_combat()
@@ -894,7 +932,18 @@ func _arabic(caption: String) -> String:
   "Sell x1":"بيع ×1","Sell All":"بيع الكل","Upgrade weapon":"تطوير السلاح",
   "RANGER  •  GUILD: NONE":"رامٍ  •  النقابة: بلا",
   "QUEST TRACKER  [+] Available   [?] Active   [!] Ready":"المهام النشطة  •  اضغط للانتقال التلقائي",
-  "Tap to type a message...":"اكتب رسالتك هنا..."
+  "Tap to type a message...":"اكتب رسالتك هنا...",
+  "TwinCity":"المدينة التوأم","Novice Guide 1":"إرشاد المبتدئين ١","Novice Guide 2":"إرشاد المبتدئين ٢",
+  "Archer Promotion 15":"ترقية الرامي للمستوى ١٥","Search":"البحث","Rebuild":"إعادة البناء",
+  "Kill Competition":"مسابقة القتال","Exterminate":"إبادة الوحوش","Assassinate":"اغتيال",
+  "Demon Exterminators":"قاهر الشياطين","Dis City":"مدينة الأشباح","Coach Li's Assignment":"مهمة المدرّب لي",
+  "The Alchemist's Ingredients":"مكونات الخيميائي","Tower of Mystery":"برج الأسرار","Rare Materials":"المواد النادرة",
+  "Gem Collection":"جمع الجواهر","Monster Slayer":"صائد الوحوش","Event Participation":"المشاركة في الفعاليات",
+  "Item Socketing":"فتح ثقوب العتاد","Moon Box Quest":"مهمة صندوق القمر","Meteor Tears":"دموع النيازك",
+  "Blue Mouse Royal Treasures":"كنوز الفأر الأزرق","Snake Islands & Treasure Labyrinth":"جزر الأفاعي ومتاهة الكنوز",
+  "Bandits' Plot":"مؤامرة قطاع الطرق","Stone Ape's Trouble":"مشكلة القرد الحجري","Desert Rescue":"إنقاذ الصحراء",
+  "Bird Island Guarding Stone":"حجر حراسة جزيرة الطيور","Talisman Unlock":"فتح التعويذة",
+  "Celestial Stone":"الحجر السماوي","Rebirth Ritual":"طقوس الميلاد الثاني"
  }
  if dictionary.has(caption): return String(dictionary[caption])
  return caption
