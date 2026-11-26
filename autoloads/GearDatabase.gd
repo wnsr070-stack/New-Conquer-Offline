@@ -2,6 +2,12 @@ extends Node
 const TIER_LEVELS := [10,20,30,40,50,60,70,80,90,100,110,120,130]
 const QUALITIES := ["Normal","Refined","Unique","Elite","Super"]
 const PLUS_LEVELS := 12
+const SHOP_PRICES := {
+ "HPPotion":80,"MPPotion":80,"Antidote":120,"StaminaPotion":150,
+ "bow_lv10_normal_p1":1500,"dual_blades_lv10_normal_p1":1650,"spear_lv10_normal_p1":1450,"magic_staff_lv10_normal_p1":1400,"Plus1Stone":600,
+ "body_03_beginner_normal_p1":1800,"body_01_beginner_normal_p1":1900,"helmet_01_beginner_normal_p1":900,"boots_01_beginner_normal_p1":650,
+ "DragonGem":12000,"GloryGem":9000,"SoulJade":6500,"ThunderGem":7500,"Meteor":1000,"AnimaStone":8000
+}
 const WEAPON_FAMILIES := {
  "bow":{"classes":["archer"],"models":["quaternius_bow_wooden","quaternius_bow_golden"]},
  "dual_daggers":{"classes":["oriental_assassin"],"models":["kutejnikov_dagger","old_fantasy_dagger"]},
@@ -75,6 +81,9 @@ func _tier_color(level: int) -> Color:
  return Color(1.0,0.72,0.22)
 func get_item(item_id: String) -> Dictionary:
  return items.get(item_id,{}).duplicate(true)
+
+func get_item_price(item_id: String) -> int:
+ return int(SHOP_PRICES.get(item_id,0))
 func get_tier_item(family: String, level: int, quality: String = "Normal", plus: int = 1) -> Dictionary:
  var safe_level := clampi(int(round(float(level)/10.0))*10,10,130)
  var safe_plus := clampi(plus,1,12)
