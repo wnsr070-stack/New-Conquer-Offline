@@ -259,3 +259,12 @@ func get_monster_camp_position(monster_id: String) -> Vector3:
 			var offset: Vector3 = BOSS_OFFSETS.get(city, Vector3(0.0,0.0,330.0))
 			return center + offset
 	return Vector3.ZERO
+
+func get_monster_camp_city(monster_id: String) -> String:
+	for monster in TABLE.MONSTERS:
+		if String(monster.id) == monster_id:
+			return String(monster.city)
+	for boss in TABLE.WORLD_BOSSES:
+		if String(boss.id) == monster_id:
+			return String(boss.city)
+	return ""

@@ -229,14 +229,19 @@ func navigate_to_quest(id: String) -> bool:
  var nav:=get_node_or_null("/root/WorldNavigationSystem")
  if nav==null: return false
  var target_position: Vector3 = d.npc_position
+ var navigation_city := String(d.target_city)
  if s.player_data.get("active_quests",{}).has(id):
   var spawner := get_tree().get_first_node_in_group("monster_spawner")
   var monster_id := _quest_monster_id(id)
   if spawner != null and not monster_id.is_empty() and spawner.has_method("get_monster_camp_position"):
    var camp: Vector3 = spawner.get_monster_camp_position(monster_id)
-   if camp != Vector3.ZERO: target_position = camp
- var ok: bool=await nav.navigate_to_position(String(d.target_city),target_position)
- if ok: quest_navigation_started.emit(id,String(d.target_city),String(d.npc_id))
+   if camp != Vector3.ZERO:
+    target_position = camp
+    if spawner.has_method("get_monster_camp_city"):
+     var camp_city := String(spawner.get_monster_camp_city(monster_id))
+     if not camp_city.is_empty(): navigation_city = camp_city
+ var ok: bool=await nav.navigate_to_position(navigation_city,target_position)
+ if ok: quest_navigation_started.emit(id,navigation_city,String(d.npc_id))
  return ok
 func _has_property(o: Object,k: String) -> bool:
  for p in o.get_property_list():
@@ -244,7 +249,7 @@ func _has_property(o: Object,k: String) -> bool:
  return false
 
 func _quest_monster_id(quest_id: String) -> String:
- var mapping := {"novice_2":"Chicken","novice_4":"Pigeon","daily_kill_competition":"Ghost","daily_exterminate":"Blob","daily_assassinate":"Mushroom King","daily_demons":"Demon","daily_dis_city":"Alpaking Evolved","daily_tower":"Alien","weekly_slayer":"Chicken","side_blue_mouse":"Chicken","side_meteor":"Chicken","side_snake":"Cactoro","side_bandits":"Bunny","side_ape":"Orc","side_desert":"Cactoro","side_bird":"Armabee"}
+ var mapping := {"novice_2":"Chicken","novice_4":"Pigeon","daily_kill_competition":"Ghost","daily_exterminate":"Blob","daily_assassinate":"Mushroom King","daily_demons":"Demon","daily_dis_city":"Alpaking Evolved","side_meteor":"Chicken","side_bandits":"Bunny","side_ape":"Orc","side_desert":"Cactoro","side_bird":"Armabee"}
  return String(mapping.get(quest_id,""))
 func create_soul_jade() -> Dictionary:
  var s := _state()
