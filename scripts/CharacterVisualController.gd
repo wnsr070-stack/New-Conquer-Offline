@@ -1,7 +1,7 @@
 extends Node3D
 const ROOT := "res://assets/phase3b/"
 const CHARACTER_FILE_IDS := {
-    "archer":"archer",
+    "archer":"Male_Ranger",
     "oriental_assassin":"assassin",
     "trojan":"trojan",
     "warrior":"warrior",
