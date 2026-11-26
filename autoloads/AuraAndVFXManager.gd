@@ -325,14 +325,18 @@ func attach_loot_aura(loot_node: Node3D, item_rarity: String, item_type: String)
  _clear_anchor(loot_node,"LootSpriteAura")
  var anchor := _get_or_create_anchor(loot_node,"LootSpriteAura")
  var rarity := item_rarity.to_lower()
+ var normalized_type := item_type.to_lower().replace(" ","")
  var effect := "ring"
  var variant := 2
- var tint := Color(0.4,0.9,1.0)
- if rarity in ["refined","unique"]: tint = Color(0.25,0.82,1.0)
- elif rarity == "elite": tint = Color(1.0,0.68,0.18)
- elif rarity in ["super","gem","gems"]: tint = Color(0.35,0.82,1.0); variant = 4
- elif item_type.to_lower() == "meteor": effect = "shockwave"; tint = Color(1.0,0.3,0.08)
- elif item_type.to_lower() in ["dragon ball","dragonball"]: effect = "explosion"; tint = Color(1.0,0.18,0.12); variant = 4
+ var tint := Color(1.0,1.0,1.0)
+ if rarity == "refined": tint = Color(0.22,0.62,1.0)
+ elif rarity == "unique": tint = Color(0.18,0.95,0.34)
+ elif rarity == "elite": tint = Color(1.0,0.20,0.16)
+ elif rarity == "super" or normalized_type in ["meteor","dragonball"]:
+  tint = Color(1.0,0.78,0.16)
+  variant = 4
+ if normalized_type == "meteor": effect = "shockwave"
+ elif normalized_type == "dragonball": effect = "explosion"
  var sprite := _make_sprite(effect,variant,tint,0.52,12.0)
  if sprite == null: return false
  sprite.rotation_degrees.x = -90.0

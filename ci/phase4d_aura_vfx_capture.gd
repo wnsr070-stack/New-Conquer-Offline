@@ -7,7 +7,7 @@ func _ready() -> void:
  await _run_capture()
  if _capture_failed: return
  # _run_capture has returned, so all of its local scene/resource references are out of scope.
- var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager"]
+ var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager","LootDropManager"]
  var preserved_autoloads: Array[Node] = []
  for child in root.get_children():
   if child.name in autoload_names:
@@ -266,7 +266,7 @@ func _run_capture() -> void:
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
  # Clear autoload-held scene references and stop VFX processing before detaching the city.
- var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem"]
+ var cache_autoloads := ["WorldMapManager","GearDatabase","GearSystem","AuraAndVFXManager","CombatSystem","SkillSystem","LootDropManager"]
  for autoload_name in cache_autoloads:
   var autoload := root.get_node_or_null(autoload_name)
   if autoload == null or not autoload.has_method("clear_cache"):

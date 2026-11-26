@@ -147,11 +147,14 @@ func _on_monster_killed(target: Node3D,state: Node) -> void:
  if target.is_king: exp_reward = int(round(exp_reward*1.5))
  if state != null:
   state.add_exp(exp_reward)
-  state.add_gold(_rng.randi_range(1,3))
   state.add_xp(XP_PER_KILL)
-  _roll_loot(state)
+  var loot_manager := get_node_or_null("/root/LootDropManager")
+  var ground_drops := int(loot_manager.on_monster_killed(target)) if loot_manager != null else 0
+  if loot_manager == null:
+   state.add_gold(_rng.randi_range(1,3))
+   _roll_loot(state)
   state.save_game()
-  print("PHASE4C_LOOT_REWARD: exp=",exp_reward," gold=",state.gold," xp=+5 inventory=",state.inventory)
+  print("PHASE4D_COMBAT_GROUND_LOOT_LINKED: exp=",exp_reward," ground_drops=",ground_drops," gold=",state.gold," xp=+5 inventory=",state.inventory)
  var skills := get_node_or_null("/root/SkillSystem")
  if skills != null: skills.on_monster_killed()
  target.die()
