@@ -23,6 +23,8 @@ func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  mouse_filter = Control.MOUSE_FILTER_PASS
  _build_hud()
+ _install_arabic_theme()
+ _apply_arabic_rtl(self)
  _connect_systems()
  _refresh_all()
  print("PHASE5A_MOBILE_HUD_READY: touch_ui=true inventory=40 warehouse=40 stack=100 character_slots=10 procedural_3d=false")
@@ -52,7 +54,7 @@ func _build_hud() -> void:
  _status_label.add_theme_font_size_override("font_size",15)
  info.add_child(_status_label)
  var rank:=Label.new()
- rank.text="RANGER  •  GUILD: NONE"
+ rank.text="رامٍ  •  النقابة: بلا"
  rank.add_theme_color_override("font_color",Color(0.95,0.79,0.42))
  info.add_child(rank)
  var sta:=ProgressBar.new()
@@ -103,12 +105,12 @@ func _build_hud() -> void:
   tabs.add_child(b)
  chat.add_child(tabs)
  var log:=Label.new()
- log.text="[System] Welcome to Twin City"
+ log.text="[النظام] مرحبًا بك في المدينة التوأم"
  log.position=Vector2(12,42)
  log.size=Vector2(330,72)
  chat.add_child(log)
  var entry:=LineEdit.new()
- entry.placeholder_text="Tap to type a message..."
+ entry.placeholder_text="اكتب رسالتك هنا..."
  entry.position=Vector2(10,120)
  entry.size=Vector2(275,30)
  chat.add_child(entry)
@@ -252,7 +254,7 @@ func _refresh_status() -> void:
  var level:=int(player.get("level",1))
  var cps:=int(player.get("cps",player.get("conquer_points",0)))
  var bp:=int(player.get("battle_power",0))
- _status_label.text="%s  Lv.%d\\nHP %d/%d  MP %d/%d\\nGold %d  CPs %d  BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
+ _status_label.text="البطل: %s  •  المستوى %d\\nالحياة %d/%d  •  الطاقة %d/%d\\nالذهب %d  •  نقاط CP %d  •  قوة BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
  for orb in get_tree().get_nodes_in_group("hud_orbs"):
   orb.ratio=float(hp)/float(max_hp) if orb.label=="HP" else float(mp)/float(max_mp)
   orb.queue_redraw()
@@ -260,7 +262,7 @@ func _refresh_status() -> void:
 func _refresh_minimap() -> void:
  if _minimap_label == null: return
  var world := get_node_or_null("/root/WorldMapManager")
- var city := String(world.current_city) if world != null else "TwinCity"
+ var city := "المدينة التوأم" if world == null or String(world.current_city)=="TwinCity" else String(world.current_city)
  var p := _find_hero()
  var pos := p.global_position if p != null else Vector3.ZERO
  _minimap_label.text = "MAP\n%s\nX %.1f  Z %.1f" % [city,pos.x,pos.z]
@@ -270,7 +272,7 @@ func _refresh_quests(_unused_a: Variant = null,_unused_b: Variant = null,_unused
  if _quest_panel==null: return
  for child in _quest_panel.get_children(): child.queue_free()
  var title:=Label.new()
- title.text="QUEST TRACKER  [+] Available   [?] Active   [!] Ready"
+ title.text="المهام النشطة  •  اضغط للانتقال التلقائي"
  title.add_theme_color_override("font_color",Color(1.0,0.82,0.42))
  _quest_panel.add_child(title)
  var quests:=get_node_or_null("/root/QuestSystem")
@@ -318,8 +320,10 @@ func _open_window(window_name: String) -> void:
  _active_window = window_name
  for child in _window_layer.get_children(): child.queue_free()
  var panel := _panel(_window_layer, Vector2.ZERO, Vector2(650,540), false)
- panel.set_anchors_preset(Control.PRESET_CENTER)
- panel.position = Vector2(-325,-270)
+ panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+ panel.size = Vector2(650,540)
+ panel.position = (get_viewport_rect().size - panel.size) * 0.5
+ panel.z_index = 50
  var layout := VBoxContainer.new()
  layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  layout.add_theme_constant_override("separation",8)
@@ -331,7 +335,7 @@ func _open_window(window_name: String) -> void:
  heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  heading.add_theme_font_size_override("font_size",22)
  header.add_child(heading)
- header.add_child(_button("X",func(): _active_window=""; panel.queue_free()))
+ header.add_child(_button("✕",func(): _active_window=""; panel.queue_free()))
  match window_name:
   "Inventory": _build_inventory(layout)
   "Bag": _build_inventory(layout)
@@ -389,20 +393,58 @@ func _build_skill_window(layout: VBoxContainer) -> void:
  layout.add_child(_label("Weapon & Skill Proficiency"))
 
 func _build_system_window(layout: VBoxContainer) -> void:
- for setting in [["BGM Volume",0.75],["SFX Volume",0.85],["Camera Distance",1.0]]:
-  layout.add_child(_label(String(setting[0])))
-  var slider:=HSlider.new()
-  slider.min_value=0.0
-  slider.max_value=2.0 if setting[0]=="Camera Distance" else 1.0
-  slider.value=float(setting[1])
-  layout.add_child(slider)
- layout.add_child(_button("Save Game",func():
+ layout.add_child(_label("الصوت"))
+ _add_setting_slider(layout,"موسيقى الخلفية",0.75,1.0)
+ _add_setting_slider(layout,"المؤثرات الصوتية",0.85,1.0)
+ layout.add_child(_button("كتم الكل",func(): AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),true)))
+ layout.add_child(HSeparator.new())
+ layout.add_child(_label("العرض"))
+ layout.add_child(_setting_option("جودة الرسوم",["منخفضة","متوسطة","عالية"],1))
+ _add_setting_check(layout,"إظهار الأسماء",true)
+ _add_setting_check(layout,"إظهار الهالات",true)
+ _add_setting_slider(layout,"بُعد الكاميرا",1.0,2.0)
+ layout.add_child(HSeparator.new())
+ layout.add_child(_label("القتال والصيد التلقائي"))
+ layout.add_child(_setting_option("وضع القتال",["سلمي","فريق","دفاع","حر"],0))
+ _add_setting_check(layout,"الالتقاط التلقائي",true)
+ _add_setting_check(layout,"الجرعات التلقائية",true)
+ layout.add_child(HSeparator.new())
+ layout.add_child(_label("الحفظ"))
+ layout.add_child(_button("حفظ اللعبة الآن",func():
   var state:=get_node_or_null("/root/GameState")
   if state!=null: state.save_game()
  ))
+ layout.add_child(_button("العودة إلى المدينة",func():
+  var nav:=get_node_or_null("/root/WorldNavigationSystem")
+  if nav!=null and nav.has_method("navigate_to_target"): nav.navigate_to_target("CentralPlaza")
+ ))
+
+func _add_setting_slider(parent: VBoxContainer,caption: String,initial: float,maximum: float) -> void:
+ parent.add_child(_label(caption))
+ var slider:=HSlider.new()
+ slider.min_value=0.0
+ slider.max_value=maximum
+ slider.value=initial
+ parent.add_child(slider)
+
+func _setting_option(caption: String,options: Array,selected: int) -> HBoxContainer:
+ var row:=HBoxContainer.new()
+ row.add_child(_label(caption))
+ var picker:=OptionButton.new()
+ for option in options: picker.add_item(String(option))
+ picker.select(selected)
+ row.add_child(picker)
+ return row
+
+func _add_setting_check(parent: VBoxContainer,caption: String,enabled: bool) -> void:
+ var check:=CheckBox.new()
+ check.text=caption
+ check.button_pressed=enabled
+ parent.add_child(check)
 
 func _build_guild_window(layout: VBoxContainer) -> void:
- layout.add_child(_label("Guild • offline guild system integration pending"))
+ layout.add_child(_label("النقابة"))
+ layout.add_child(_label("نظام النقابة المحلي"))
 
 
 func _build_inventory(layout: VBoxContainer) -> void:
@@ -814,6 +856,41 @@ func _find_hero() -> Node3D:
  var legacy := get_tree().root.find_child("TwinCityPlayableHero",true,false)
  return legacy as Node3D if legacy is Node3D else null
 
+func _install_arabic_theme() -> void:
+ var arabic_theme := Theme.new()
+ arabic_theme.default_font = ThemeDB.fallback_font
+ theme = arabic_theme
+
+func _apply_arabic_rtl(node: Node) -> void:
+ if node is Control:
+  var control := node as Control
+  control.layout_direction = Control.LAYOUT_DIRECTION_RTL
+  control.text_direction = Control.TEXT_DIRECTION_RTL
+ for child in node.get_children():
+  _apply_arabic_rtl(child)
+
+func _arabic(caption: String) -> String:
+ var dictionary := {
+  "Peace":"سلمي","Team":"فريق","Capture":"دفاع","PK":"حر",
+  "All":"الكل","Talk":"عام","Whisper":"همس","Guild":"نقابة","System":"النظام","Send":"إرسال",
+  "Daily":"الدخول اليومي","Hunt":"الصيد التلقائي","Map":"الخريطة","Settings":"الإعدادات",
+  "Status":"الشخصية والعتاد","Skill":"المهارات","Bag":"الحقيبة","Quest":"المهام","Market":"السوق والتجارة",
+  "Warehouse":"الخزنة","ArtisanMaster":"الحرفي","Character":"الشخصية والعتاد","Inventory":"الحقيبة",
+  "Quests":"المهام","Daily Login":"تسجيل الدخول اليومي","Merchant":"السوق والتجارة",
+  "Scatter":"تشتت السهام","Fly":"الطيران","Target":"تبديل الهدف","ATTACK":"هجوم",
+  "Arrow Rain":"مطر السهام","Rapid Fire":"الرمي السريع","Empty":"فارغ",
+  "BGM Volume":"موسيقى الخلفية","SFX Volume":"المؤثرات الصوتية","Camera Distance":"بُعد الكاميرا",
+  "Save Game":"حفظ اللعبة الآن","Claim Reward":"استلام الجائزة","Auto-Path":"انتقال تلقائي",
+  "Accept Quest":"قبول المهمة","Completed":"مكتملة","Objective":"الهدف","Gold":"ذهب","EXP":"خبرة",
+  "Inventory:":"الحقيبة:","WAREHOUSE":"الخزنة","Buy x1":"شراء ×1","Buy x10":"شراء ×10",
+  "Sell x1":"بيع ×1","Sell All":"بيع الكل","Upgrade weapon":"تطوير السلاح",
+  "RANGER  •  GUILD: NONE":"رامٍ  •  النقابة: بلا",
+  "QUEST TRACKER  [+] Available   [?] Active   [!] Ready":"المهام النشطة  •  اضغط للانتقال التلقائي",
+  "Tap to type a message...":"اكتب رسالتك هنا..."
+ }
+ if dictionary.has(caption): return String(dictionary[caption])
+ return caption
+
 func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
  var style:=StyleBoxFlat.new()
  style.bg_color=bg
@@ -843,14 +920,14 @@ func _panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false
 
 func _button(caption: String, callback: Callable) -> Button:
  var button := Button.new()
- button.text = caption
+ button.text = _arabic(caption)
  button.custom_minimum_size = Vector2(70,34)
  button.pressed.connect(callback)
  return button
 
 func _label(caption: String) -> Label:
  var label := Label.new()
- label.text = caption
+ label.text = _arabic(caption)
  return label
 
 func _run_mobile_hud_preview() -> void:
@@ -868,7 +945,7 @@ func _run_mobile_hud_preview() -> void:
   push_error("PHASE5A_MOBILE_HUD_PREVIEW_FAILED: character capture")
   get_tree().quit(1)
   return
- print("PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true")
+ print("PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true arabic=true")
  get_tree().quit(0)
 
 func _save_mobile_hud_preview(file_name: String) -> bool:
@@ -891,12 +968,34 @@ func _save_mobile_hud_preview(file_name: String) -> bool:
 func _seed_mobile_hud_preview_data() -> void:
  var state := get_node_or_null("/root/GameState")
  if state != null:
-  state.add_item("HPPotion",12)
-  state.add_item("bow_lv10_normal_p1",1,{"plus":12})
-  state.add_item("body_03_beginner_normal_p1",1,{"plus":8})
+  state.inventory_slots.clear()
+  state.inventory.clear()
+  state.add_item("Meteor",15)
+  state.add_item("DragonBall",5)
   state.add_item("DragonGem",3)
+  state.add_item("Plus2Stone",8)
+  state.add_item("HPPotion",50)
+ var db := get_node_or_null("/root/GearDatabase")
  var gear := get_node_or_null("/root/GearSystem")
- if gear != null and gear.equipped is Dictionary:
-  gear.equipped["weapon"]={"id":"bow_lv10_normal_p1","name":"Beginner Bow","type":"Weapon","family":"bow","plus":12}
-  gear.equipped["armor"]={"id":"body_03_beginner_normal_p1","name":"Beginner Leather Armor","type":"Armor","slot":"armor","plus":8}
- print("PHASE5A_MOBILE_HUD_PREVIEW_FIXTURES_READY: bag_icons=4 equipped=2 save_untouched=true")
+ if db != null and gear != null:
+  var fixtures := {
+   "weapon":"bow_lv10_normal_p12",
+   "armor":"body_03_beginner_super_p12",
+   "helmet":"helmet_01_beginner_super_p12",
+   "boots":"boots_01_beginner_super_p12"
+  }
+  for slot in fixtures:
+   var definition: Dictionary = db.get_item(String(fixtures[slot]))
+   if not definition.is_empty():
+    definition["plus"]=12
+    definition["display_name"] = "قوس +12" if slot=="weapon" else "درع +12" if slot=="armor" else "خوذة +12" if slot=="helmet" else "حذاء +12"
+    gear.equipped[slot]=definition
+  gear.equipped["necklace"]={"id":"preview_necklace_p12","name":"قلادة +12","slot":"necklace","plus":12,"type":"Accessory"}
+  gear.equipped["ring"]={"id":"preview_ring_p12","name":"خاتم +12","slot":"ring","plus":12,"type":"Accessory"}
+ if state != null:
+  state.player_data["active_quests"]={
+   "novice_1":{"status":"ACTIVE","progress":0},
+   "novice_2":{"status":"ACTIVE","progress":2}
+  }
+ _refresh_quests()
+ print("PHASE5A_MOBILE_HUD_PREVIEW_FIXTURES_READY: meteor=15 dragon_ball=5 dragon_gem=3 plus2=8 hp_potion=50 equipped=6 active_quests=2 save_untouched=true")
