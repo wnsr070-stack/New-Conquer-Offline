@@ -45,3 +45,13 @@ func get_skill(skill_id: String) -> Dictionary:
  return SKILLS.get(skill_id,{}).duplicate(true)
 func has_skill(class_id: String, skill_id: String) -> bool:
  return CLASS_DATA.has(class_id) and skill_id in CLASS_DATA[class_id].skills
+
+func apply_rebirth(class_id: String, new_level: int, preserved_skills: Dictionary) -> void:
+ active_class = class_id if CLASS_DATA.has(class_id) else "archer"
+ player_level = new_level
+ var state := get_node_or_null("/root/GameState")
+ if state != null:
+  state.player_data["class"] = active_class
+  state.player_data["level"] = new_level
+  state.player_data["unlocked_skills"] = preserved_skills.duplicate(true)
+ class_changed.emit(active_class)

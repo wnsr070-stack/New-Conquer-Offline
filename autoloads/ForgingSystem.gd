@@ -328,11 +328,7 @@ func _gold_cost(item: Dictionary,step: int,kind: String) -> int:
  return 0
 
 func _consume_inventory(state: Node,item_id: String,amount: int) -> bool:
- var count := int(state.inventory.get(item_id,0))
- if count < amount: return false
- state.inventory[item_id] = count-amount
- if state.inventory[item_id] <= 0: state.inventory.erase(item_id)
- return true
+ return state.remove_item(item_id,amount)
 
 func _spend_gold(state: Node,amount: int) -> bool:
  if int(state.gold) < amount: return false

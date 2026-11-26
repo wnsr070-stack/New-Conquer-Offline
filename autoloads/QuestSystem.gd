@@ -17,6 +17,14 @@ func _ready() -> void:
  if combat != null and not combat.monster_killed.is_connected(_on_monster_killed): combat.monster_killed.connect(_on_monster_killed)
  var npcs := get_node_or_null("/root/NPCMerchantSystem")
  if npcs != null and not npcs.npc_interacted.is_connected(_on_npc_interacted): npcs.npc_interacted.connect(_on_npc_interacted)
+ var state := _state()
+ if state != null and state.has_signal("inventory_changed") and not state.inventory_changed.is_connected(_on_inventory_changed): state.inventory_changed.connect(_on_inventory_changed)
+ var loot := get_node_or_null("/root/LootDropManager")
+ if loot != null and loot.has_signal("loot_collected") and not loot.loot_collected.is_connected(_on_loot_collected): loot.loot_collected.connect(_on_loot_collected)
+ var forge := get_node_or_null("/root/ForgingSystem")
+ if forge != null:
+  if forge.has_signal("forging_succeeded") and not forge.forging_succeeded.is_connected(_on_forging_succeeded): forge.forging_succeeded.connect(_on_forging_succeeded)
+  if forge.has_signal("socket_updated") and not forge.socket_updated.is_connected(_on_socket_updated): forge.socket_updated.connect(_on_socket_updated)
  print("PHASE4D_CLASSIC_QUEST_ENCYCLOPEDIA_READY: categories=5 quests=",_catalog.size())
 func _add(id: String,cat: String,title: String,lvl: int,npc: String,city: String,pos: Vector3,obj: String,req: int,reward: Dictionary={}) -> void:
  _catalog[id]={"category":cat,"title":title,"level_min":lvl,"npc_id":npc,"target_city":city,"npc_position":pos,"monster_camp_position":pos,"objective":obj,"required":req,"rewards":reward}
@@ -101,6 +109,47 @@ func accept_quest(id: String) -> bool:
  s.save_game()
  quest_accepted.emit(id)
  return true
+func _on_loot_collected(data: Dictionary) -> void:
+ var s := _state()
+ if s == null: return
+ var item_id := String(data.get("item_id",""))
+ var amount := maxi(1,int(data.get("amount",1)))
+ var active: Dictionary = s.player_data.get("active_quests",{})
+ for id in active.keys():
+  if String(_catalog[id].objective) == "collect": _advance(id,amount)
+ _on_inventory_changed(item_id,s.get_item_count(item_id))
+func _on_inventory_changed(item_id: String, total: int) -> void:
+ var s := _state()
+ if s == null: return
+ var active: Dictionary = s.player_data.get("active_quests",{})
+ for id in active.keys():
+  var obj := String(_catalog[id].objective)
+  var count := 0
+  match obj:
+   "meteor": count = s.get_item_count("Meteor")
+   "euxenite": count = s.get_item_count("EuxeniteOre")
+   "rebuild": count = s.get_item_count("RebuildOre")
+   "refined_gems":
+    for gem in ["RefinedDragonGem","RefinedPhoenixGem","RefinedRainbowGem","RefinedVioletGem","RefinedFuryGem","RefinedMoonGem","RefinedKylinGem"]: count += s.get_item_count(gem)
+   "moon_tokens":
+    for token in ["PeaceCommandToken","ChaosCommandToken","DesertedCommandToken","ProsperousCommandToken","DisturbedCommandToken","CalmedCommandToken"]: count += mini(1,s.get_item_count(token))
+   "celestial_recipe":
+    for gem in ["DragonGem","PhoenixGem","RainbowGem","VioletGem","FuryGem","MoonGem","KylinGem"]: count += mini(1,s.get_item_count(gem))
+    count = mini(count,s.get_item_count("CleanWater"))
+  if count > 0:
+   var current := int(active[id].get("progress",0))
+   if count > current: _advance(id,count-current)
+func _on_forging_succeeded(operation: String, _item: Dictionary) -> void:
+ var s := _state()
+ if s == null: return
+ var active: Dictionary = s.player_data.get("active_quests",{})
+ for id in active.keys():
+  var obj := String(_catalog[id].objective)
+  if obj == "rebuild" and operation in ["plus","quality","level"]: _advance(id,1)
+  elif obj == "socket" and operation in ["socket","gem"]: _advance(id,1)
+  elif obj == "talisman" and operation == "talisman": _advance(id,1)
+func _on_socket_updated(_slot: String, _index: int, _gem_id: String) -> void:
+ _on_forging_succeeded("socket",{})
 func _on_npc_interacted(npc_id: String,_role: String) -> void:
  var s:=_state()
  if s==null: return
@@ -159,10 +208,116 @@ func navigate_to_quest(id: String) -> bool:
  if s==null or int(s.player_data.get("level",1))<int(d.level_min): return false
  var nav:=get_node_or_null("/root/WorldNavigationSystem")
  if nav==null: return false
- var ok: bool=await nav.navigate_to_position(String(d.target_city),d.monster_camp_position if s.player_data.get("active_quests",{}).has(id) else d.npc_position)
+ var target_position: Vector3 = d.npc_position
+ if s.player_data.get("active_quests",{}).has(id):
+  var spawner := get_tree().get_first_node_in_group("monster_spawner")
+  var monster_id := _quest_monster_id(id)
+  if spawner != null and not monster_id.is_empty() and spawner.has_method("get_monster_camp_position"):
+   var camp: Vector3 = spawner.get_monster_camp_position(monster_id)
+   if camp != Vector3.ZERO: target_position = camp
+ var ok: bool=await nav.navigate_to_position(String(d.target_city),target_position)
  if ok: quest_navigation_started.emit(id,String(d.target_city),String(d.npc_id))
  return ok
 func _has_property(o: Object,k: String) -> bool:
  for p in o.get_property_list():
   if String(p.name)==k: return true
  return false
+
+func _quest_monster_id(quest_id: String) -> String:
+ var mapping := {"novice_2":"Chicken","novice_4":"Pigeon","daily_kill_competition":"Ghost","daily_exterminate":"Blob","daily_assassinate":"Mushroom King","daily_demons":"Demon","daily_dis_city":"Alpaking Evolved","daily_tower":"Alien","weekly_slayer":"Chicken","side_blue_mouse":"Chicken","side_meteor":"Chicken","side_snake":"Cactoro","side_bandits":"Bunny","side_ape":"Orc","side_desert":"Cactoro","side_bird":"Armabee"}
+ return String(mapping.get(quest_id,""))
+func create_soul_jade() -> Dictionary:
+ var s := _state()
+ if s == null: return {"ok":false,"reason":"gamestate_missing"}
+ var tokens := ["PeaceCommandToken","ChaosCommandToken","DesertedCommandToken","ProsperousCommandToken","DisturbedCommandToken","CalmedCommandToken"]
+ for token in tokens:
+  if s.get_item_count(token) < 1: return {"ok":false,"reason":"missing_"+token}
+ if s.inventory_slots.size() >= GameState.MAX_INVENTORY_SLOTS and s.get_item_count("SoulJade") == 0: return {"ok":false,"reason":"inventory_full"}
+ for token in tokens: s.remove_item(token,1)
+ if not s.add_item("SoulJade",1): return {"ok":false,"reason":"inventory_full"}
+ s.save_game()
+ return {"ok":true,"item_id":"SoulJade"}
+func create_moon_box() -> Dictionary:
+ var s := _state()
+ if s == null or not s.remove_item("SoulJade",1): return {"ok":false,"reason":"soul_jade_missing"}
+ if not s.add_item("MoonBox",1):
+  s.add_item("SoulJade",1)
+  return {"ok":false,"reason":"inventory_full"}
+ s.save_game()
+ return {"ok":true,"item_id":"MoonBox"}
+func open_moon_box() -> Dictionary:
+ var s := _state()
+ if s == null or s.get_item_count("MoonBox") < 1: return {"ok":false,"reason":"moon_box_missing"}
+ if not s.remove_item("MoonBox",1): return {"ok":false,"reason":"moon_box_missing"}
+ var reward_kind := ["Meteor","Elite","Super","Socketed"][randi_range(0,3)]
+ var reward_id := "Meteor"
+ var instance_data: Dictionary = {}
+ if reward_kind != "Meteor":
+  var class_id := String(s.player_data.get("class","archer"))
+  var family_by_class := {"archer":"bow","oriental_assassin":"dual_daggers","trojan":"dual_blades","warrior":"spear","taoist":"magic_staff","ninja":"katana","monk":"staff"}
+  var family := String(family_by_class.get(class_id,"bow"))
+  var database := get_node_or_null("/root/GearDatabase")
+  if database == null:
+   s.add_item("MoonBox",1)
+   return {"ok":false,"reason":"gear_database_missing"}
+  var quality := "Elite" if reward_kind == "Elite" else "Super"
+  var item: Dictionary = database.get_tier_item(family,130,quality,1)
+  if item.is_empty():
+   s.add_item("MoonBox",1)
+   return {"ok":false,"reason":"reward_item_unavailable"}
+  reward_id = String(item.get("id",""))
+  if reward_kind == "Socketed": instance_data = {"sockets":["DragonGem"],"quality":"Super","plus":1}
+ if not s.add_item(reward_id,1,instance_data):
+  s.add_item("MoonBox",1)
+  return {"ok":false,"reason":"inventory_full"}
+ s.save_game()
+ return {"ok":true,"reward":reward_id,"reward_kind":reward_kind}
+func craft_celestial_stone() -> Dictionary:
+ var s := _state()
+ if s == null: return {"ok":false,"reason":"gamestate_missing"}
+ var gems := ["DragonGem","PhoenixGem","RainbowGem","VioletGem","FuryGem","MoonGem","KylinGem"]
+ for gem in gems:
+  if s.get_item_count(gem) < 1: return {"ok":false,"reason":"missing_"+gem}
+ if s.get_item_count("CleanWater") < 1: return {"ok":false,"reason":"clean_water_missing"}
+ if s.inventory_slots.size() >= GameState.MAX_INVENTORY_SLOTS and s.get_item_count("CelestialStone") == 0: return {"ok":false,"reason":"inventory_full"}
+ for gem in gems: s.remove_item(gem,1)
+ s.remove_item("CleanWater",1)
+ s.add_item("CelestialStone",1)
+ s.save_game()
+ return {"ok":true,"item_id":"CelestialStone"}
+func perform_rebirth(npc_id: String = "RebirthMaster") -> Dictionary:
+ if npc_id != "RebirthMaster": return {"ok":false,"reason":"wrong_npc"}
+ var s := _state()
+ var classes := get_node_or_null("/root/ClassSystem")
+ var database := get_node_or_null("/root/GearDatabase")
+ if s == null: return {"ok":false,"reason":"gamestate_missing"}
+ if int(s.player_data.get("level",1)) < 120: return {"ok":false,"reason":"level_120_required"}
+ if s.get_item_count("CelestialStone") < 1: return {"ok":false,"reason":"celestial_stone_missing"}
+ if database == null: return {"ok":false,"reason":"gear_database_missing"}
+ var old_class := String(s.player_data.get("class","archer"))
+ var family_by_class := {"archer":"bow","oriental_assassin":"dual_daggers","trojan":"dual_blades","warrior":"spear","taoist":"magic_staff","ninja":"katana","monk":"staff"}
+ var family := String(family_by_class.get(old_class,"bow"))
+ var weapon: Dictionary = database.get_tier_item(family,130,"Super",1)
+ if weapon.is_empty(): return {"ok":false,"reason":"rebirth_weapon_unavailable"}
+ var weapon_id := String(weapon.get("id",""))
+ var needs_weapon_slot := s.get_item_count(weapon_id) == 0
+ var needs_gem_slot := s.get_item_count("SuperDragonGem") >= GameState.MAX_STACK
+ var free_slots := GameState.MAX_INVENTORY_SLOTS - s.inventory_slots.size()
+ if free_slots < int(needs_weapon_slot) + int(needs_gem_slot): return {"ok":false,"reason":"inventory_full"}
+ var skills: Dictionary = s.player_data.get("unlocked_skills",{}).duplicate(true)
+ if not s.remove_item("CelestialStone",1): return {"ok":false,"reason":"celestial_stone_missing"}
+ s.player_data["level"] = 15
+ s.player_data["free_attribute_points"] = int(s.player_data.get("free_attribute_points",0)) + 30
+ s.player_data["unlocked_skills"] = skills
+ s.player_data["rebirth_count"] = int(s.player_data.get("rebirth_count",0)) + 1
+ s.player_data["reborn"] = true
+ if not s.add_item("SuperDragonGem",1) or not s.add_item(weapon_id,1,{"quality":"Super","plus":1}):
+  s.player_data["level"] = 120
+  s.player_data["free_attribute_points"] = int(s.player_data.get("free_attribute_points",0)) - 30
+  s.player_data["rebirth_count"] = maxi(0,int(s.player_data.get("rebirth_count",1))-1)
+  s.player_data["reborn"] = int(s.player_data["rebirth_count"]) > 0
+  s.add_item("CelestialStone",1)
+  return {"ok":false,"reason":"rebirth_reward_inventory_failed"}
+ if classes != null and classes.has_method("apply_rebirth"): classes.apply_rebirth(old_class,15,skills)
+ s.save_game()
+ return {"ok":true,"level":15,"bonus_points":30,"class":old_class,"weapon_id":weapon_id,"gem":"SuperDragonGem"}

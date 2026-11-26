@@ -47,6 +47,7 @@ var _definitions: Dictionary = {}
 var _model_cache: Dictionary = {}
 
 func _ready() -> void:
+	add_to_group("monster_spawner")
 	var manager := get_node_or_null("/root/WorldMapManager")
 	if manager != null:
 		current_city = String(manager.get("current_city"))
@@ -238,3 +239,23 @@ func get_spawn_summary() -> Dictionary:
 		"spawn_point_count": spawn_points.size(),
 		"loaded_model_count": _model_cache.size()
 	}
+
+func get_monster_camp_position(monster_id: String) -> Vector3:
+	var centers := _city_centers()
+	for monster in TABLE.MONSTERS:
+		if String(monster.id) != monster_id:
+			continue
+		var city := String(monster.city)
+		var offsets: Array = TABLE.CAMP_OFFSETS.get(city, [])
+		if offsets.is_empty():
+			return centers.get(city, Vector3.ZERO)
+		var center: Vector3 = centers.get(city, Vector3.ZERO)
+		var offset: Vector3 = offsets[0]
+		return center + offset
+	for boss in TABLE.WORLD_BOSSES:
+		if String(boss.id) == monster_id:
+			var city := String(boss.city)
+			var center: Vector3 = centers.get(city, Vector3.ZERO)
+			var offset: Vector3 = BOSS_OFFSETS.get(city, Vector3(0.0,0.0,330.0))
+			return center + offset
+	return Vector3.ZERO

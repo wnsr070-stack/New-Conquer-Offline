@@ -1,6 +1,10 @@
 extends Node
 signal state_loaded
 signal xp_changed(value: float, ready: bool)
+signal inventory_changed(item_id: String, total_count: int)
+const MAX_STACK := 100
+const MAX_INVENTORY_SLOTS := 40
+var inventory_slots: Array[Dictionary] = []
 const SAVE_VERSION := 7
 const SAVE_PATH := "user://conquer_save_v6.cfg"
 var initialized := false
@@ -47,11 +51,23 @@ func _load_save() -> void:
  gold = maxi(0,int(config.get_value("economy","gold",0)))
  exp = maxi(0,int(player_data.get("exp",0)))
  inventory = player_data.get("inventory",{}).duplicate(true)
+ inventory_slots = []
+ var saved_slots: Variant = player_data.get("inventory_slots", [])
+ if saved_slots is Array and not saved_slots.is_empty():
+  for slot in saved_slots:
+   if inventory_slots.size() >= MAX_INVENTORY_SLOTS: break
+   if slot is Dictionary and not String(slot.get("item_id","")).is_empty() and int(slot.get("count",0)) > 0:
+    inventory_slots.append({"item_id":String(slot.item_id),"count":mini(MAX_STACK,int(slot.count)),"instance_data":slot.get("instance_data",{}).duplicate(true)})
+ else:
+  _migrate_legacy_inventory(inventory)
+ _sync_legacy_inventory()
  weapon_proficiency = player_data.get("weapon_proficiency",{}).duplicate(true)
  skill_proficiency = player_data.get("skill_proficiency",{}).duplicate(true)
 func save_game() -> bool:
  player_data["exp"] = exp
  player_data["anima_phase"] = anima_phase
+ _sync_legacy_inventory()
+ player_data["inventory_slots"] = inventory_slots.duplicate(true)
  player_data["inventory"] = inventory.duplicate(true)
  player_data["weapon_proficiency"] = weapon_proficiency.duplicate(true)
  player_data["skill_proficiency"] = skill_proficiency.duplicate(true)
@@ -71,8 +87,70 @@ func add_exp(amount: int) -> void:
  exp += amount
  player_data["exp"] = exp
 func add_inventory_item(item_id: String,amount: int = 1) -> void:
- if item_id.is_empty() or amount <= 0: return
- inventory[item_id] = int(inventory.get(item_id,0))+amount
+ add_item(item_id, amount)
+func add_item(item_id: String, amount: int = 1, instance_data: Dictionary = {}) -> bool:
+ if item_id.is_empty() or amount <= 0: return false
+ var remaining := amount
+ if _is_stackable_item(item_id):
+  for slot in inventory_slots:
+   if String(slot.item_id) == item_id and int(slot.count) < MAX_STACK:
+    var moved := mini(remaining, MAX_STACK - int(slot.count))
+    slot.count = int(slot.count) + moved
+    remaining -= moved
+    if remaining <= 0: break
+ while remaining > 0 and inventory_slots.size() < MAX_INVENTORY_SLOTS:
+  var moved := mini(remaining, MAX_STACK) if _is_stackable_item(item_id) else 1
+  inventory_slots.append({"item_id":item_id,"count":moved,"instance_data":instance_data.duplicate(true)})
+  remaining -= moved
+ _sync_legacy_inventory()
+ inventory_changed.emit(item_id, get_item_count(item_id))
+ player_data["inventory_slots"] = inventory_slots.duplicate(true)
+ player_data["inventory"] = inventory.duplicate(true)
+ return remaining == 0
+func remove_item(item_id: String, amount: int = 1) -> bool:
+ if item_id.is_empty() or amount <= 0 or get_item_count(item_id) < amount: return false
+ var remaining := amount
+ for i in range(inventory_slots.size() - 1, -1, -1):
+  if String(inventory_slots[i].item_id) != item_id: continue
+  var taken := mini(remaining, int(inventory_slots[i].count))
+  inventory_slots[i].count = int(inventory_slots[i].count) - taken
+  remaining -= taken
+  if int(inventory_slots[i].count) <= 0: inventory_slots.remove_at(i)
+  if remaining <= 0: break
+ _sync_legacy_inventory()
+ inventory_changed.emit(item_id, get_item_count(item_id))
+ player_data["inventory_slots"] = inventory_slots.duplicate(true)
+ player_data["inventory"] = inventory.duplicate(true)
+ return remaining == 0
+func get_item_count(item_id: String) -> int:
+ var total := 0
+ for slot in inventory_slots:
+  if String(slot.get("item_id","")) == item_id: total += int(slot.get("count",0))
+ return total
+func _is_stackable_item(item_id: String) -> bool:
+ var normalized := item_id.to_lower().replace("_","").replace(" ","")
+ var equipment_tokens := ["weapon","sword","bow","dagger","armor","coat","helmet","hat","ring","necklace","boots","accessory","talisman","fan","tower","shield"]
+ for token in equipment_tokens:
+  if normalized.contains(token): return false
+ var db := get_node_or_null("/root/GearDatabase")
+ if db != null and db.has_method("get_item"):
+  var definition: Dictionary = db.get_item(item_id)
+  var family := String(definition.get("family","")).to_lower()
+  if family != "quest_item" and (definition.has("model_keys") or definition.has("model_path") or definition.has("asset_path") or definition.has("equipment_type")): return false
+ return true
+func _migrate_legacy_inventory(legacy: Dictionary) -> void:
+ inventory_slots.clear()
+ for id in legacy:
+  var remaining := maxi(0,int(legacy[id]))
+  while remaining > 0 and inventory_slots.size() < MAX_INVENTORY_SLOTS:
+   var amount := mini(remaining,MAX_STACK) if _is_stackable_item(String(id)) else 1
+   inventory_slots.append({"item_id":String(id),"count":amount,"instance_data":{}})
+   remaining -= amount
+func _sync_legacy_inventory() -> void:
+ inventory.clear()
+ for slot in inventory_slots:
+  var id := String(slot.get("item_id",""))
+  if not id.is_empty(): inventory[id] = int(inventory.get(id,0)) + int(slot.get("count",0))
  player_data["inventory"] = inventory.duplicate(true)
 func add_xp(amount: float) -> void:
  if amount <= 0.0 or xp_ready_time_left > 0.0: return

@@ -1,5 +1,6 @@
 extends Node
 signal equipment_changed(slot: String,item: Dictionary)
+const MAX_STACK := 100
 var initialized := false
 var database: Node
 var equipped: Dictionary = {}
@@ -123,3 +124,13 @@ func clear_cache() -> void:
  database = null
  initialized = false
  print("PHASE4D_GEAR_SYSTEM_CACHE_CLEARED")
+
+func add_item(item_id: String, amount: int = 1, instance_data: Dictionary = {}) -> bool:
+ var state := get_node_or_null("/root/GameState")
+ return state != null and state.add_item(item_id,amount,instance_data)
+func remove_item(item_id: String, amount: int = 1) -> bool:
+ var state := get_node_or_null("/root/GameState")
+ return state != null and state.remove_item(item_id,amount)
+func get_item_count(item_id: String) -> int:
+ var state := get_node_or_null("/root/GameState")
+ return state.get_item_count(item_id) if state != null else 0
