@@ -165,7 +165,8 @@ func socket_gem(gem_id: String, socket_index: int = 0, slot: String = "weapon") 
  var gear := get_node_or_null("/root/GearSystem")
  var state := get_node_or_null("/root/GameState")
  if gear == null or state == null: return _fail("forge_dependencies_missing")
- if not GEM_BONUSES.has(gem_id): return _fail("unknown_gem")
+ var normalized_gem := gem_id.trim_prefix("Refined").trim_prefix("Super")
+ if not GEM_BONUSES.has(normalized_gem): return _fail("unknown_gem")
  var item: Dictionary = gear.get_equipped(slot)
  if item.is_empty(): return _fail("no_equipped_item")
  var sockets: Array = item.get("sockets",[])
@@ -231,17 +232,28 @@ func _calculate_gem_bonuses(sockets: Array) -> Dictionary:
  var result := {"attack_pct":0.0,"magic_attack_pct":0.0,"exp_bonus":0.0,"hit_accuracy_pct":0.0,"weapon_exp_bonus":0.0,"magic_exp_bonus":0.0,"durability_bonus":0.0}
  for gem in sockets:
   var gem_id := String(gem)
-  var quality_multiplier := 1.0
-  var base_id := gem_id
+  var quality := "Normal"
   if gem_id.begins_with("Refined"):
-   quality_multiplier = 2.0
-   base_id = gem_id.trim_prefix("Refined")
+   quality = "Refined"
+   gem_id = gem_id.trim_prefix("Refined")
   elif gem_id.begins_with("Super"):
-   quality_multiplier = 3.0
-   base_id = gem_id.trim_prefix("Super")
-  if GEM_BONUSES.has(base_id):
-   for key in GEM_BONUSES[base_id]:
-    result[key] = float(result.get(key,0.0)) + float(GEM_BONUSES[base_id][key]) * quality_multiplier
+   quality = "Super"
+   gem_id = gem_id.trim_prefix("Super")
+  if not GEM_BONUSES.has(gem_id): continue
+  var multiplier := 1.0
+  if quality == "Refined":
+   multiplier = 2.0
+  elif quality == "Super":
+   multiplier = 3.0
+  for key in GEM_BONUSES[gem_id]:
+   var value := float(GEM_BONUSES[gem_id][key]) * multiplier
+   if gem_id == "RainbowGem" and quality == "Refined": value = 0.15
+   elif gem_id == "RainbowGem" and quality == "Super": value = 0.25
+   elif gem_id == "VioletGem" and quality == "Refined": value = 0.50
+   elif gem_id == "VioletGem" and quality == "Super": value = 1.00
+   elif gem_id == "MoonGem" and quality == "Super": value = 0.50
+   elif gem_id == "KylinGem" and quality == "Super": value = 2.00
+   result[key] = float(result.get(key,0.0)) + value
  return result
 
 func remove_socket_gem(socket_index: int, slot: String = "weapon") -> Dictionary:
