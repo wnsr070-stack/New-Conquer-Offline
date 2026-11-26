@@ -222,7 +222,7 @@ jobs:
 
           def copy_verified(source, destination):
               data = source.read_bytes()
-              if len(data) <= 100 or data[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+              if len(data) <= 100 or data[:8] != b"\x89PNG\r\n\x1a\n":
                   raise SystemExit(f"Invalid PNG (>100 bytes and signature required): {source} ({len(data)} bytes)")
               target = pathlib.Path(destination)
               target.parent.mkdir(parents=True, exist_ok=True)
@@ -287,6 +287,7 @@ jobs:
           set -euo pipefail
           for file in \
             assets/ui/borders/panel_brown.png \
+            assets/ui/borders/panel_beige.png \
             assets/ui/slots/slot_brown.png \
             assets/ui/slots/slot_beige.png \
             assets/ui/buttons/btn_brown.png \
@@ -309,7 +310,7 @@ jobs:
           while IFS= read -r file; do
             bytes=$(stat -c%s "$file")
             [ "$bytes" -gt 100 ] || { echo "::error::RPG icon PNG is too small: $file ($bytes bytes)"; exit 1; }
-            signature=$(od -An -tx1 -N8 "$file" | tr -d ' \\n')
+            signature=$(od -An -tx1 -N8 "$file" | tr -d ' \n')
             [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid RPG icon PNG signature: $file"; exit 1; }
           done < <(find assets/icons/rpg -type f -iname '*.png' | sort)
           echo "PHASE5A_RPG_ICON_PNG_COUNT: $icon_pngs"
