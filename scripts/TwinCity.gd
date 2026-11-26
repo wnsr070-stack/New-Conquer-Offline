@@ -41,6 +41,12 @@ func _ready() -> void:
         _spawn_playable_hero()
         _capture_phase4a_proofs.call_deferred()
         return
+    if OS.get_cmdline_user_args().has("--preview-mobile-hud"):
+        _camera()
+        _spawn_playable_hero()
+        _install_mobile_hud.call_deferred()
+        print("PHASE5A_MOBILE_HUD_PREVIEW_SCENE_READY: TwinCity_only=true wilderness_skipped=true")
+        return
     if not Wilderness.build(self):
         await _shutdown(1)
         return
