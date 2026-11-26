@@ -19,6 +19,8 @@ jobs:
           PHASE4D_SHA: 101e66bc9fe4e40ef91b804074fa2820c108d86c
         run: |
           set -euo pipefail
+          git config user.name "wnsr070-stack"
+          git config user.email "wnsr070@gmail.com"
           git cat-file -e "${PHASE4D_SHA}^{commit}"
           if git ls-remote --exit-code --tags origin refs/tags/phase4d-complete >/dev/null 2>&1; then
             echo "PHASE4D_TAG_ALREADY_EXISTS"
