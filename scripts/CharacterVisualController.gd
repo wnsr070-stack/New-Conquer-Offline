@@ -43,13 +43,14 @@ func build_character(class_id: String, level: int, gender: String = "male") -> v
             " gender=" + normalized_gender + " directory_files=" + str(DirAccess.get_files_at(character_dir)))
         return
     print("PHASE3B_CHARACTER_SOURCE_RESOLVED: class=", class_id, " path=", character_path,
-        " resource_type=", ResourceLoader.get_resource_type(character_path))
+        " resource_exists=", ResourceLoader.exists(character_path),
+        " file_exists=", FileAccess.file_exists(character_path))
     var loaded_resource: Resource = ResourceLoader.load(character_path)
     if loaded_resource == null:
         push_error("PHASE3B_CHARACTER_LOAD_FAILED: path=" + character_path +
             " exists=" + str(ResourceLoader.exists(character_path)) +
             " file_exists=" + str(FileAccess.file_exists(character_path)) +
-            " resource_type=" + ResourceLoader.get_resource_type(character_path))
+            " directory_files=" + str(DirAccess.get_files_at(ROOT + "characters/"))
         return
     var packed := loaded_resource as PackedScene
     if packed == null:
