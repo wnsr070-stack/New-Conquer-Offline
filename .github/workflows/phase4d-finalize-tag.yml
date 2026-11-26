@@ -23,8 +23,10 @@ jobs:
           git config user.email "wnsr070@gmail.com"
           git cat-file -e "${PHASE4D_SHA}^{commit}"
           if git ls-remote --exit-code --tags origin refs/tags/phase4d-complete >/dev/null 2>&1; then
-            echo "PHASE4D_TAG_ALREADY_EXISTS"
-            exit 1
+            git fetch origin refs/tags/phase4d-complete:refs/tags/phase4d-complete
+            test "$(git rev-parse phase4d-complete^{})" = "${PHASE4D_SHA}" || { echo "::error::phase4d-complete points to an unexpected commit"; exit 1; }
+            echo "PHASE4D_TAG_ALREADY_EXISTS_AND_VERIFIED: ${PHASE4D_SHA}"
+            exit 0
           fi
           git tag -a phase4d-complete "${PHASE4D_SHA}" -m "Phase 4D complete: verified NPCs, aura and VFX"
           git push origin refs/tags/phase4d-complete
