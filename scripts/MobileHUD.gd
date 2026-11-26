@@ -32,7 +32,7 @@ func _build_hud() -> void:
  var root := Control.new()
  root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  add_child(root)
- var status := _panel(root, Vector2(16,16), Vector2(330,174))
+ var status := _panel(root, Vector2(16,16), Vector2(330,240))
  var status_box := VBoxContainer.new()
  status_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  status_box.add_theme_constant_override("separation",4)
@@ -132,6 +132,7 @@ func _refresh_status() -> void:
  var level := int(player.get("level",1))
  var rank := String(player.get("rank","Novice"))
  var battle_power := int(player.get("battle_power",0))
+ var cps := int(player.get("cps",player.get("conquer_points",0)))
  _status_label.text = "%s  |  %s  Lv.%d\nHP %d/%d   MP %d   STA %d\nGold %d   CPs %d" % [name,rank,level,hp,max_hp,mp,stamina,gold,battle_power]
 
 func _refresh_minimap() -> void:
