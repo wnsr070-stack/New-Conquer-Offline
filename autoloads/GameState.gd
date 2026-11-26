@@ -234,3 +234,5 @@ func get_proficiency_gem_multiplier(kind: String) -> float:
    elif kind=="skill" and gem.to_lower().contains("moon"):
     result += 0.15 if quality=="Normal" else 0.30 if quality=="Refined" else 0.50 if quality=="Super" else 0.0
  return result
+
+# Final Phase 4D quest signal parser-compatibility gate.

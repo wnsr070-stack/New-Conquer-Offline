@@ -269,7 +269,7 @@ func open_moon_box() -> Dictionary:
  var s := _state()
  if s == null or s.get_item_count("MoonBox") < 1: return {"ok":false,"reason":"moon_box_missing"}
  if not s.remove_item("MoonBox",1): return {"ok":false,"reason":"moon_box_missing"}
- var reward_kind := ["Meteor","Elite","Super","Socketed"][randi_range(0,3)]
+ var reward_kind: String = ["Meteor","Elite","Super","Socketed"][randi_range(0,3)]
  var reward_id := "Meteor"
  var instance_data: Dictionary = {}
  if reward_kind != "Meteor":
@@ -321,9 +321,9 @@ func perform_rebirth(npc_id: String = "RebirthMaster") -> Dictionary:
  var weapon: Dictionary = database.get_tier_item(family,130,"Super",1)
  if weapon.is_empty(): return {"ok":false,"reason":"rebirth_weapon_unavailable"}
  var weapon_id := String(weapon.get("id",""))
- var needs_weapon_slot := s.get_item_count(weapon_id) == 0
- var needs_gem_slot := s.get_item_count("SuperDragonGem") >= GameState.MAX_STACK
- var free_slots := GameState.MAX_INVENTORY_SLOTS - s.inventory_slots.size()
+ var needs_weapon_slot: bool = s.get_item_count(weapon_id) == 0
+ var needs_gem_slot: bool = s.get_item_count("SuperDragonGem") >= GameState.MAX_STACK
+ var free_slots: int = GameState.MAX_INVENTORY_SLOTS - s.inventory_slots.size()
  if free_slots < int(needs_weapon_slot) + int(needs_gem_slot): return {"ok":false,"reason":"inventory_full"}
  var skills: Dictionary = s.player_data.get("unlocked_skills",{}).duplicate(true)
  if not s.remove_item("CelestialStone",1): return {"ok":false,"reason":"celestial_stone_missing"}
