@@ -15,6 +15,8 @@ on:
       - 'scripts/SkillSystem.gd'
       - 'project.godot'
       - 'ci/phase4d_aura_vfx_capture.gd'
+      - 'autoloads/NPCMerchantSystem.gd'
+      - 'scripts/CharacterVisualController.gd'
       - 'ci/phase4d_loot_drop_test.gd'
       - 'ci/phase4c_step3_forging_capture.gd'
       - 'ci/fetch_items_consumables.py'
