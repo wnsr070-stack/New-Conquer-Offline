@@ -142,9 +142,10 @@ func _on_monster_killed(monster: Node3D) -> void:
   var matched := objective in ["kill_any"] or (objective=="kill_boss" and is_boss) or (objective=="kill_elite" and is_elite) or (objective=="kill_bandit" and "bandit" in tags) or (objective=="kill_macaque" and "macaque" in tags) or (objective=="kill_birdman" and "birdman" in tags) or (objective=="kill_desert_monster" and ("desert" in tags or "scorpion" in tags)) or (objective=="kill_fire_spirit_or_turtledove" and ("fire spirit" in tags or "turtledove" in tags))
   if matched: _advance_quest(quest_id,1)
 
-func _on_npc_interacted(npc_id: String, _role_type: String) -> void:
- if npc_id not in ["QuestMaster","ImperialEnvoy"]: return
+func _on_npc_interacted(npc_id: String, role_type: String) -> void:
  var active: Dictionary = _state().player_data.get("active_quests",{}) if _state()!=null else {}
+ if active.has("tc_starting_tour") and role_type == "shop":
+  _advance_quest("tc_starting_tour",1)
  if npc_id == "QuestMaster" and active.has("tc_starting_tour"):
   _advance_quest("tc_starting_tour",1)
 
