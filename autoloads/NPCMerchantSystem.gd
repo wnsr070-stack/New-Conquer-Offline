@@ -134,6 +134,7 @@ func spawn_city_npcs(city_root: Node3D) -> void:
    if is_instance_valid(npc):
     npc.free()
    continue
+  _play_npc_idle_animation(character,npc_id)
   _fit_character_height(character,2.8)
   _add_name_label(npc,npc_id)
   _add_interaction_prompt(npc,npc_id,String(definition.role),String(definition.prompt))
@@ -143,6 +144,36 @@ func spawn_city_npcs(city_root: Node3D) -> void:
  print("PHASE4D_CITY_NPC_REGISTRY_READY: spawned=",spawned_count," requested=",NPC_DEFINITIONS.size()," city=",city_id)
  if city_id == "TwinCity":
   print("PHASE4D_NPC_OVERHEAD_PROMPTS_READY: spawned=",spawned_count," height=",INTERACTION_HEIGHT,"m")
+
+
+func _play_npc_idle_animation(character_root: Node, npc_id: String) -> void:
+ var animation_players: Array[Node] = character_root.find_children("*","AnimationPlayer",true,false)
+ if animation_players.is_empty():
+  push_warning("PHASE4D_NPC_IDLE_ANIMATION_MISSING: id="+npc_id+" animation_player=false")
+  return
+ var animation_player := animation_players[0] as AnimationPlayer
+ if animation_player == null:
+  push_warning("PHASE4D_NPC_IDLE_ANIMATION_MISSING: id="+npc_id+" animation_player_invalid=true")
+  return
+ var animation_names := animation_player.get_animation_list()
+ if animation_names.is_empty():
+  push_warning("PHASE4D_NPC_IDLE_ANIMATION_MISSING: id="+npc_id+" animations=0")
+  return
+ var selected_animation := ""
+ for preferred_name in ["Idle","idle","Stand","stand","Standing","standing"]:
+  for animation_name in animation_names:
+   if String(animation_name).to_lower() == String(preferred_name).to_lower():
+    selected_animation = String(animation_name)
+    break
+  if not selected_animation.is_empty():
+   break
+ if selected_animation.is_empty():
+  selected_animation = String(animation_names[0])
+ var animation := animation_player.get_animation(selected_animation)
+ if animation != null:
+  animation.loop_mode = Animation.LOOP_LINEAR
+ animation_player.play(selected_animation)
+ print("PHASE4D_NPC_IDLE_ANIMATION_STARTED: id=",npc_id," animation=",selected_animation," loop=true")
 
 func _ensure_authored_ground_collider(city_root: Node3D, authored_position: Vector3, npc_id: String) -> void:
  var key := "NPCGround_"+npc_id
