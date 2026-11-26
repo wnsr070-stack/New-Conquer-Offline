@@ -12,7 +12,7 @@ const NPC_DEFINITIONS := [
  {"id":"ArtisanMaster","role":"forge","position":Vector3(86,0,-92),"model":"archer_male","prompt":"[Forge]"},
  {"id":"Warehouseman","role":"warehouse","position":Vector3(-12,0,-12),"model":"trojan_male","prompt":"[Box]"},
  {"id":"Conductress","role":"transport","position":Vector3(12,0,-12),"model":"archer_female","prompt":"[Gate]"},
- {"id":"ImperialEnvoy","role":"story_quest","position":Vector3(0,0,-56),"model":"taoist_male","prompt":"[?]"}
+ {"id":"ImperialEnvoy","role":"story_quest","position":Vector3(0,0,-56),"model":"taoist_male","prompt":"[?]"},
  {"id":"ArcherGod","city":"TwinCity","role":"quest","position":Vector3(-52,0,-48),"model":"archer_male","prompt":"[!]"},
  {"id":"Ming","city":"TwinCity","role":"quest","position":Vector3(24,0,36),"model":"taoist_female","prompt":"[!]"},
  {"id":"LongDong","city":"TwinCity","role":"quest","position":Vector3(-36,0,28),"model":"warrior_male","prompt":"[!]"},

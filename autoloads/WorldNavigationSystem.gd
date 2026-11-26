@@ -43,7 +43,12 @@ const CITY_DIRECTORIES := {
   "CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
  "DesertCity":{"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
  "BirdIsland":{"CityCenter":{"position":Vector3(0,4.6,0),"type":"landmark"}},
- "Market":{"MarketSquare":{"position":Vector3.ZERO,"type":"landmark"}}
+ "Market":{
+  "CloudSaint":{"position":Vector3(-18,0,14),"type":"npc"},
+  "TaoistMoon":{"position":Vector3(18,0,14),"type":"npc"},
+  "BlessedGreatMaster":{"position":Vector3(0,0,22),"type":"npc"},
+  "MarketSquare":{"position":Vector3.ZERO,"type":"landmark"}
+ }
 }
 var last_target_id := ""
 var navigation_in_progress := false
