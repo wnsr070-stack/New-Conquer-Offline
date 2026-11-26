@@ -438,6 +438,10 @@ func _shop_owner_for_id(merchant_id: String) -> String:
 
 func get_item_base_price(item_id: String) -> int:
  var database := get_node_or_null("/root/GearDatabase")
+ if database != null and database.has_method("get_item_price"):
+  var catalog_price := int(database.get_item_price(item_id))
+  if catalog_price > 0:
+   return catalog_price
  var definition: Dictionary = database.get_item(item_id) if database != null and database.has_method("get_item") else {}
  for key in ["shop_price","buy_price","price","value"]:
   if definition.has(key) and int(definition[key]) > 0:
