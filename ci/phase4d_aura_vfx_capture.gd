@@ -189,6 +189,7 @@ func _run_capture() -> void:
  if anima_orbit == null or anima_orbit.get_child_count() != 6: _fail("anima_p18_six_orbs_missing"); return
  var slot_aura: Dictionary = vfx.get_slot_enhancement_aura(12)
  if not slot_aura.has("color") or not slot_aura.has("intensity") or float(slot_aura.intensity) <= 0.0: _fail("slot_enhancement_aura_data_invalid"); return
+ print("PHASE4D_WEAPON_ARMOR_PLUS12_ANIMA_P18_OK: weapon=12 armor=12 anima_orbs=6 sprite_only=true")
  print("PHASE4D_WEAPON_ARMOR_HELMET_PLUS12_ANIMA_P18_OK: weapon=12 armor=12 helmet=12 weapon_aura=true ranger_hood_set_aura=true anima_orbs=6 sprite_only=true")
  var target_center := Vector3.ZERO
  for actor in actors:
