@@ -152,13 +152,13 @@ func _run_capture() -> void:
  npc_preview_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
  npc_preview_camera.size = 110.0
  city.add_child(npc_preview_camera)
- npc_preview_camera.position = Vector3(0.0,34.0,46.0)
- npc_preview_camera.look_at(city.to_global(Vector3(0.0,0.0,-15.0)),Vector3.UP)
+ npc_preview_camera.position = Vector3(0.0,18.0,36.0)
+ npc_preview_camera.look_at(city.to_global(Vector3(0.0,1.0,-12.0)),Vector3.UP)
  npc_preview_camera.make_current()
  if root.get_camera_3d() != npc_preview_camera:
   _fail("twin_city_npc_preview_camera_not_active")
   return
- print("PHASE4D_TWIN_CITY_NPC_PANORAMIC_CAMERA_OK: orthographic_size=110 elevated=true target=plaza_and_palace_stairs full_body_height=2.8m names=true prompts=true authored_rows=5 total_npcs=30")
+ print("PHASE4D_TWIN_CITY_NPC_PANORAMIC_CAMERA_OK: orthographic_size=110 position=(0,18,36) target=(0,1,-12) full_body_height=2.8m names=true prompts=true authored_rows=5 total_npcs=30")
  await _wait_rendered_pose()
  _save_proof_png("phase4d_twin_city_30_npcs.png","PHASE4D_TWIN_CITY_NPC_PREVIEW_CAPTURE_OK")
  if is_instance_valid(npc_preview_camera):
