@@ -36,17 +36,33 @@ func build_character(class_id: String, level: int, gender: String = "male") -> v
     character_root.name = "Phase3B_%s_%s" % [class_id, normalized_gender]
     add_child(character_root)
     var file_id := str(CHARACTER_FILE_IDS.get(class_id, class_id))
-    var character_path: String = ROOT + "characters/" + file_id + "_" + normalized_gender + ".glb"
-    if not ResourceLoader.exists(character_path):
-        push_error("PHASE3B_HIGH_DETAIL_CHARACTER_MISSING: " + character_path)
+    var character_path := _resolve_character_asset_path(file_id, normalized_gender)
+    if character_path.is_empty():
+        var character_dir := ROOT + "characters/"
+        push_error("PHASE3B_HIGH_DETAIL_CHARACTER_MISSING: id=" + file_id +
+            " gender=" + normalized_gender + " directory_files=" + str(DirAccess.get_files_at(character_dir)))
         return
-    var packed := load(character_path) as PackedScene
+    print("PHASE3B_CHARACTER_SOURCE_RESOLVED: class=", class_id, " path=", character_path,
+        " resource_type=", ResourceLoader.get_resource_type(character_path))
+    var loaded_resource: Resource = ResourceLoader.load(character_path)
+    if loaded_resource == null:
+        push_error("PHASE3B_CHARACTER_LOAD_FAILED: path=" + character_path +
+            " exists=" + str(ResourceLoader.exists(character_path)) +
+            " file_exists=" + str(FileAccess.file_exists(character_path)) +
+            " resource_type=" + ResourceLoader.get_resource_type(character_path))
+        return
+    var packed := loaded_resource as PackedScene
     if packed == null:
-        push_error("PHASE3B_CHARACTER_SCENE_INVALID: " + character_path)
+        push_error("PHASE3B_CHARACTER_SCENE_INVALID: path=" + character_path +
+            " loaded_class=" + loaded_resource.get_class())
         return
-    var model := packed.instantiate() as Node3D
+    var instantiated: Node = packed.instantiate()
+    var model := instantiated as Node3D
     if model == null:
-        push_error("PHASE3B_CHARACTER_ROOT_INVALID: " + character_path)
+        push_error("PHASE3B_CHARACTER_ROOT_INVALID: path=" + character_path +
+            " instance_class=" + (instantiated.get_class() if instantiated != null else "null"))
+        if is_instance_valid(instantiated):
+            instantiated.free()
         return
     character_root.add_child(model)
     var skeleton := _find_skeleton(model)
@@ -78,6 +94,30 @@ func build_character(class_id: String, level: int, gender: String = "male") -> v
         " right_bone=", right_bone_name, " right=", right_path,
         " left_bone=", _find_left_hand_bone(skeleton) if class_id in DUAL_CLASSES else "none",
         " left=", is_instance_valid(left_weapon_root))
+
+func _resolve_character_asset_path(file_id: String, gender: String) -> String:
+    var character_dir := ROOT + "characters/"
+    var candidates: Array[String] = [
+        character_dir + file_id + "_" + gender + ".glb",
+        character_dir + file_id + ".glb"
+    ]
+    # The approved Phase 4B Ranger is stored as Male_Ranger.glb (not Male_Ranger_male.glb).
+    if file_id == "Male_Ranger" and gender == "male":
+        candidates.push_front(character_dir + "Male_Ranger.glb")
+    for candidate in candidates:
+        if ResourceLoader.exists(candidate):
+            return candidate
+    # Support real imported GLBs already present in this directory without inventing assets.
+    var files := DirAccess.get_files_at(character_dir)
+    for filename in files:
+        if filename.get_extension().to_lower() != "glb":
+            continue
+        var stem := filename.get_basename().to_lower()
+        if stem == file_id.to_lower() or stem == (file_id + "_" + gender).to_lower():
+            var discovered := character_dir + filename
+            if ResourceLoader.exists(discovered):
+                return discovered
+    return ""
 
 func set_archer_weapon_mode(use_dual_knives: bool) -> bool:
     """Switch one Archer rig between its bow and Eastern Assassin-style dual knives."""
