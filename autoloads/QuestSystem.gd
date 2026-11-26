@@ -13,6 +13,7 @@ const DAILY_REWARDS := [{"gold":500,"items":{"HPPotion":5,"MPPotion":5}},{"items
 var _catalog: Dictionary = {}
 func _ready() -> void:
  _build_catalog()
+ call_deferred("_connect_runtime_signals")
  var combat := get_node_or_null("/root/CombatSystem")
  if combat != null and not combat.monster_killed.is_connected(_on_monster_killed): combat.monster_killed.connect(_on_monster_killed)
  var npcs := get_node_or_null("/root/NPCMerchantSystem")
@@ -26,6 +27,25 @@ func _ready() -> void:
   if forge.has_signal("forging_succeeded") and not forge.forging_succeeded.is_connected(_on_forging_succeeded): forge.forging_succeeded.connect(_on_forging_succeeded)
   if forge.has_signal("socket_updated") and not forge.socket_updated.is_connected(_on_socket_updated): forge.socket_updated.connect(_on_socket_updated)
  print("PHASE4D_CLASSIC_QUEST_ENCYCLOPEDIA_READY: categories=5 quests=",_catalog.size())
+func _connect_runtime_signals() -> void:
+ var combat := get_node_or_null("/root/CombatSystem")
+ if combat != null and combat.has_signal("monster_killed") and not combat.monster_killed.is_connected(_on_monster_killed):
+  combat.monster_killed.connect(_on_monster_killed)
+ var npcs := get_node_or_null("/root/NPCMerchantSystem")
+ if npcs != null and npcs.has_signal("npc_interacted") and not npcs.npc_interacted.is_connected(_on_npc_interacted):
+  npcs.npc_interacted.connect(_on_npc_interacted)
+ var state := _state()
+ if state != null and state.has_signal("inventory_changed") and not state.inventory_changed.is_connected(_on_inventory_changed):
+  state.inventory_changed.connect(_on_inventory_changed)
+ var loot := get_node_or_null("/root/LootDropManager")
+ if loot != null and loot.has_signal("loot_collected") and not loot.loot_collected.is_connected(_on_loot_collected):
+  loot.loot_collected.connect(_on_loot_collected)
+ var forge := get_node_or_null("/root/ForgingSystem")
+ if forge != null:
+  if forge.has_signal("forging_succeeded") and not forge.forging_succeeded.is_connected(_on_forging_succeeded):
+   forge.forging_succeeded.connect(_on_forging_succeeded)
+  if forge.has_signal("socket_updated") and not forge.socket_updated.is_connected(_on_socket_updated):
+   forge.socket_updated.connect(_on_socket_updated)
 func _add(id: String,cat: String,title: String,lvl: int,npc: String,city: String,pos: Vector3,obj: String,req: int,reward: Dictionary={}) -> void:
  _catalog[id]={"category":cat,"title":title,"level_min":lvl,"npc_id":npc,"target_city":city,"npc_position":pos,"monster_camp_position":pos,"objective":obj,"required":req,"rewards":reward}
 func _build_catalog() -> void:
