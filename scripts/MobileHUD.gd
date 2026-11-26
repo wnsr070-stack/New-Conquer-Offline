@@ -873,7 +873,6 @@ func _apply_arabic_rtl(node: Node) -> void:
 
 func _arabic(caption: String) -> String:
  var dictionary := {
-  "Peace":"سلمي","Capture":"دفاع","PK":"حر","Talk":"عام","Whisper":"همس",
   "Plus +1…+12":"التطوير +1 إلى +12","Quality":"الجودة","Level":"المستوى","Sockets":"فتح الثقوب","Anima":"ترقية الأنيما",
   "MAIN PROMOTION":"المهام الرئيسية والترقية","Daily":"اليومية","Weekly":"الأسبوعية","Side Quests":"الجانبية","Endgame Rebirth":"الميلاد الثاني",
   "Ranger":"رامٍ","Battle Power":"قوة المعركة","HP":"الحياة","MP":"الطاقة","Stamina":"القدرة على التحمل",
@@ -881,7 +880,6 @@ func _arabic(caption: String) -> String:
   "Buy":"شراء","Sell":"بيع","None":"لا يوجد","Guild • offline guild system integration pending":"النقابة",
   "Weapon & Skill Proficiency":"إتقان السلاح والمهارات","Merchant:":"التاجر:","SELL FROM BAG — 50% of shop value":"البيع من الحقيبة — 50٪ من سعر المتجر",
   "Day":"اليوم","Claim today’s login reward":"استلام مكافأة تسجيل الدخول اليوم",
-  "Peace":"سلمي","Team":"فريق","Capture":"دفاع","PK":"حر",
   "All":"الكل","Talk":"عام","Whisper":"همس","Guild":"نقابة","System":"النظام","Send":"إرسال",
   "Daily":"الدخول اليومي","Hunt":"الصيد التلقائي","Map":"الخريطة","Settings":"الإعدادات",
   "Status":"الشخصية والعتاد","Skill":"المهارات","Bag":"الحقيبة","Quest":"المهام","Market":"السوق والتجارة",
