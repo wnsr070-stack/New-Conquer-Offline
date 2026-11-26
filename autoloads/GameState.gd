@@ -238,3 +238,5 @@ func get_proficiency_gem_multiplier(kind: String) -> float:
 # Final Phase 4D quest signal parser-compatibility gate.
 
 # Camp routing uses the matching world's own coordinate frame.
+
+# Loot pickup is atomic when all inventory slots are occupied.

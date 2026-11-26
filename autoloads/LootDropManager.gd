@@ -187,13 +187,15 @@ func collect_drop(drop_id:String)->bool:
 	var record:Dictionary=_drops[drop_id]
 	var state:=get_node_or_null("/root/GameState")
 	if state==null: return false
-	_drops.erase(drop_id)
 	var node:=record.get("node") as Node3D
 	var data:Dictionary=record.get("data",{}).duplicate(true)
 	var item_id:=String(data.get("item_id",""))
 	var amount:=maxi(1,int(data.get("amount",1)))
-	if item_id=="Gold": state.add_gold(amount)
-	else: state.add_inventory_item(item_id,amount)
+	if item_id=="Gold":
+		state.add_gold(amount)
+	elif not state.add_item(item_id,amount):
+		return false
+	_drops.erase(drop_id)
 	if state.has_method("save_game"): state.save_game()
 	if node!=null and is_instance_valid(node): node.queue_free()
 	loot_collected.emit(data)
