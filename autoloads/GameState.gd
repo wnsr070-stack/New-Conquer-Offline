@@ -1,4 +1,5 @@
 extends Node
+# Phase 4D: 40-slot inventory with legacy dictionary mirroring and 100-item stacks.
 signal state_loaded
 signal xp_changed(value: float, ready: bool)
 signal inventory_changed(item_id: String, total_count: int)
