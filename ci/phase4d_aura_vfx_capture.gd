@@ -263,6 +263,7 @@ func _run_capture() -> void:
  print("PHASE4C_FORGING_SCATTER_IN_CAMP_OK: targets_hit=",skill_result.targets_hit," floating_damage=true approved_hero=true approved_monsters=true")
  print("PHASE4C_STEP3_FOUR_SEQUENTIAL_PNGS_OK: 1_stance_aim 2_attack_hit 3_kill_loot 4_closeup_weapon")
  print("PHASE4C_STEP3_CLOSEUP_PNG_OK: bytes=",detail_bytes)
+ print("PHASE4C_STEP3_FORGING_OK: all_four_pngs_validated")
  print("PHASE4D_AURA_VFX_RENDER_OK")
  print("PHASE4D_CLEANUP_BEGIN")
  # Clear autoload-held scene references and stop VFX processing before detaching the city.
