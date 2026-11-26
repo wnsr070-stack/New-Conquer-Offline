@@ -331,7 +331,7 @@ func _open_window(window_name: String) -> void:
  var header := HBoxContainer.new()
  layout.add_child(header)
  var heading := Label.new()
- heading.text = window_name
+ heading.text = _arabic(window_name)
  heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  heading.add_theme_font_size_override("font_size",22)
  header.add_child(heading)
@@ -352,6 +352,7 @@ func _open_window(window_name: String) -> void:
   "Map": _build_map_window(layout)
   "Chat": _build_chat(layout)
   _: _build_npc_info(layout,window_name)
+ _apply_arabic_rtl(_window_layer)
 
 func _send_chat_message(entry: LineEdit,log: Label) -> void:
  if not entry.text.strip_edges().is_empty():
@@ -458,7 +459,7 @@ func _build_inventory(layout: VBoxContainer) -> void:
   var item: Dictionary = slots[index] if index < slots.size() else {}
   var cell := Button.new()
   cell.custom_minimum_size = Vector2(68,66)
-  cell.text = "Empty"
+  cell.text = "فارغ"
   if not item.is_empty():
    var id := String(item.get("item_id",""))
    var data := _get_item_data(id)
@@ -470,7 +471,7 @@ func _build_inventory(layout: VBoxContainer) -> void:
    icon.position = Vector2(8,2)
   grid.add_child(cell)
  var footer := Label.new()
- footer.text = "Inventory: %d / 40   |   Stack limit: x100" % slots.size()
+ footer.text = "الحقيبة: %d / 40   |   الحد الأقصى للتكديس: ×100" % slots.size()
  layout.add_child(footer)
 
 func _build_character(layout: VBoxContainer) -> void:
@@ -767,7 +768,7 @@ func _build_map_window(layout: VBoxContainer) -> void:
 
 func _build_chat(layout: VBoxContainer) -> void:
  var input := LineEdit.new()
- input.placeholder_text = "Message…"
+ input.placeholder_text = "اكتب رسالتك..."
  layout.add_child(input)
  layout.add_child(_button("Send",func(): input.clear()))
 
@@ -784,7 +785,8 @@ func _get_item_data(item_id: String) -> Dictionary:
 
 func _item_display_name(item_id: String) -> String:
  var data := _get_item_data(item_id)
- return String(data.get("display_name",data.get("name",item_id)))
+ var raw := String(data.get("display_name",data.get("name",item_id)))
+ return _arabic(raw)
 
 func _make_item_icon(data: Dictionary,plus: int = 0,icon_size: Vector2 = Vector2(40,40)) -> Control:
  var icon: Control = ICON_SCRIPT.new()
@@ -871,6 +873,14 @@ func _apply_arabic_rtl(node: Node) -> void:
 
 func _arabic(caption: String) -> String:
  var dictionary := {
+  "Peace":"سلمي","Capture":"دفاع","PK":"حر","Talk":"عام","Whisper":"همس",
+  "Plus +1…+12":"التطوير +1 إلى +12","Quality":"الجودة","Level":"المستوى","Sockets":"فتح الثقوب","Anima":"ترقية الأنيما",
+  "MAIN PROMOTION":"المهام الرئيسية والترقية","Daily":"اليومية","Weekly":"الأسبوعية","Side Quests":"الجانبية","Endgame Rebirth":"الميلاد الثاني",
+  "Ranger":"رامٍ","Battle Power":"قوة المعركة","HP":"الحياة","MP":"الطاقة","Stamina":"القدرة على التحمل",
+  "Meteor":"نيزك","DragonBall":"كرة التنين","DragonGem":"جوهرة التنين","Plus2Stone":"حجر +2","HPPotion":"جرعة حياة",
+  "Buy":"شراء","Sell":"بيع","None":"لا يوجد","Guild • offline guild system integration pending":"النقابة",
+  "Weapon & Skill Proficiency":"إتقان السلاح والمهارات","Merchant:":"التاجر:","SELL FROM BAG — 50% of shop value":"البيع من الحقيبة — 50٪ من سعر المتجر",
+  "Day":"اليوم","Claim today’s login reward":"استلام مكافأة تسجيل الدخول اليوم",
   "Peace":"سلمي","Team":"فريق","Capture":"دفاع","PK":"حر",
   "All":"الكل","Talk":"عام","Whisper":"همس","Guild":"نقابة","System":"النظام","Send":"إرسال",
   "Daily":"الدخول اليومي","Hunt":"الصيد التلقائي","Map":"الخريطة","Settings":"الإعدادات",
