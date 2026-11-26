@@ -187,6 +187,15 @@ jobs:
                   raise SystemExit("Invalid approved hero/weapon GLB: " + target)
               print("TWIN_CITY_HERO_ASSET_OK:", target, "bytes=", len(data))
           PY
+      - name: Install verified Noto Sans Arabic font
+        run: |
+          set -euo pipefail
+          mkdir -p assets/fonts
+          curl --fail --location --retry 4 --retry-all-errors "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwdth%2Cwght%5D.ttf" -o assets/fonts/NotoSansArabic-Bold.ttf
+          font_bytes=$(stat -c%s assets/fonts/NotoSansArabic-Bold.ttf)
+          [ "$font_bytes" -gt 50000 ] || { echo "::error::Noto Sans Arabic font is too small: $font_bytes bytes"; exit 1; }
+          echo "PHASE5A_ARABIC_FONT_READY: bytes=$font_bytes"
+
       - name: Import Godot project
         run: |
           set -euo pipefail
