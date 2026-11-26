@@ -543,7 +543,7 @@ func _build_quest_book(layout: VBoxContainer) -> void:
  tabs.add_theme_constant_override("separation",3)
  layout.add_child(tabs)
  for category in categories:
-  var caption: String = str("Login" if category=="DAILY_LOGIN" else category.replace("_"," ").capitalize())
+  var caption: String = str("Login" if category=="DAILY_LOGIN" else "Daily Quests" if category=="DAILY" else category.replace("_"," ").capitalize())
   var tab := _button(caption,_select_quest_category.bind(category))
   tab.custom_minimum_size = Vector2(84,34)
   tab.disabled = category == _quest_category
@@ -898,7 +898,18 @@ func _find_hero() -> Node3D:
 
 func _install_arabic_theme() -> void:
  var arabic_theme := Theme.new()
- arabic_theme.default_font = ThemeDB.fallback_font
+ var font_path := "res://assets/fonts/NotoSansArabic-Bold.ttf"
+ var arabic_font := load(font_path) as Font
+ if arabic_font != null:
+  arabic_theme.default_font = arabic_font
+ else:
+  arabic_theme.default_font = ThemeDB.fallback_font
+  push_warning("PHASE5A_ARABIC_FONT_FALLBACK: " + font_path)
+ arabic_theme.default_font_size = 17
+ for control_type in ["Label","Button","LineEdit","TextEdit","CheckBox","OptionButton","RichTextLabel"]:
+  arabic_theme.set_color("font_outline_color",control_type,Color(0.0,0.0,0.0,0.92))
+  arabic_theme.set_constant("outline_size",control_type,2)
+  arabic_theme.set_font_size("font_size",control_type,17)
  theme = arabic_theme
 
 func _apply_arabic_rtl(node: Node) -> void:
@@ -912,7 +923,7 @@ func _apply_arabic_rtl(node: Node) -> void:
 func _arabic(caption: String) -> String:
  var dictionary := {
   "Plus +1…+12":"التطوير +1 إلى +12","Quality":"الجودة","Level":"المستوى","Sockets":"فتح الثقوب","Anima":"ترقية الأنيما",
-  "MAIN PROMOTION":"المهام الرئيسية والترقية","Daily":"اليومية","Weekly":"الأسبوعية","Side Quests":"الجانبية","Endgame Rebirth":"الميلاد الثاني",
+  "MAIN PROMOTION":"المهام الرئيسية والترقية","Daily Quests":"المهام اليومية","Weekly":"الأسبوعية","Side Quests":"الجانبية","Endgame Rebirth":"الميلاد الثاني",
   "Ranger":"رامٍ","Battle Power":"قوة المعركة","HP":"الحياة","MP":"الطاقة","Stamina":"القدرة على التحمل",
   "Meteor":"نيزك","DragonBall":"كرة التنين","DragonGem":"جوهرة التنين","Plus2Stone":"حجر +2","HPPotion":"جرعة حياة",
   "Buy":"شراء","Sell":"بيع","None":"لا يوجد","Guild • offline guild system integration pending":"النقابة",
