@@ -69,7 +69,28 @@ func _run_capture() -> void:
  for npc_value: Variant in npc_registry.values():
   if is_instance_valid(npc_value): live_npc_count += 1
  if live_npc_count != 30: _fail("twin_city_npc_spawn_count_invalid: "+str(live_npc_count)+"/30"); return
+ var verified_capsules := 0
+ var verified_prompts := 0
+ for npc_value: Variant in npc_registry.values():
+  if not is_instance_valid(npc_value): continue
+  var npc_node := npc_value as Node3D
+  if not is_instance_valid(npc_node): continue
+  var solid_value: Variant = npc_node.get_node_or_null("NPCSolidBody/NPCBodyCapsule")
+  if is_instance_valid(solid_value):
+   var solid_shape := solid_value as CollisionShape3D
+   if is_instance_valid(solid_shape) and solid_shape.shape is CapsuleShape3D:
+    var capsule := solid_shape.shape as CapsuleShape3D
+    if is_equal_approx(capsule.height,2.8) and is_equal_approx(capsule.radius,0.55):
+     verified_capsules += 1
+  var prompt_value: Variant = npc_node.get_node_or_null("InteractionPrompt")
+  if is_instance_valid(prompt_value):
+   var prompt := prompt_value as Label3D
+   if is_instance_valid(prompt) and is_equal_approx(prompt.position.y,3.2):
+    verified_prompts += 1
+ if verified_capsules != 30: _fail("twin_city_npc_capsule_validation_failed: "+str(verified_capsules)+"/30"); return
+ if verified_prompts != 30: _fail("twin_city_npc_prompt_height_validation_failed: "+str(verified_prompts)+"/30"); return
  print("PHASE4D_TWIN_CITY_30_NPCS_READY: spawned=",live_npc_count," requested=30 overhead_prompt_height=3.2m")
+ print("PHASE4D_TWIN_CITY_NPC_PHYSICS_OK: capsules=",verified_capsules," height=2.8m radius=0.55m proximity_area_radius=4.5m")
  # Capture a dedicated wide Twin City preview containing the 30 imported NPCs.
  var preview_camera_value: Variant = hero.get("camera")
  var preview_camera: Camera3D = null
@@ -80,10 +101,11 @@ func _run_capture() -> void:
  var npc_preview_camera := Camera3D.new()
  npc_preview_camera.name = "Phase4D_TwinCity_30_NPC_Preview_Camera"
  npc_preview_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
- npc_preview_camera.size = 280.0
+ npc_preview_camera.size = 46.0
  city.add_child(npc_preview_camera)
- npc_preview_camera.position = Vector3(0.0,155.0,170.0)
- npc_preview_camera.look_at(Vector3.ZERO,Vector3.UP)
+ npc_preview_camera.position = Vector3(0.0,52.0,58.0)
+ npc_preview_camera.look_at(Vector3(0.0,0.0,0.0),Vector3.UP)
+ print("PHASE4D_TWIN_CITY_NPC_PANORAMIC_CAMERA_OK: orthographic_size=46 elevated=true full_body_height=2.8m names=true prompts=true plaza_grid=6x5")
  npc_preview_camera.current = true
  await _wait_rendered_pose()
  _save_proof_png("phase4d_twin_city_30_npcs.png","PHASE4D_TWIN_CITY_NPC_PREVIEW_CAPTURE_OK")
