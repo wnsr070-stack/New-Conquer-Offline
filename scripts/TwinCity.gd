@@ -21,6 +21,8 @@ var captures := [
     {"file": "twin_city_se_tea_house.png", "pos": Vector3(92, 20, 137), "target": Vector3(92, 7, 92), "fov": 44.0},
     {"file": "twin_city_sw_blacksmith.png", "pos": Vector3(-92, 17, 130), "target": Vector3(-92, 5, 92), "fov": 40.0}
 ]
+const MOBILE_HUD_SCENE := preload("res://scenes/MobileHUD.tscn")
+
 func _ready() -> void:
     _lighting()
     if not _build_city():
@@ -53,6 +55,8 @@ func _ready() -> void:
     captures.append_array(Flora.captures())
     _camera()
     _spawn_playable_hero()
+    if OS.has_feature("mobile"):
+        _install_mobile_hud.call_deferred()
     if OS.get_environment("CI_CAPTURE") == "1":
         _capture_hero_preview.call_deferred()
 func _remove_named_apron_meshes(node: Node, removed: Array[int]) -> void:
@@ -822,3 +826,16 @@ func _capture_hero_preview() -> void:
         return
     print("TWIN_CITY_HERO_ISOMETRIC_RENDER_OK: ", path, " bytes=", FileAccess.get_file_as_bytes(path).size())
     _capture.call_deferred()
+
+
+func _install_mobile_hud() -> void:
+    if get_node_or_null("MobileHUDLayer") != null:
+        return
+    var layer := CanvasLayer.new()
+    layer.name = "MobileHUDLayer"
+    layer.layer = 20
+    add_child(layer)
+    var hud := MOBILE_HUD_SCENE.instantiate()
+    hud.name = "MobileHUD"
+    layer.add_child(hud)
+    print("PHASE5A_MOBILE_HUD_ATTACHED: mobile_platform=true")
