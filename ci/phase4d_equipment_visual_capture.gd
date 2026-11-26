@@ -99,9 +99,14 @@ func _run_capture() -> void:
  camera.near = 0.05
  camera.far = 500.0
  city.add_child(camera)
- camera.global_position = hero.global_position+Vector3(2.7,2.2,4.4)
- camera.look_at(hero.global_position+Vector3(0,1.25,0),Vector3.UP)
+ # Three-quarter portrait: 3.2 m horizontal distance, 30-degree offset,
+ # and 1.6 m camera height, safely outside the hero mesh.
+ camera.global_position = hero.global_position+Vector3(1.6,1.6,2.771281)
+ camera.look_at(hero.global_position+Vector3(0,1.4,0),Vector3.UP)
  camera.current = true
+ if not camera.is_current():
+  _fail("equipment_proof_camera_not_current")
+  return
  var overlay: CanvasLayer = CanvasLayer.new()
  overlay.name = "Phase4D_Equipment_Proof_HUD"
  overlay.layer = 20
@@ -119,11 +124,23 @@ func _run_capture() -> void:
   label.add_theme_font_size_override("font_size",22 if i==0 else 18)
   stack.add_child(label)
  var animation_player: AnimationPlayer = hero.get("animation_player") as AnimationPlayer
- if animation_player != null and animation_player.has_animation("Attack_Bow"):
-  animation_player.play("Attack_Bow")
-  animation_player.seek(0.32,true)
- await process_frame
- await process_frame
+ if animation_player == null:
+  _fail("hero_animation_player_missing_for_idle_capture")
+  return
+ var idle_animation := ""
+ for animation_name in animation_player.get_animation_list():
+  if str(animation_name) == "Idle" or str(animation_name).ends_with("/Idle"):
+   idle_animation = str(animation_name)
+   break
+ if idle_animation.is_empty():
+  _fail("approved_idle_stance_animation_missing: "+str(animation_player.get_animation_list()))
+  return
+ animation_player.stop()
+ animation_player.play(idle_animation)
+ animation_player.seek(0.0,true)
+ # Let the idle pose, BoneAttachments, camera switch and renderer settle.
+ for frame in range(5):
+  await process_frame
  await RenderingServer.frame_post_draw
  var image: Image = root.get_texture().get_image()
  if image == null or image.is_empty():
