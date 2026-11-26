@@ -24,7 +24,9 @@ func bind_hero(hero: Node3D) -> void:
  _hero = hero
  _skeleton = hero.get("skeleton") as Skeleton3D
  if _skeleton == null:
-  _skeleton = hero.find_child("*", "Skeleton3D", true, false) as Skeleton3D
+  var skeleton_nodes := hero.find_children("*","Skeleton3D",true,false)
+  if not skeleton_nodes.is_empty():
+   _skeleton = skeleton_nodes[0] as Skeleton3D
  if _skeleton == null:
   push_error("PHASE4D_EQUIPMENT_SKELETON_MISSING")
   return
