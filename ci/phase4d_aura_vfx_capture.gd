@@ -112,6 +112,34 @@ func _run_capture() -> void:
  print("PHASE4D_TWIN_CITY_NPC_VISIBLE_MODELS_VALIDATED: models=",visible_npc_models,"/30 mesh_instances=true")
  print("PHASE4D_TWIN_CITY_30_NPCS_READY: spawned=",live_npc_count," requested=30 overhead_prompt_height=3.2m")
  print("PHASE4D_TWIN_CITY_NPC_PHYSICS_OK: capsules=",verified_capsules," height=2.8m radius=0.55m proximity_area_radius=4.5m")
+ # Exercise the five required Twin City service routes against the live NPC registry.
+ var original_hero_position := hero.global_position
+ var movement_test_ids := ["Pharmacist","Blacksmith","Warehouseman","Conductress","ArcherGod"]
+ var movement_tests_passed := 0
+ for target_id in movement_test_ids:
+  var target_value: Variant = npc_registry.get(target_id)
+  if not is_instance_valid(target_value):
+   _fail("twin_city_navigation_npc_missing: "+target_id)
+   return
+  var target_npc := target_value as Node3D
+  hero.global_position = target_npc.global_position + Vector3(0.0,0.0,4.0)
+  hero.velocity = Vector3.ZERO
+  await physics_frame
+  await process_frame
+  var proximity_distance := hero.global_position.distance_to(target_npc.global_position)
+  var prompt_node := target_npc.get_node_or_null("InteractionPrompt") as Label3D
+  if proximity_distance > 4.5 or prompt_node == null:
+   _fail("twin_city_npc_proximity_test_failed: "+target_id+" distance="+str(proximity_distance))
+   return
+  print("PHASE4D_TWIN_CITY_NPC_NAVIGATION_PROXIMITY_OK: id=",target_id," distance=",proximity_distance,"m prompt=true")
+  movement_tests_passed += 1
+ hero.global_position = original_hero_position
+ hero.velocity = Vector3.ZERO
+ if movement_tests_passed != 5:
+  _fail("twin_city_npc_navigation_tests_failed: "+str(movement_tests_passed)+"/5")
+  return
+ print("PHASE4D_TWIN_CITY_NPC_NAVIGATION_TESTS_OK: passed=5/5 interaction_radius=4.5m")
+
  # Capture a dedicated wide Twin City preview containing the 30 imported NPCs.
  var preview_camera_value: Variant = hero.get("camera")
  var preview_camera: Camera3D = null
