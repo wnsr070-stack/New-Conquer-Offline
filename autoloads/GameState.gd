@@ -240,3 +240,5 @@ func get_proficiency_gem_multiplier(kind: String) -> float:
 # Camp routing uses the matching world's own coordinate frame.
 
 # Loot pickup is atomic when all inventory slots are occupied.
+
+# NPC hand-in routing stays anchored to the authored city.

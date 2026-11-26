@@ -80,7 +80,7 @@ func _build_catalog() -> void:
  _add("side_snake",SIDE_QUESTS,"Snake Islands & Treasure Labyrinth",1,"GeneralQing","TwinCity",Vector3(28,0,-32),"kill_snake",15)
  _add("side_bandits",SIDE_QUESTS,"Bandits' Plot",1,"ArcherGod","TwinCity",Vector3(-52,0,-48),"kill_bandit",20)
  _add("side_ape",SIDE_QUESTS,"Stone Ape's Trouble",1,"SolarSaint","ApeMountain",Vector3(16,0,-18),"kill_ape",20)
- _add("side_desert",SIDE_QUESTS,"Desert Rescue",1,"GeneralQing","DesertCity",Vector3.ZERO,"kill_desert",20)
+ _add("side_desert",SIDE_QUESTS,"Desert Rescue",1,"GeneralQing","TwinCity",Vector3(28,0,-32),"kill_desert",20)
  _add("side_bird",SIDE_QUESTS,"Bird Island Guarding Stone",1,"CelestialTaoist","ApeMountain",Vector3(-16,0,-18),"kill_bird",20)
  _add("side_talisman",SIDE_QUESTS,"Talisman Unlock",100,"TaoistMoon","Market",Vector3(18,0,14),"talisman",2,{"items":{"HeavenFan":1,"StarTower":1}})
  _add("end_celestial",ENDGAME_REBIRTH,"Celestial Stone",120,"Celestine","TwinCity",Vector3(-62,0,12),"celestial_recipe",8,{"items":{"CelestialStone":1}})
