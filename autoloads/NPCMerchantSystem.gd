@@ -4,36 +4,36 @@ signal npc_interacted(npc_id: String, role_type: String)
 signal quest_npc_interacted(npc_id: String, role_type: String)
 
 const NPC_DEFINITIONS := [
- {"id":"Blacksmith","role":"shop","position":Vector3(-92,0,86),"model":"warrior_male","prompt":"[Shop]"},
- {"id":"Armorer","role":"shop","position":Vector3(-86,0,86),"model":"trojan_male","prompt":"[Shop]"},
- {"id":"AccessoryMerchant","role":"shop","position":Vector3(-98,0,86),"model":"taoist_male","prompt":"[Shop]"},
- {"id":"Pharmacist","role":"shop","position":Vector3(86,0,92),"model":"taoist_female","prompt":"[Shop]"},
- {"id":"QuestMaster","role":"quest","position":Vector3(-86,0,-92),"model":"warrior_female","prompt":"[!]"},
- {"id":"ArtisanMaster","role":"forge","position":Vector3(86,0,-92),"model":"archer_male","prompt":"[Forge]"},
- {"id":"Warehouseman","role":"warehouse","position":Vector3(-12,0,-12),"model":"trojan_male","prompt":"[Box]"},
- {"id":"Conductress","role":"transport","position":Vector3(12,0,-12),"model":"archer_female","prompt":"[Gate]"},
- {"id":"ImperialEnvoy","role":"story_quest","position":Vector3(0,0,-56),"model":"taoist_male","prompt":"[?]"},
- {"id":"ArcherGod","city":"TwinCity","role":"quest","position":Vector3(-52,0,-48),"model":"archer_male","prompt":"[!]"},
- {"id":"Ming","city":"TwinCity","role":"quest","position":Vector3(24,0,36),"model":"taoist_female","prompt":"[!]"},
- {"id":"LongDong","city":"TwinCity","role":"quest","position":Vector3(-36,0,28),"model":"warrior_male","prompt":"[!]"},
- {"id":"Blacknull","city":"TwinCity","role":"quest","position":Vector3(44,0,-24),"model":"trojan_male","prompt":"[!]"},
- {"id":"F.Chen","city":"TwinCity","role":"quest","position":Vector3(-24,0,-38),"model":"taoist_male","prompt":"[!]"},
- {"id":"Synsia","city":"TwinCity","role":"quest","position":Vector3(38,0,42),"model":"archer_female","prompt":"[!]"},
- {"id":"GemCollector","city":"TwinCity","role":"quest","position":Vector3(-42,0,44),"model":"taoist_male","prompt":"[!]"},
- {"id":"MonsterSlayer","city":"TwinCity","role":"quest","position":Vector3(52,0,18),"model":"warrior_male","prompt":"[!]"},
- {"id":"EventMaster","city":"TwinCity","role":"quest","position":Vector3(-18,0,52),"model":"trojan_female","prompt":"[!]"},
- {"id":"ItemSocketingMaster","city":"TwinCity","role":"quest","position":Vector3(18,0,-52),"model":"warrior_female","prompt":"[!]"},
- {"id":"Celestine","city":"TwinCity","role":"quest","position":Vector3(-62,0,12),"model":"taoist_female","prompt":"[!]"},
- {"id":"RebirthMaster","city":"TwinCity","role":"quest","position":Vector3(62,0,-12),"model":"taoist_male","prompt":"[!]"},
- {"id":"GeneralQing","city":"TwinCity","role":"quest","position":Vector3(28,0,-32),"model":"warrior_male","prompt":"[!]"},
- {"id":"Fortuneteller","city":"TwinCity","role":"quest","position":Vector3(115,0,115),"model":"taoist_female","prompt":"[!]"},
- {"id":"CloudSaint","city":"Market","role":"quest","position":Vector3(-18,0,14),"model":"taoist_male","prompt":"[!]"},
- {"id":"TaoistMoon","city":"Market","role":"quest","position":Vector3(18,0,14),"model":"taoist_female","prompt":"[!]"},
- {"id":"BlessedGreatMaster","city":"Market","role":"quest","position":Vector3(0,0,22),"model":"warrior_male","prompt":"[!]"},
- {"id":"SolarSaint","city":"ApeMountain","role":"quest","position":Vector3(16,0,-18),"model":"taoist_male","prompt":"[!]"},
- {"id":"CelestialTaoist","city":"ApeMountain","role":"quest","position":Vector3(-16,0,-18),"model":"taoist_female","prompt":"[!]"},
- {"id":"CoachLin","city":"PhoenixCastle","role":"quest","position":Vector3(14,0,16),"model":"warrior_male","prompt":"[!]"},
- {"id":"Alchemist","city":"PhoenixCastle","role":"quest","position":Vector3(-14,0,16),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Blacksmith","role":"shop","position":Vector3(-12,0,-9.6),"model":"warrior_male","prompt":"[Shop]"},
+ {"id":"Armorer","role":"shop","position":Vector3(-7.199999999999999,0,-9.6),"model":"trojan_male","prompt":"[Shop]"},
+ {"id":"AccessoryMerchant","role":"shop","position":Vector3(-2.4,0,-9.6),"model":"taoist_male","prompt":"[Shop]"},
+ {"id":"Pharmacist","role":"shop","position":Vector3(2.4,0,-9.6),"model":"taoist_female","prompt":"[Shop]"},
+ {"id":"QuestMaster","role":"quest","position":Vector3(7.199999999999999,0,-9.6),"model":"warrior_female","prompt":"[!]"},
+ {"id":"ArtisanMaster","role":"forge","position":Vector3(12,0,-9.6),"model":"archer_male","prompt":"[Forge]"},
+ {"id":"Warehouseman","role":"warehouse","position":Vector3(-12,0,-4.8),"model":"trojan_male","prompt":"[Box]"},
+ {"id":"Conductress","role":"transport","position":Vector3(-7.199999999999999,0,-4.8),"model":"archer_female","prompt":"[Gate]"},
+ {"id":"ImperialEnvoy","role":"story_quest","position":Vector3(-2.4,0,-4.8),"model":"taoist_male","prompt":"[?]"},
+ {"id":"ArcherGod","city":"TwinCity","role":"quest","position":Vector3(2.4,0,-4.8),"model":"archer_male","prompt":"[!]"},
+ {"id":"Ming","city":"TwinCity","role":"quest","position":Vector3(7.199999999999999,0,-4.8),"model":"taoist_female","prompt":"[!]"},
+ {"id":"LongDong","city":"TwinCity","role":"quest","position":Vector3(12,0,-4.8),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Blacknull","city":"TwinCity","role":"quest","position":Vector3(-12,0,0),"model":"trojan_male","prompt":"[!]"},
+ {"id":"F.Chen","city":"TwinCity","role":"quest","position":Vector3(-7.199999999999999,0,0),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Synsia","city":"TwinCity","role":"quest","position":Vector3(-2.4,0,0),"model":"archer_female","prompt":"[!]"},
+ {"id":"GemCollector","city":"TwinCity","role":"quest","position":Vector3(2.4,0,0),"model":"taoist_male","prompt":"[!]"},
+ {"id":"MonsterSlayer","city":"TwinCity","role":"quest","position":Vector3(7.199999999999999,0,0),"model":"warrior_male","prompt":"[!]"},
+ {"id":"EventMaster","city":"TwinCity","role":"quest","position":Vector3(12,0,0),"model":"trojan_female","prompt":"[!]"},
+ {"id":"ItemSocketingMaster","city":"TwinCity","role":"quest","position":Vector3(-12,0,4.8),"model":"warrior_female","prompt":"[!]"},
+ {"id":"Celestine","city":"TwinCity","role":"quest","position":Vector3(-7.199999999999999,0,4.8),"model":"taoist_female","prompt":"[!]"},
+ {"id":"RebirthMaster","city":"TwinCity","role":"quest","position":Vector3(-2.4,0,4.8),"model":"taoist_male","prompt":"[!]"},
+ {"id":"GeneralQing","city":"TwinCity","role":"quest","position":Vector3(2.4,0,4.8),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Fortuneteller","city":"TwinCity","role":"quest","position":Vector3(7.199999999999999,0,4.8),"model":"taoist_female","prompt":"[!]"},
+ {"id":"CloudSaint","city":"Market","role":"quest","position":Vector3(12,0,4.8),"model":"taoist_male","prompt":"[!]"},
+ {"id":"TaoistMoon","city":"Market","role":"quest","position":Vector3(-12,0,9.6),"model":"taoist_female","prompt":"[!]"},
+ {"id":"BlessedGreatMaster","city":"Market","role":"quest","position":Vector3(-7.199999999999999,0,9.6),"model":"warrior_male","prompt":"[!]"},
+ {"id":"SolarSaint","city":"ApeMountain","role":"quest","position":Vector3(-2.4,0,9.6),"model":"taoist_male","prompt":"[!]"},
+ {"id":"CelestialTaoist","city":"ApeMountain","role":"quest","position":Vector3(2.4,0,9.6),"model":"taoist_female","prompt":"[!]"},
+ {"id":"CoachLin","city":"PhoenixCastle","role":"quest","position":Vector3(7.199999999999999,0,9.6),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Alchemist","city":"PhoenixCastle","role":"quest","position":Vector3(12,0,9.6),"model":"taoist_male","prompt":"[!]"},
 ]
 const CharacterVisualControllerScript = preload("res://scripts/CharacterVisualController.gd")
 const INTERACTION_HEIGHT := 3.2
@@ -83,7 +83,7 @@ func spawn_city_npcs(city_root: Node3D) -> void:
   npc.name = "NPC_"+npc_id
   npc.set_meta("npc_id",npc_id)
   npc.set_meta("role_type",String(definition.role))
-  npc.position = definition.position
+  npc.position = _resolve_ground_position(city_root,definition.position)
   city_root.add_child(npc)
   var character := CharacterVisualControllerScript.new() as Node3D
   if character == null:
@@ -105,7 +105,7 @@ func spawn_city_npcs(city_root: Node3D) -> void:
    if is_instance_valid(npc):
     npc.free()
    continue
-  _fit_character_height(character,1.8)
+  _fit_character_height(character,2.8)
   _add_name_label(npc,npc_id)
   _add_interaction_prompt(npc,npc_id,String(definition.role),String(definition.prompt))
   _npc_nodes[npc_id] = npc
@@ -114,6 +114,23 @@ func spawn_city_npcs(city_root: Node3D) -> void:
  print("PHASE4D_CITY_NPC_REGISTRY_READY: spawned=",spawned_count," requested=",NPC_DEFINITIONS.size()," city=",city_id)
  if city_id == "TwinCity":
   print("PHASE4D_NPC_OVERHEAD_PROMPTS_READY: spawned=",spawned_count," height=",INTERACTION_HEIGHT,"m")
+
+func _resolve_ground_position(city_root: Node3D, authored_position: Vector3) -> Vector3:
+ var world := city_root.get_world_3d()
+ if world != null:
+  var query := PhysicsRayQueryParameters3D.create(
+   Vector3(authored_position.x,30.0,authored_position.z),
+   Vector3(authored_position.x,-10.0,authored_position.z))
+  query.collision_mask = 1
+  query.collide_with_areas = false
+  query.collide_with_bodies = true
+  var hit: Dictionary = world.direct_space_state.intersect_ray(query)
+  if not hit.is_empty():
+   var ground_y := float(hit.position.y)
+   print("PHASE4D_NPC_GROUND_RAY_OK: x=",authored_position.x," z=",authored_position.z," ground_y=",ground_y," collider=",hit.collider.name)
+   return Vector3(authored_position.x,ground_y,authored_position.z)
+ push_warning("PHASE4D_NPC_GROUND_RAY_MISS: using authored plaza floor height at "+str(authored_position))
+ return Vector3(authored_position.x,0.2,authored_position.z)
 
 func _resolve_city_id(root: Node3D) -> String:
  var value := root.name.to_lower().replace("_","").replace(" ","")
@@ -164,7 +181,7 @@ func _add_name_label(npc: Node3D,npc_id: String) -> void:
  var label := Label3D.new()
  label.name = "NPCName"
  label.text = npc_id
- label.position = Vector3(0,2.05,0)
+ label.position = Vector3(0,2.96,0)
  label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
  label.font_size = 32
  label.outline_size = 8
@@ -182,17 +199,56 @@ func _add_interaction_prompt(npc: Node3D,npc_id: String,role_type: String,prompt
  prompt.no_depth_test = true
  prompt.scale = Vector3.ONE * 0.72
  npc.add_child(prompt)
+ var solid_body := StaticBody3D.new()
+ solid_body.name = "NPCSolidBody"
+ solid_body.position = Vector3(0,1.4,0)
+ solid_body.collision_layer = 1
+ solid_body.collision_mask = 1
+ solid_body.input_ray_pickable = true
+ var solid_shape_node := CollisionShape3D.new()
+ solid_shape_node.name = "NPCBodyCapsule"
+ var capsule := CapsuleShape3D.new()
+ capsule.height = 2.8
+ capsule.radius = 0.55
+ solid_shape_node.shape = capsule
+ solid_body.add_child(solid_shape_node)
+ npc.add_child(solid_body)
+ solid_body.input_event.connect(_on_npc_input.bind(npc_id,role_type))
+
  var hit_area := Area3D.new()
  hit_area.name = "InteractionHitArea"
- hit_area.position = Vector3(0,1.5,0)
- hit_area.input_ray_pickable = true
- var collision := CollisionShape3D.new()
- var sphere := SphereShape3D.new()
- sphere.radius = 1.15
- collision.shape = sphere
- hit_area.add_child(collision)
+ hit_area.position = Vector3(0,1.4,0)
+ hit_area.collision_layer = 0
+ hit_area.collision_mask = 1
+ hit_area.monitoring = true
+ hit_area.monitorable = true
+ var proximity_collision := CollisionShape3D.new()
+ proximity_collision.name = "NPCProximitySphere"
+ var proximity_sphere := SphereShape3D.new()
+ proximity_sphere.radius = INTERACTION_RADIUS
+ proximity_collision.shape = proximity_sphere
+ hit_area.add_child(proximity_collision)
  npc.add_child(hit_area)
- hit_area.input_event.connect(_on_npc_input.bind(npc_id,role_type))
+ hit_area.body_entered.connect(_on_npc_proximity_entered.bind(npc_id,role_type))
+ hit_area.body_exited.connect(_on_npc_proximity_exited.bind(npc_id))
+
+func _on_npc_proximity_entered(body: Node3D,npc_id: String,role_type: String) -> void:
+ if not is_instance_valid(body) or not body.is_in_group("player"):
+  return
+ var npc_value: Variant = _npc_nodes.get(npc_id)
+ if is_instance_valid(npc_value):
+  var npc := npc_value as Node3D
+  if is_instance_valid(npc):
+   var prompt_value: Variant = npc.get_node_or_null("InteractionPrompt")
+   if is_instance_valid(prompt_value):
+    var prompt := prompt_value as Label3D
+    if is_instance_valid(prompt): prompt.visible = true
+ print("NPC_PROXIMITY_ENTERED: id=",npc_id," role=",role_type," radius=",INTERACTION_RADIUS,"m")
+
+func _on_npc_proximity_exited(body: Node3D,npc_id: String) -> void:
+ if not is_instance_valid(body) or not body.is_in_group("player"):
+  return
+ print("NPC_PROXIMITY_EXITED: id=",npc_id)
 
 func _on_npc_input(_camera: Camera3D,event: InputEvent,_position: Vector3,_normal: Vector3,_shape_idx: int,npc_id: String,role_type: String) -> void:
  var pressed := false
