@@ -26,6 +26,8 @@ func _ready() -> void:
     if not _build_city():
         await _shutdown(1)
         return
+    # Let the newly-created plaza collider enter the physics space before NPC raycasts.
+    await get_tree().physics_frame
     var npc_system := get_node_or_null("/root/NPCMerchantSystem")
     if npc_system != null:
         npc_system.spawn_city_npcs(self)
@@ -314,6 +316,21 @@ func _build_plaza_and_palace() -> bool:
     var central_square := _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.105, 0), cobble)
     assert(central_square.material_override == cobble and cobble.albedo_texture != null, "Twin City central ground must use cobblestone_diffuse")
     print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only")
+    # The visual plaza PlaneMesh has no physics surface by itself. Add a matching
+    # static collider so NPC ground-placement raycasts land on the real plaza top.
+    var plaza_body := StaticBody3D.new()
+    plaza_body.name = "TwinCityPlazaGroundCollider"
+    plaza_body.collision_layer = 1
+    plaza_body.collision_mask = 1
+    var plaza_shape := CollisionShape3D.new()
+    plaza_shape.name = "TwinCityPlazaGroundShape"
+    var plaza_box := BoxShape3D.new()
+    plaza_box.size = Vector3(54.0, 0.1, 54.0)
+    plaza_shape.shape = plaza_box
+    plaza_shape.position = Vector3(0.0, 0.055, 0.0)
+    plaza_body.add_child(plaza_shape)
+    add_child(plaza_body)
+    print("TWIN_CITY_PLAZA_PHYSICS_COLLIDER_READY: size=54x0.1x54 top_y=0.105 collision_layer=1")
     var platform := MeshInstance3D.new()
     platform.name = "RoyalPalaceCobblestonePlatform_34x26x3_5"
     var platform_mesh := BoxMesh.new()
