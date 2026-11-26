@@ -43,9 +43,9 @@ func compose_plus(slot: String = "weapon", material_id: String = "Plus1Stone") -
   if material_plus < 1 or material_plus > 8: return _fail("invalid_composition_plus_item")
   var material_points := {1:10,2:40,3:120,4:360,5:1080,6:3240,7:9720,8:29160}
   points = int(material_points[material_plus])
- if not _consume_inventory(state,consumed_id,1): return _fail("composition_material_missing")
  var character_level := int(state.player_data.get("level",1))
  if current_plus >= 9 and character_level < 130: return _fail("character_level_130_required_for_plus_10")
+ if not _consume_inventory(state,consumed_id,1): return _fail("composition_material_missing")
  var target_plus := current_plus + 1
  var required := int(PLUS_COMPOSITION.get(target_plus,0))
  var cost := _gold_cost(item,target_plus,"plus")
@@ -111,7 +111,7 @@ func upgrade_level(slot: String = "weapon") -> Dictionary:
  var level := int(item.get("level",10))
  if level >= 130: return _fail("level_maximum_reached")
  var target_level := mini(130,level + 10)
- var level_difference := maxi(0,target_level - int(item.get("base_level",level)))
+ var level_difference := maxi(0,target_level - int(state.player_data.get("level",1)))
  var success_chance := clampf(1.0 / float(level_difference + 1),0.05,1.0)
  if not _consume_inventory(state,"Meteor",1): return _fail("meteor_missing")
  var cost := _gold_cost(item,level+10,"level")
