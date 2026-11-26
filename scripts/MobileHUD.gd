@@ -152,6 +152,8 @@ func _refresh_minimap() -> void:
  _minimap_label.text = "MAP\n%s\nX %.1f  Z %.1f" % [city,pos.x,pos.z]
 
 func _refresh_quests(_unused_a: Variant = null, _unused_b: Variant = null, _unused_c: Variant = null) -> void:
+ if _active_window == "Quests":
+  call_deferred("_open_window","Quests")
  if _quest_panel == null: return
  for child in _quest_panel.get_children(): child.queue_free()
  var title := Label.new()
