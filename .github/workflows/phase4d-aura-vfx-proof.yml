@@ -243,6 +243,9 @@ jobs:
           grep -q "PHASE4D_FINAL_ROOT_RELEASE_FRAME_OK" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4D_TWIN_CITY_30_NPCS_READY: spawned=30 requested=30" artifacts/phase4c_step3_forging_capture.log
           grep -q "PHASE4D_TWIN_CITY_NPC_PREVIEW_CAPTURE_OK" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4D_TWIN_CITY_NPC_GROUND_RAYCAST_VALIDATED: hits=30/30" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4D_TWIN_CITY_NPC_VISIBLE_MODELS_VALIDATED: models=30/30" artifacts/phase4c_step3_forging_capture.log
+          grep -q "PHASE4D_TWIN_CITY_NPC_PANORAMIC_CAMERA_OK:" artifacts/phase4c_step3_forging_capture.log
           ! grep -Ei "SCRIPT ERROR|Parse Error" artifacts/phase4c_step3_forging_capture.log
           if [ "$godot_exit_code" -ne 0 ]; then
             grep -q "PHASE4D_ALL_ROOT_CHILDREN_FREED: remaining=0" artifacts/phase4c_step3_forging_capture.log
