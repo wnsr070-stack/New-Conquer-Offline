@@ -50,7 +50,7 @@ func build_character(class_id: String, level: int, gender: String = "male") -> v
         push_error("PHASE3B_CHARACTER_LOAD_FAILED: path=" + character_path +
             " exists=" + str(ResourceLoader.exists(character_path)) +
             " file_exists=" + str(FileAccess.file_exists(character_path)) +
-            " directory_files=" + str(DirAccess.get_files_at(ROOT + "characters/"))
+            " directory_files=" + str(DirAccess.get_files_at(ROOT + "characters/")))
         return
     var packed := loaded_resource as PackedScene
     if packed == null:
