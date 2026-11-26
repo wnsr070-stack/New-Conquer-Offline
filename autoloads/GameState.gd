@@ -65,6 +65,7 @@ func _load_save() -> void:
  weapon_proficiency = player_data.get("weapon_proficiency",{}).duplicate(true)
  skill_proficiency = player_data.get("skill_proficiency",{}).duplicate(true)
 func save_game() -> bool:
+ _reconcile_legacy_inventory()
  player_data["exp"] = exp
  player_data["anima_phase"] = anima_phase
  _sync_legacy_inventory()
@@ -90,6 +91,7 @@ func add_exp(amount: int) -> void:
 func add_inventory_item(item_id: String,amount: int = 1) -> void:
  add_item(item_id, amount)
 func add_item(item_id: String, amount: int = 1, instance_data: Dictionary = {}) -> bool:
+ _reconcile_legacy_inventory()
  if item_id.is_empty() or amount <= 0: return false
  var remaining := amount
  var stackable := _is_stackable_item(item_id)
@@ -118,6 +120,7 @@ func add_item(item_id: String, amount: int = 1, instance_data: Dictionary = {}) 
  player_data["inventory"] = inventory.duplicate(true)
  return remaining == 0
 func remove_item(item_id: String, amount: int = 1) -> bool:
+ _reconcile_legacy_inventory()
  if item_id.is_empty() or amount <= 0 or get_item_count(item_id) < amount: return false
  var remaining := amount
  for i in range(inventory_slots.size() - 1, -1, -1):
@@ -133,6 +136,7 @@ func remove_item(item_id: String, amount: int = 1) -> bool:
  player_data["inventory"] = inventory.duplicate(true)
  return remaining == 0
 func get_item_count(item_id: String) -> int:
+ _reconcile_legacy_inventory()
  var total := 0
  for slot in inventory_slots:
   if String(slot.get("item_id","")) == item_id: total += int(slot.get("count",0))
@@ -156,6 +160,15 @@ func _migrate_legacy_inventory(legacy: Dictionary) -> void:
    var amount := mini(remaining,MAX_STACK) if _is_stackable_item(String(id)) else 1
    inventory_slots.append({"item_id":String(id),"count":amount,"instance_data":{}})
    remaining -= amount
+func _reconcile_legacy_inventory() -> void:
+ var slot_mirror: Dictionary = {}
+ for slot in inventory_slots:
+  var id := String(slot.get("item_id",""))
+  if not id.is_empty(): slot_mirror[id] = int(slot_mirror.get(id,0)) + int(slot.get("count",0))
+ if slot_mirror != inventory:
+  var legacy_copy: Dictionary = inventory.duplicate(true)
+  _migrate_legacy_inventory(legacy_copy)
+  _sync_legacy_inventory()
 func _sync_legacy_inventory() -> void:
  inventory.clear()
  for slot in inventory_slots:
