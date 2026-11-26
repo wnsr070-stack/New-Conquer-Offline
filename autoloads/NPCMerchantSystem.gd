@@ -63,6 +63,35 @@ const NPC_DEFINITIONS := [
 const CharacterVisualControllerScript = preload("res://scripts/CharacterVisualController.gd")
 const INTERACTION_HEIGHT := 3.2
 const INTERACTION_RADIUS := 4.5
+const SHOP_STOCK := {
+ "Pharmacist":[
+  {"id":"HPPotion","name":"HP Potion","type":"Potion","price":80},
+  {"id":"MPPotion","name":"MP Potion","type":"Potion","price":80},
+  {"id":"Antidote","name":"Antidote","type":"Potion","price":120},
+  {"id":"StaminaPotion","name":"Stamina Potion","type":"Potion","price":150}
+ ],
+ "Blacksmith":[
+  {"id":"bow_lv10_normal_p1","name":"Beginner Bow","type":"Weapon","price":1500},
+  {"id":"dual_blades_lv10_normal_p1","name":"Beginner Dual Blades","type":"Weapon","price":1650},
+  {"id":"spear_lv10_normal_p1","name":"Beginner Spear","type":"Weapon","price":1450},
+  {"id":"magic_staff_lv10_normal_p1","name":"Beginner Magic Staff","type":"Weapon","price":1400},
+  {"id":"Plus1Stone","name":"Plus +1 Stone","type":"Orb","price":600}
+ ],
+ "Armorer":[
+  {"id":"body_03_beginner_normal_p1","name":"Beginner Leather Armor","type":"Armor","price":1800},
+  {"id":"body_01_beginner_normal_p1","name":"Beginner Full Plate","type":"Armor","price":1900},
+  {"id":"helmet_01_beginner_normal_p1","name":"Beginner Helmet","type":"Helmet","price":900},
+  {"id":"boots_01_beginner_normal_p1","name":"Beginner Boots","type":"Boots","price":650}
+ ],
+ "AccessoryMerchant":[
+  {"id":"DragonGem","name":"Dragon Gem","type":"Gem","price":12000},
+  {"id":"GloryGem","name":"Glory Gem","type":"Gem","price":9000},
+  {"id":"SoulJade","name":"Soul Jade","type":"Gem","price":6500},
+  {"id":"ThunderGem","name":"Thunder Gem","type":"Gem","price":7500},
+  {"id":"Meteor","name":"Meteor","type":"Orb","price":1000},
+  {"id":"AnimaStone","name":"Anima Stone","type":"Orb","price":8000}
+ ]
+}
 var _city_root: Node3D
 var _npc_nodes: Dictionary = {}
 
@@ -399,3 +428,88 @@ func use_market_scroll(spawn_pos: Vector3 = Vector3.ZERO) -> bool:
  if navigation == null:
   return false
  return await navigation.instant_teleport("Market",spawn_pos)
+
+func _shop_owner_for_id(merchant_id: String) -> String:
+ if merchant_id in ["Pharmacist","Blacksmith","Armorer","AccessoryMerchant"]:
+  return merchant_id
+ if merchant_id == "WeaponMaster":
+  return "Blacksmith"
+ return ""
+
+func get_item_base_price(item_id: String) -> int:
+ var database := get_node_or_null("/root/GearDatabase")
+ var definition: Dictionary = database.get_item(item_id) if database != null and database.has_method("get_item") else {}
+ for key in ["shop_price","buy_price","price","value"]:
+  if definition.has(key) and int(definition[key]) > 0:
+   return int(definition[key])
+ for merchant_id in SHOP_STOCK:
+  for entry in SHOP_STOCK[merchant_id]:
+   if String(entry.id) == item_id:
+    return int(entry.price)
+ if not definition.is_empty():
+  var level := int(definition.get("level",definition.get("level_min",1)))
+  var plus := int(definition.get("plus",0))
+  return maxi(1,100 + level * 20 + plus * 50)
+ return 100
+
+func get_shop_inventory(merchant_id: String) -> Array[Dictionary]:
+ var owner := _shop_owner_for_id(merchant_id)
+ var result: Array[Dictionary] = []
+ if owner.is_empty():
+  return result
+ var database := get_node_or_null("/root/GearDatabase")
+ for entry in SHOP_STOCK[owner]:
+  var item_id := String(entry.id)
+  var definition: Dictionary = database.get_item(item_id) if database != null and database.has_method("get_item") else {}
+  var item: Dictionary = definition.duplicate(true) if not definition.is_empty() else {}
+  item["id"] = item_id
+  item["name"] = String(definition.get("display_name",definition.get("name",entry.name)))
+  item["type"] = String(definition.get("type",entry.type))
+  item["buy_price"] = get_item_base_price(item_id)
+  item["sell_price"] = maxi(1,int(floor(float(item.buy_price) * 0.5)))
+  item["merchant_id"] = owner
+  result.append(item)
+ return result
+
+func buy_item(merchant_id: String, item_id: String, quantity: int = 1) -> Dictionary:
+ var owner := _shop_owner_for_id(merchant_id)
+ if owner.is_empty() or quantity < 1 or quantity > 100:
+  return {"ok":false,"reason":"invalid_shop_or_quantity"}
+ var stock := get_shop_inventory(owner)
+ var approved := false
+ for item in stock:
+  if String(item.id) == item_id:
+   approved = true
+   break
+ if not approved:
+  return {"ok":false,"reason":"item_not_sold_here"}
+ var state := get_node_or_null("/root/GameState")
+ if state == null:
+  return {"ok":false,"reason":"game_state_unavailable"}
+ var unit_price := get_item_base_price(item_id)
+ var total := unit_price * quantity
+ if int(state.gold) < total:
+  return {"ok":false,"reason":"not_enough_gold","required":total}
+ if not state.add_item(item_id,quantity):
+  return {"ok":false,"reason":"inventory_full"}
+ state.set_gold(int(state.gold) - total)
+ state.save_game()
+ print("MERCHANT_PURCHASE_OK: merchant=",owner," item=",item_id," quantity=",quantity," gold=",total)
+ return {"ok":true,"item_id":item_id,"quantity":quantity,"gold_spent":total,"gold_remaining":int(state.gold)}
+
+func sell_item(inventory_slot_index: int, quantity: int = 1) -> Dictionary:
+ var state := get_node_or_null("/root/GameState")
+ if state == null or inventory_slot_index < 0 or inventory_slot_index >= state.inventory_slots.size() or quantity < 1:
+  return {"ok":false,"reason":"invalid_inventory_slot_or_quantity"}
+ var slot: Dictionary = state.inventory_slots[inventory_slot_index]
+ var item_id := String(slot.get("item_id",""))
+ if item_id.is_empty() or quantity > int(slot.get("count",0)):
+  return {"ok":false,"reason":"invalid_stack_quantity"}
+ var unit_price := maxi(1,int(floor(float(get_item_base_price(item_id)) * 0.5)))
+ var total := unit_price * quantity
+ if not state.remove_item_from_slot(inventory_slot_index,quantity):
+  return {"ok":false,"reason":"could_not_remove_inventory_item"}
+ state.add_gold(total)
+ state.save_game()
+ print("MERCHANT_SALE_OK: slot=",inventory_slot_index," item=",item_id," quantity=",quantity," gold=",total)
+ return {"ok":true,"item_id":item_id,"quantity":quantity,"gold_earned":total,"gold_total":int(state.gold)}
