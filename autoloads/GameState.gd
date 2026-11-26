@@ -91,15 +91,24 @@ func add_inventory_item(item_id: String,amount: int = 1) -> void:
 func add_item(item_id: String, amount: int = 1, instance_data: Dictionary = {}) -> bool:
  if item_id.is_empty() or amount <= 0: return false
  var remaining := amount
- if _is_stackable_item(item_id):
+ var stackable := _is_stackable_item(item_id)
+ if stackable:
+  for slot in inventory_slots:
+   if String(slot.item_id) == item_id and int(slot.count) < MAX_STACK:
+    remaining -= mini(remaining, MAX_STACK - int(slot.count))
+    if remaining <= 0: break
+ var slots_needed := int(ceil(float(remaining) / float(MAX_STACK))) if stackable else remaining
+ if inventory_slots.size() + slots_needed > MAX_INVENTORY_SLOTS: return false
+ remaining = amount
+ if stackable:
   for slot in inventory_slots:
    if String(slot.item_id) == item_id and int(slot.count) < MAX_STACK:
     var moved := mini(remaining, MAX_STACK - int(slot.count))
     slot.count = int(slot.count) + moved
     remaining -= moved
     if remaining <= 0: break
- while remaining > 0 and inventory_slots.size() < MAX_INVENTORY_SLOTS:
-  var moved := mini(remaining, MAX_STACK) if _is_stackable_item(item_id) else 1
+ while remaining > 0:
+  var moved := mini(remaining, MAX_STACK) if stackable else 1
   inventory_slots.append({"item_id":item_id,"count":moved,"instance_data":instance_data.duplicate(true)})
   remaining -= moved
  _sync_legacy_inventory()

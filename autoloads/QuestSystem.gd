@@ -135,7 +135,7 @@ func _on_inventory_changed(item_id: String, total: int) -> void:
     for token in ["PeaceCommandToken","ChaosCommandToken","DesertedCommandToken","ProsperousCommandToken","DisturbedCommandToken","CalmedCommandToken"]: count += mini(1,s.get_item_count(token))
    "celestial_recipe":
     for gem in ["DragonGem","PhoenixGem","RainbowGem","VioletGem","FuryGem","MoonGem","KylinGem"]: count += mini(1,s.get_item_count(gem))
-    count = mini(count,s.get_item_count("CleanWater"))
+    count += mini(1,s.get_item_count("CleanWater"))
   if count > 0:
    var current := int(active[id].get("progress",0))
    if count > current: _advance(id,count-current)
@@ -272,7 +272,8 @@ func open_moon_box() -> Dictionary:
   return {"ok":false,"reason":"inventory_full"}
  s.save_game()
  return {"ok":true,"reward":reward_id,"reward_kind":reward_kind}
-func craft_celestial_stone() -> Dictionary:
+func craft_celestial_stone(npc_id: String = "Celestine") -> Dictionary:
+ if npc_id != "Celestine": return {"ok":false,"reason":"wrong_npc"}
  var s := _state()
  if s == null: return {"ok":false,"reason":"gamestate_missing"}
  var gems := ["DragonGem","PhoenixGem","RainbowGem","VioletGem","FuryGem","MoonGem","KylinGem"]

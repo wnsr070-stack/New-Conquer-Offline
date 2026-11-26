@@ -19,6 +19,7 @@ const SKILLS := {
 var initialized := false
 var active_class := "archer"
 var player_level := 1
+var rebirth_count := 0
 func _ready() -> void:
  _initialize()
 func _initialize() -> void:
@@ -49,6 +50,7 @@ func has_skill(class_id: String, skill_id: String) -> bool:
 func apply_rebirth(class_id: String, new_level: int, preserved_skills: Dictionary) -> void:
  active_class = class_id if CLASS_DATA.has(class_id) else "archer"
  player_level = new_level
+ rebirth_count += 1
  var state := get_node_or_null("/root/GameState")
  if state != null:
   state.player_data["class"] = active_class
