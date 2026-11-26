@@ -35,7 +35,7 @@ const NPC_DEFINITIONS := [
  {"id":"CoachLin","city":"PhoenixCastle","role":"quest","position":Vector3(14,0,16),"model":"warrior_male","prompt":"[!]"},
  {"id":"Alchemist","city":"PhoenixCastle","role":"quest","position":Vector3(-14,0,16),"model":"taoist_male","prompt":"[!]"},
 ]
-const CHARACTER_ROOT := "res://assets/phase3b/characters/"
+const CharacterVisualControllerScript = preload("res://scripts/CharacterVisualController.gd")
 const INTERACTION_HEIGHT := 3.2
 const INTERACTION_RADIUS := 4.5
 var _city_root: Node3D
@@ -52,37 +52,42 @@ func spawn_city_npcs(city_root: Node3D) -> void:
   return
  _city_root = city_root
  var city_id := _resolve_city_id(city_root)
+ var spawned_count := 0
  for definition in NPC_DEFINITIONS:
-  if String(definition.get("city","TwinCity")) != city_id: continue
+  # Twin City is the Phase 4D hub preview: place all 30 authored merchants and quest NPCs there.
+  # Other city scenes retain their explicitly assigned NPC subsets.
+  if city_id != "TwinCity" and String(definition.get("city","TwinCity")) != city_id: continue
   var npc_id := String(definition.id)
   if _npc_nodes.has(npc_id) and is_instance_valid(_npc_nodes[npc_id]):
    continue
-  var character_path := CHARACTER_ROOT + String(definition.model) + ".glb"
-  if not ResourceLoader.exists(character_path):
-   push_warning("NPC_IMPORTED_CHARACTER_ASSET_MISSING: "+npc_id+" path="+character_path)
-   continue
-  var packed := load(character_path) as PackedScene
-  if packed == null:
-   push_warning("NPC_IMPORTED_CHARACTER_SCENE_INVALID: "+character_path)
-   continue
+  # Use the same imported-character construction path as CharacterVisualController.
+  # The Phase 4D workflow restores this exact approved source as Male_Ranger.glb.
   var npc := Node3D.new()
   npc.name = "NPC_"+npc_id
   npc.set_meta("npc_id",npc_id)
   npc.set_meta("role_type",String(definition.role))
   npc.position = definition.position
   city_root.add_child(npc)
-  var character := packed.instantiate() as Node3D
+  var character := CharacterVisualControllerScript.new() as Node3D
   if character == null:
-   npc.queue_free()
+   npc.free()
    continue
-  character.name = "ImportedCharacter"
+  character.name = "ImportedCharacterVisualController"
   npc.add_child(character)
+  character.call("build_character","archer",1,"male")
+  if not bool(character.get("assets_ready")):
+   push_warning("NPC_IMPORTED_CHARACTER_BUILD_FAILED: "+npc_id+" source=res://assets/phase3b/characters/Male_Ranger.glb")
+   npc.free()
+   continue
   _fit_character_height(character,1.8)
   _add_name_label(npc,npc_id)
   _add_interaction_prompt(npc,npc_id,String(definition.role),String(definition.prompt))
   _npc_nodes[npc_id] = npc
-  print("PHASE4D_QUEST_NPC_SPAWNED: id=",npc_id," role=",definition.role," pos=",definition.position," source=",character_path)
- print("PHASE4D_CITY_NPC_REGISTRY_READY: spawned=",_npc_nodes.size()," requested=",NPC_DEFINITIONS.size())
+  spawned_count += 1
+  print("PHASE4D_QUEST_NPC_SPAWNED: id=",npc_id," role=",definition.role," pos=",definition.position," source=res://assets/phase3b/characters/Male_Ranger.glb")
+ print("PHASE4D_CITY_NPC_REGISTRY_READY: spawned=",spawned_count," requested=",NPC_DEFINITIONS.size()," city=",city_id)
+ if city_id == "TwinCity":
+  print("PHASE4D_NPC_OVERHEAD_PROMPTS_READY: spawned=",spawned_count," height=",INTERACTION_HEIGHT,"m")
 
 func _resolve_city_id(root: Node3D) -> String:
  var value := root.name.to_lower().replace("_","").replace(" ","")
