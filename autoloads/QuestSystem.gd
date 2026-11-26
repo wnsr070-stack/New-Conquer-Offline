@@ -3,6 +3,7 @@ signal daily_login_claimed(day_index: int, rewards: Dictionary)
 signal quest_accepted(quest_id: String)
 signal quest_progressed(quest_id: String, progress: int, required: int)
 signal quest_completed(quest_id: String)
+signal quest_ready_to_claim(quest_id: String)
 signal quest_navigation_started(quest_id: String, city_id: String, target_id: String)
 const MAIN_PROMOTION := "MAIN_PROMOTION"
 const DAILY := "DAILY"
@@ -110,10 +111,15 @@ func claim_daily_login() -> Dictionary:
  return {"ok":true,"day":day+1,"rewards":reward}
 func get_quest_catalog(category: String="") -> Array[Dictionary]:
  var out: Array[Dictionary]=[]
+ var s := _state()
+ var active: Dictionary = s.player_data.get("active_quests",{}) if s != null else {}
+ var completed: Array = s.player_data.get("completed_quests",[]) if s != null else []
  for id in _catalog:
   var d: Dictionary=_catalog[id].duplicate(true)
   d["id"]=id
-  if category.is_empty() or d.category==category: out.append(d)
+  d["status"]="COMPLETED" if id in completed else String(active.get(id,{}).get("status","ACTIVE")) if active.has(id) else "AVAILABLE"
+  if category.is_empty() or String(d.category)==category:
+   out.append(d)
  return out
 func accept_quest(id: String) -> bool:
  if not _catalog.has(id): return false
@@ -124,7 +130,7 @@ func accept_quest(id: String) -> bool:
  var active: Dictionary=s.player_data.get("active_quests",{}).duplicate(true)
  var completed: Array=s.player_data.get("completed_quests",[])
  if active.has(id) or id in completed: return false
- active[id]={"progress":0,"period":_period(d.category==WEEKLY)}
+ active[id]={"progress":0,"period":_period(d.category==WEEKLY),"status":"ACTIVE"}
  s.player_data["active_quests"]=active
  s.save_game()
  quest_accepted.emit(id)
@@ -195,23 +201,50 @@ func _advance(id: String,amount: int) -> void:
  if s==null or not s.player_data.get("active_quests",{}).has(id): return
  var active: Dictionary=s.player_data["active_quests"].duplicate(true)
  var record: Dictionary=active[id]
+ if String(record.get("status","ACTIVE"))=="READY_TO_CLAIM": return
  var d: Dictionary=_catalog[id]
  record.progress=mini(int(d.required),int(record.get("progress",0))+amount)
+ if int(record.progress)>=int(d.required):
+  record.progress=int(d.required)
+  record.status="READY_TO_CLAIM"
  active[id]=record
  s.player_data["active_quests"]=active
  quest_progressed.emit(id,record.progress,int(d.required))
- if int(record.progress)>=int(d.required):
-  active.erase(id)
-  var done: Array=s.player_data.get("completed_quests",[])
-  if id not in done: done.append(id)
-  s.player_data["completed_quests"]=done
-  s.player_data["active_quests"]=active
-  var reward: Dictionary=d.get("rewards",{})
-  if int(reward.get("gold",0))>0: s.add_gold(int(reward.gold))
-  if int(reward.get("exp",0))>0: s.add_exp(int(reward.exp))
-  for item in reward.get("items",{}): s.add_inventory_item(String(item),int(reward.items[item]))
-  quest_completed.emit(id)
+ if String(record.get("status",""))=="READY_TO_CLAIM":
+  quest_ready_to_claim.emit(id)
  s.save_game()
+
+func claim_quest_reward(quest_id: String) -> bool:
+ var s := _state()
+ if s == null or not _catalog.has(quest_id):
+  return false
+ var active: Dictionary = s.player_data.get("active_quests",{}).duplicate(true)
+ if not active.has(quest_id) or String(active[quest_id].get("status","ACTIVE"))!="READY_TO_CLAIM":
+  return false
+ var rewards: Dictionary = _catalog[quest_id].get("rewards",{})
+ var added: Array[Dictionary] = []
+ for item_id in rewards.get("items",{}):
+  var amount := int(rewards.items[item_id])
+  if amount > 0:
+   if not s.add_item(String(item_id),amount):
+    for previous in added:
+     s.remove_item(String(previous.item_id),int(previous.count))
+    return false
+   added.append({"item_id":String(item_id),"count":amount})
+ if int(rewards.get("gold",0)) > 0:
+  s.add_gold(int(rewards.gold))
+ if int(rewards.get("exp",0)) > 0:
+  s.add_exp(int(rewards.exp))
+ active.erase(quest_id)
+ s.player_data["active_quests"]=active
+ var completed: Array=s.player_data.get("completed_quests",[]).duplicate()
+ if quest_id not in completed:
+  completed.append(quest_id)
+ s.player_data["completed_quests"]=completed
+ s.save_game()
+ quest_completed.emit(quest_id)
+ print("QUEST_REWARD_CLAIMED: id=",quest_id," items=",added.size())
+ return true
 func get_tracked_quests() -> Array[Dictionary]:
  var out: Array[Dictionary]=[]
  var s:=_state()
@@ -219,7 +252,7 @@ func get_tracked_quests() -> Array[Dictionary]:
  for id in s.player_data.get("active_quests",{}):
   var d: Dictionary=_catalog.get(id,{})
   var r: Dictionary=s.player_data["active_quests"][id]
-  out.append({"id":id,"title":d.get("title",id),"category":d.get("category",""),"progress":r.get("progress",0),"required":d.get("required",1),"target_city":d.get("target_city",""),"npc_id":d.get("npc_id",""),"npc_position":d.get("npc_position",Vector3.ZERO),"monster_camp_position":d.get("monster_camp_position",Vector3.ZERO)})
+  out.append({"id":id,"title":d.get("title",id),"category":d.get("category",""),"objective":d.get("objective",""),"status":r.get("status","ACTIVE"),"progress":r.get("progress",0),"required":d.get("required",1),"target_city":d.get("target_city",""),"npc_id":d.get("npc_id",""),"npc_position":d.get("npc_position",Vector3.ZERO),"monster_camp_position":d.get("monster_camp_position",Vector3.ZERO),"rewards":d.get("rewards",{})})
  return out
 func navigate_to_quest(id: String) -> bool:
  if not _catalog.has(id): return false
