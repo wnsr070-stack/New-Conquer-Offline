@@ -217,7 +217,7 @@ jobs:
         run: |
           set -euo pipefail
           : > artifacts/godot_check_only.log
-          for script in autoloads/GearDatabase.gd autoloads/GearSystem.gd autoloads/EquipmentVisualManager.gd autoloads/AuraAndVFXManager.gd autoloads/LootDropManager.gd autoloads/ForgingSystem.gd autoloads/SkillSystem.gd ci/phase4d_aura_vfx_capture.gd ci/phase4d_equipment_visual_capture.gd ci/phase4d_loot_drop_test.gd; do
+          for script in autoloads/GearDatabase.gd autoloads/GearSystem.gd autoloads/EquipmentVisualManager.gd autoloads/AuraAndVFXManager.gd autoloads/LootDropManager.gd autoloads/ForgingSystem.gd autoloads/SkillSystem.gd autoloads/NPCMerchantSystem.gd ci/phase4d_aura_vfx_capture.gd ci/phase4d_equipment_visual_capture.gd ci/phase4d_loot_drop_test.gd; do
             echo "CHECKING_GDSCRIPT: $script" | tee -a artifacts/godot_check_only.log
             "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --check-only --script "res://$script" 2>&1 | tee -a artifacts/godot_check_only.log
           done
