@@ -187,6 +187,25 @@ jobs:
                   raise SystemExit("Invalid approved hero/weapon GLB: " + target)
               print("TWIN_CITY_HERO_ASSET_OK:", target, "bytes=", len(data))
           PY
+      - name: Cache Phase 5A mobile UI assets
+        id: mobile_ui_assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            assets/ui
+            assets/fonts
+          key: phase5a-mobile-ui-assets-v1
+      - name: Download RPG window frames, buttons and equipment slots
+        run: |
+          set -euo pipefail
+          mkdir -p assets/ui/borders assets/ui/buttons assets/ui/slots assets/fonts
+          curl -fL "https://raw.githubusercontent.com/hyunghwan/glenmoor-story/main/public/assets/ui/kenney/panel_brown.png" -o assets/ui/borders/panel_brown.png
+          curl -fL "https://raw.githubusercontent.com/hyunghwan/glenmoor-story/main/public/assets/ui/kenney/panelInset_brown.png" -o assets/ui/slots/slot_brown.png
+          curl -fL "https://raw.githubusercontent.com/hyunghwan/glenmoor-story/main/public/assets/ui/kenney/panelInset_beige.png" -o assets/ui/slots/slot_beige.png
+          curl -fL "https://raw.githubusercontent.com/hyunghwan/glenmoor-story/main/public/assets/ui/kenney/buttonLong_brown.png" -o assets/ui/buttons/btn_brown.png
+          curl -fL "https://raw.githubusercontent.com/hyunghwan/glenmoor-story/main/public/assets/ui/kenney/buttonLong_brown_pressed.png" -o assets/ui/buttons/btn_brown_pressed.png
+          curl -fL "https://raw.githubusercontent.com/hyunghwan/glenmoor-story/main/public/assets/ui/kenney/buttonSquare_brown.png" -o assets/ui/buttons/btn_sq_brown.png
+          echo "PHASE5A_RPG_UI_ASSETS_DOWNLOADED"
       - name: Install verified Noto Sans Arabic font
         run: |
           set -euo pipefail
@@ -195,6 +214,23 @@ jobs:
           font_bytes=$(stat -c%s assets/fonts/NotoSansArabic-Bold.ttf)
           [ "$font_bytes" -gt 50000 ] || { echo "::error::Noto Sans Arabic font is too small: $font_bytes bytes"; exit 1; }
           echo "PHASE5A_ARABIC_FONT_READY: bytes=$font_bytes"
+
+      - name: Verify Phase 5A mobile UI asset cache
+        run: |
+          set -euo pipefail
+          for file in \
+            assets/ui/borders/panel_brown.png \
+            assets/ui/slots/slot_brown.png \
+            assets/ui/slots/slot_beige.png \
+            assets/ui/buttons/btn_brown.png \
+            assets/ui/buttons/btn_brown_pressed.png \
+            assets/ui/buttons/btn_sq_brown.png \
+            assets/fonts/NotoSansArabic-Bold.ttf; do
+            test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
+            bytes=$(stat -c%s "$file")
+            [ "$bytes" -gt 0 ] || { echo "::error::Asset is empty: $file"; exit 1; }
+            echo "PHASE5A_ASSET_OK: $file bytes=$bytes"
+          done
 
       - name: Import Godot project
         run: |
