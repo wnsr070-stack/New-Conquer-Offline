@@ -55,7 +55,7 @@ func _ready() -> void:
     captures.append_array(Flora.captures())
     _camera()
     _spawn_playable_hero()
-    if OS.has_feature("mobile"):
+    if OS.has_feature("mobile") or OS.get_cmdline_user_args().has("--preview-mobile-hud"):
         _install_mobile_hud.call_deferred()
     if OS.get_environment("CI_CAPTURE") == "1":
         _capture_hero_preview.call_deferred()
@@ -838,4 +838,4 @@ func _install_mobile_hud() -> void:
     var hud := MOBILE_HUD_SCENE.instantiate()
     hud.name = "MobileHUD"
     layer.add_child(hud)
-    print("PHASE5A_MOBILE_HUD_ATTACHED: mobile_platform=true")
+    print("PHASE5A_MOBILE_HUD_ATTACHED: platform_mobile=",OS.has_feature("mobile")," preview_arg=",OS.get_cmdline_user_args().has("--preview-mobile-hud"))
