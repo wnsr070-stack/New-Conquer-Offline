@@ -138,6 +138,11 @@ func _texture(key: String) -> Texture2D:
     if image == null or image.is_empty():
         push_error("CHECKPOINT1_TEXTURE_IMAGE_DECODE_FAILED: " + key)
         return null
+    if image.get_mipmap_count() == 0:
+        var mipmap_error := image.generate_mipmaps()
+        if mipmap_error != OK:
+            push_error("CHECKPOINT1_TEXTURE_MIPMAP_GENERATION_FAILED: " + key + " error=" + str(mipmap_error))
+            return null
     return ImageTexture.create_from_image(image)
 func _cobble() -> StandardMaterial3D:
     var material := _mat(Color.WHITE)
@@ -151,6 +156,7 @@ func _cobble() -> StandardMaterial3D:
     material.normal_enabled = true
     material.normal_texture = normal
     material.roughness_texture = roughness
+    material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
     material.uv1_scale = Vector3(20.0, 20.0, 1.0)
     print("CHECKPOINT1_COBBLE_RUNTIME_IMAGE_TEXTURES_OK: diffuse=true normal=true roughness=true")
     return material
@@ -177,6 +183,7 @@ func _build_dirt_ground() -> bool:
         return false
     var ground_material := _mat(Color(0.62, 0.78, 0.45))
     ground_material.albedo_texture = grass_diffuse
+    ground_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
     ground_material.uv1_scale = Vector3(65.0, 65.0, 1.0)
     var ground := _plane("Ground", Vector2(CITY_SIZE, CITY_SIZE), Vector3(0, -0.27, 0), ground_material)
     assert(ground.name == "Ground" and ground.material_override == ground_material and ground_material.albedo_texture != null)
@@ -313,9 +320,9 @@ func _build_plaza_and_palace() -> bool:
     var cobble := _cobble()
     if cobble == null:
         return false
-    var central_square := _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.105, 0), cobble)
+    var central_square := _plane("CobblestoneCentralSquare_CobblestoneFloor04", Vector2(54, 54), Vector3(0, 0.135, 0), cobble)
     assert(central_square.material_override == cobble and cobble.albedo_texture != null, "Twin City central ground must use cobblestone_diffuse")
-    print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only")
+    print("CHECKPOINT1_COBBLESTONE_PLAZA_OK: 54x54 Cobblestone Floor 04 only surface_y=0.135 offset_from_base=+0.03m mipmaps=enabled anisotropic_filter=enabled")
     # The visual plaza PlaneMesh has no physics surface by itself. Add a matching
     # static collider so NPC ground-placement raycasts land on the real plaza top.
     var plaza_body := StaticBody3D.new()
@@ -327,10 +334,10 @@ func _build_plaza_and_palace() -> bool:
     var plaza_box := BoxShape3D.new()
     plaza_box.size = Vector3(54.0, 0.1, 54.0)
     plaza_shape.shape = plaza_box
-    plaza_shape.position = Vector3(0.0, 0.055, 0.0)
+    plaza_shape.position = Vector3(0.0, 0.085, 0.0)
     plaza_body.add_child(plaza_shape)
     add_child(plaza_body)
-    print("TWIN_CITY_PLAZA_PHYSICS_COLLIDER_READY: size=54x0.1x54 top_y=0.105 collision_layer=1")
+    print("TWIN_CITY_PLAZA_PHYSICS_COLLIDER_READY: size=54x0.1x54 top_y=0.135 collision_layer=1")
     var platform := MeshInstance3D.new()
     platform.name = "RoyalPalaceCobblestonePlatform_34x26x3_5"
     var platform_mesh := BoxMesh.new()
