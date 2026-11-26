@@ -3,9 +3,12 @@ extends Node
 signal state_loaded
 signal xp_changed(value: float, ready: bool)
 signal inventory_changed(item_id: String, total_count: int)
+signal warehouse_changed(item_id: String, total_count: int)
 const MAX_STACK := 100
 const MAX_INVENTORY_SLOTS := 40
 var inventory_slots: Array[Dictionary] = []
+var warehouse_slots: Array[Dictionary] = []
+const MAX_WAREHOUSE_SLOTS := 40
 const SAVE_VERSION := 7
 const SAVE_PATH := "user://conquer_save_v6.cfg"
 var initialized := false
@@ -28,6 +31,7 @@ func _initialize() -> void:
  state_loaded.emit()
  print("PHASE3B_GAMESTATE_SAVE_V6_READY: gold_only_currency=true")
 func _load_save() -> void:
+ warehouse_slots.clear()
  var config := ConfigFile.new()
  if config.load(SAVE_PATH) != OK:
   player_data = {"class":"archer","level":1,"equipped":{},"exp":0,"inventory":{},"mana":100,"stamina":100}
@@ -61,6 +65,13 @@ func _load_save() -> void:
     inventory_slots.append({"item_id":String(slot.item_id),"count":mini(MAX_STACK,int(slot.count)),"instance_data":slot.get("instance_data",{}).duplicate(true)})
  else:
   _migrate_legacy_inventory(inventory)
+ warehouse_slots.clear()
+ var saved_warehouse: Variant = player_data.get("warehouse_slots", [])
+ if saved_warehouse is Array:
+  for slot in saved_warehouse:
+   if warehouse_slots.size() >= MAX_WAREHOUSE_SLOTS: break
+   if slot is Dictionary and not String(slot.get("item_id","")).is_empty() and int(slot.get("count",0)) > 0:
+    warehouse_slots.append({"item_id":String(slot.item_id),"count":mini(MAX_STACK,int(slot.count)),"instance_data":slot.get("instance_data",{}).duplicate(true)})
  _sync_legacy_inventory()
  weapon_proficiency = player_data.get("weapon_proficiency",{}).duplicate(true)
  skill_proficiency = player_data.get("skill_proficiency",{}).duplicate(true)
@@ -71,6 +82,7 @@ func save_game() -> bool:
  _sync_legacy_inventory()
  player_data["inventory_slots"] = inventory_slots.duplicate(true)
  player_data["inventory"] = inventory.duplicate(true)
+ player_data["warehouse_slots"] = warehouse_slots.duplicate(true)
  player_data["weapon_proficiency"] = weapon_proficiency.duplicate(true)
  player_data["skill_proficiency"] = skill_proficiency.duplicate(true)
  var config := ConfigFile.new()
@@ -135,6 +147,89 @@ func remove_item(item_id: String, amount: int = 1) -> bool:
  player_data["inventory_slots"] = inventory_slots.duplicate(true)
  player_data["inventory"] = inventory.duplicate(true)
  return remaining == 0
+func remove_item_from_slot(slot_index: int, amount: int = 1) -> bool:
+ _reconcile_legacy_inventory()
+ if slot_index < 0 or slot_index >= inventory_slots.size() or amount <= 0:
+  return false
+ var slot: Dictionary = inventory_slots[slot_index]
+ if amount > int(slot.get("count",0)):
+  return false
+ var item_id := String(slot.get("item_id",""))
+ slot.count = int(slot.count) - amount
+ if int(slot.count) <= 0:
+  inventory_slots.remove_at(slot_index)
+ _sync_legacy_inventory()
+ inventory_changed.emit(item_id,get_item_count(item_id))
+ player_data["inventory_slots"] = inventory_slots.duplicate(true)
+ player_data["inventory"] = inventory.duplicate(true)
+ save_game()
+ return true
+
+func deposit_to_warehouse(inv_slot_index: int, quantity: int = 1) -> bool:
+ _reconcile_legacy_inventory()
+ if inv_slot_index < 0 or inv_slot_index >= inventory_slots.size() or quantity <= 0:
+  return false
+ var source: Dictionary = inventory_slots[inv_slot_index]
+ var item_id := String(source.get("item_id",""))
+ var available := int(source.get("count",0))
+ if item_id.is_empty() or quantity > available:
+  return false
+ var instance_data: Dictionary = source.get("instance_data",{}).duplicate(true)
+ var stackable := _is_stackable_item(item_id)
+ var merge_space := 0
+ if stackable:
+  for target in warehouse_slots:
+   if String(target.item_id) == item_id:
+    merge_space += maxi(0,MAX_STACK-int(target.count))
+ var remaining_after_merge := maxi(0,quantity-merge_space)
+ var slots_needed := int(ceil(float(remaining_after_merge)/float(MAX_STACK))) if stackable else quantity
+ if warehouse_slots.size()+slots_needed > MAX_WAREHOUSE_SLOTS:
+  return false
+ var remaining := quantity
+ if stackable:
+  for target in warehouse_slots:
+   if String(target.item_id) != item_id or int(target.count) >= MAX_STACK: continue
+   var moved := mini(remaining,MAX_STACK-int(target.count))
+   target.count = int(target.count)+moved
+   remaining -= moved
+   if remaining <= 0: break
+ while remaining > 0:
+  var moved := mini(remaining,MAX_STACK) if stackable else 1
+  warehouse_slots.append({"item_id":item_id,"count":moved,"instance_data":instance_data.duplicate(true)})
+  remaining -= moved
+ source.count = available-quantity
+ if int(source.count) <= 0:
+  inventory_slots.remove_at(inv_slot_index)
+ _sync_legacy_inventory()
+ warehouse_changed.emit(item_id,get_warehouse_item_count(item_id))
+ save_game()
+ return true
+
+func withdraw_from_warehouse(wh_slot_index: int, quantity: int = 1) -> bool:
+ if wh_slot_index < 0 or wh_slot_index >= warehouse_slots.size() or quantity <= 0:
+  return false
+ var source: Dictionary = warehouse_slots[wh_slot_index]
+ var item_id := String(source.get("item_id",""))
+ var available := int(source.get("count",0))
+ if item_id.is_empty() or quantity > available:
+  return false
+ var instance_data: Dictionary = source.get("instance_data",{}).duplicate(true)
+ if not add_item(item_id,quantity,instance_data):
+  return false
+ source.count = available-quantity
+ if int(source.count) <= 0:
+  warehouse_slots.remove_at(wh_slot_index)
+ warehouse_changed.emit(item_id,get_warehouse_item_count(item_id))
+ save_game()
+ return true
+
+func get_warehouse_item_count(item_id: String) -> int:
+ var total := 0
+ for slot in warehouse_slots:
+  if String(slot.get("item_id","")) == item_id:
+   total += int(slot.get("count",0))
+ return total
+
 func get_item_count(item_id: String) -> int:
  _reconcile_legacy_inventory()
  var total := 0
