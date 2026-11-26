@@ -1,0 +1,4 @@
+# Classic RPG HUD Vector Assets
+These original SVG interface assets were created for New Conquer Offline.
+License: CC0 1.0 Universal. You may copy, modify, distribute, and use them commercially without permission.
+Files: frame_gold.svg, button_gold.svg, hero_portrait.svg, joystick.svg, orb_hp.svg, orb_mp.svg.
