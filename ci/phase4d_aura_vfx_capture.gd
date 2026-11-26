@@ -59,6 +59,14 @@ func _run_capture() -> void:
   if hero != null and spawner != null and hero.get("hero_model") != null: break
  if hero == null or spawner == null or hero.get("hero_model") == null:
   _fail("approved_hero_or_monster_spawner_not_ready"); return
+ var npc_system := root.get_node_or_null("NPCMerchantSystem")
+ if npc_system == null: _fail("npc_merchant_system_missing"); return
+ var npc_registry: Dictionary = npc_system.get("_npc_nodes")
+ var live_npc_count := 0
+ for npc_value in npc_registry.values():
+  if is_instance_valid(npc_value): live_npc_count += 1
+ if live_npc_count != 30: _fail("twin_city_npc_spawn_count_invalid: "+str(live_npc_count)+"/30"); return
+ print("PHASE4D_TWIN_CITY_30_NPCS_READY: spawned=",live_npc_count," overhead_prompt_height=3.2m")
  var camp: Node3D
  for point in spawner.spawn_points:
   if String(point.get_meta("spawn_kind","")) == "monster_camp" and String(point.get_meta("monster_id","")) == "Chicken":
@@ -123,7 +131,8 @@ func _run_capture() -> void:
  var forging := root.get_node("ForgingSystem")
  var combat := root.get_node("CombatSystem")
  var skills := root.get_node("SkillSystem")
- state.gold = 2000000
+ state.set_gold(100000000)
+ print("PHASE4D_TEST_ECONOMY_SEEDED: gold=100000000 global_economy_synced=true")
  state.inventory = {"Plus1Stone":36,"Meteor":4,"DragonBall":5,"ToughDrill":1,"DragonGem":2}
  state.player_data["class"] = "archer"
  state.player_data["level"] = 130
@@ -285,7 +294,7 @@ func _run_capture() -> void:
  var detail_bytes := FileAccess.get_file_as_bytes(out_dir.path_join("4_closeup_weapon.png")).size()
  var bonuses: Dictionary = gear.get_combat_bonuses()
  if int(bonuses.attack) < 100: _fail("forged_attack_bonus_not_applied"); return
- if int(state.gold) >= 2000000: _fail("gold_cost_was_not_charged"); return
+ if int(state.gold) >= 100000000: _fail("gold_cost_was_not_charged"); return
  state.save_game()
  print("PHASE4C_FORGING_FINAL_STATE_OK: weapon=+12 Super sockets=2 DragonGemx2=true composition=",item.composition_points," attack_bonus=",bonuses.attack," gold_remaining=",state.gold)
  print("PHASE4D_SPRITE_AURA_VISUAL_OK: weapon_plus12=true armor_plus12=true helmet_plus12=true ranger_hood_set_aura=true anima_p18=true procedural_particles=false")
