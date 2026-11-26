@@ -6,16 +6,16 @@ signal forging_failed(reason: String)
 signal socket_updated(slot: String, socket_index: int, gem_id: String)
 signal anima_upgraded(old_phase: int, new_phase: int)
 
-const PLUS_COMPOSITION := {1:20,2:40,3:80,4:160,5:320,6:640,7:1280,8:2560,9:5120,10:7680,11:10240,12:12800}
+const PLUS_COMPOSITION := {1:20,2:20,3:80,4:240,5:720,6:2160,7:6480,8:19440,9:58320,10:2700,11:5500,12:9000}
 const QUALITY_ORDER := ["Normal","Refined","Unique","Elite","Super"]
 const GEM_BONUSES := {
- "DragonGem":{"attack_pct":0.05,"magic_attack_pct":0.0,"damage_reduction":0.0,"exp_bonus":0.0,"dodge_pct":0.0,"hp_pct":0.0,"mana_pct":0.0},
- "PhoenixGem":{"attack_pct":0.0,"magic_attack_pct":0.05,"damage_reduction":0.0,"exp_bonus":0.0,"dodge_pct":0.0,"hp_pct":0.0,"mana_pct":0.0},
- "RainbowGem":{"attack_pct":0.0,"magic_attack_pct":0.0,"damage_reduction":0.0,"exp_bonus":0.10,"dodge_pct":0.0,"hp_pct":0.0,"mana_pct":0.0},
- "VioletGem":{"attack_pct":0.0,"magic_attack_pct":0.0,"damage_reduction":0.0,"exp_bonus":0.0,"dodge_pct":0.05,"hp_pct":0.0,"mana_pct":0.0},
- "FuryGem":{"attack_pct":0.0,"magic_attack_pct":0.0,"damage_reduction":0.0,"exp_bonus":0.0,"dodge_pct":0.0,"hp_pct":0.05,"mana_pct":0.0},
- "MoonGem":{"attack_pct":0.0,"magic_attack_pct":0.0,"damage_reduction":0.0,"exp_bonus":0.0,"dodge_pct":0.0,"hp_pct":0.0,"mana_pct":0.05},
- "KylinGem":{"attack_pct":0.0,"magic_attack_pct":0.0,"damage_reduction":0.05,"exp_bonus":0.0,"dodge_pct":0.0,"hp_pct":0.0,"mana_pct":0.0}
+ "DragonGem":{"attack_pct":0.05},
+ "PhoenixGem":{"magic_attack_pct":0.05},
+ "RainbowGem":{"exp_bonus":0.10},
+ "FuryGem":{"hit_accuracy_pct":0.05},
+ "VioletGem":{"weapon_exp_bonus":0.30},
+ "MoonGem":{"magic_exp_bonus":0.15},
+ "KylinGem":{"durability_bonus":0.50}
 }
 signal artisan_opened
 var last_error := ""
@@ -32,15 +32,20 @@ func compose_plus(slot: String = "weapon", material_id: String = "Plus1Stone") -
  if item.is_empty(): return _fail("no_equipped_item")
  var current_plus := int(item.get("plus",0))
  if current_plus >= 12: return _fail("plus_maximum_reached")
- var points_by_stone := {"Plus1Stone":20,"Plus2Stone":40,"Plus3Stone":80,"PlusStone1":20,"PlusStone2":40,"PlusStone3":80}
+ var points_by_stone := {"Plus1Stone":10,"Plus2Stone":40,"Plus3Stone":120,"PlusStone1":10,"PlusStone2":40,"PlusStone3":120}
  var points := int(points_by_stone.get(material_id,0))
  var consumed_id := material_id
  if points == 0:
   var material: Dictionary = gear.database.get_item(material_id) if gear.database != null else {}
   if material.is_empty() or String(material.get("family","")) != String(item.get("family","")):
    return _fail("composition_item_must_match_equipment_type")
-  points = maxi(1,int(material.get("level",1)))
+  var material_plus := int(material.get("plus",0))
+  if material_plus < 1 or material_plus > 8: return _fail("invalid_composition_plus_item")
+  var material_points := {1:10,2:40,3:120,4:360,5:1080,6:3240,7:9720,8:29160}
+  points = int(material_points[material_plus])
  if not _consume_inventory(state,consumed_id,1): return _fail("composition_material_missing")
+ var character_level := int(state.player_data.get("level",1))
+ if current_plus >= 9 and character_level < 130: return _fail("character_level_130_required_for_plus_10")
  var target_plus := current_plus + 1
  var required := int(PLUS_COMPOSITION.get(target_plus,0))
  var cost := _gold_cost(item,target_plus,"plus")
@@ -48,15 +53,23 @@ func compose_plus(slot: String = "weapon", material_id: String = "Plus1Stone") -
   state.add_inventory_item(consumed_id,1)
   return _fail("insufficient_gold")
  var total_points := int(item.get("composition_points",0)) + points
- if total_points < required:
+ var upgraded := false
+ while target_plus <= 12 and total_points >= required and (target_plus <= 9 or character_level >= 130):
+  total_points -= required
+  current_plus = target_plus
+  item["plus"] = current_plus
+  upgraded = true
+  if current_plus >= 12: break
+  target_plus = current_plus + 1
+  required = int(PLUS_COMPOSITION.get(target_plus,0))
+ if not upgraded:
   item["composition_points"] = total_points
   gear.update_equipped_item(slot,item)
   _commit(state)
   forging_succeeded.emit("composition",item)
   forge_succeeded.emit("composition",item)
   return {"ok":true,"item":item,"composition_added":points,"composition_total":total_points,"composition_required":required,"plus_upgraded":false,"gold_spent":cost}
- item["composition_points"] = total_points - required
- item["plus"] = target_plus
+ item["composition_points"] = total_points
  _recalculate_item_stats(item)
  item["display_name"] = _display_name(item)
  gear.update_equipped_item(slot,item)
@@ -215,12 +228,20 @@ func _clear_aura(node: Node) -> void:
   else: _clear_aura(child)
 
 func _calculate_gem_bonuses(sockets: Array) -> Dictionary:
- var result := {"attack_pct":0.0,"magic_attack_pct":0.0,"damage_reduction":0.0,"exp_bonus":0.0,"dodge_pct":0.0,"hp_pct":0.0,"mana_pct":0.0}
+ var result := {"attack_pct":0.0,"magic_attack_pct":0.0,"exp_bonus":0.0,"hit_accuracy_pct":0.0,"weapon_exp_bonus":0.0,"magic_exp_bonus":0.0,"durability_bonus":0.0}
  for gem in sockets:
   var gem_id := String(gem)
-  if GEM_BONUSES.has(gem_id):
-   for key in GEM_BONUSES[gem_id]:
-    result[key] = float(result.get(key,0.0)) + float(GEM_BONUSES[gem_id][key])
+  var quality_multiplier := 1.0
+  var base_id := gem_id
+  if gem_id.begins_with("Refined"):
+   quality_multiplier = 2.0
+   base_id = gem_id.trim_prefix("Refined")
+  elif gem_id.begins_with("Super"):
+   quality_multiplier = 3.0
+   base_id = gem_id.trim_prefix("Super")
+  if GEM_BONUSES.has(base_id):
+   for key in GEM_BONUSES[base_id]:
+    result[key] = float(result.get(key,0.0)) + float(GEM_BONUSES[base_id][key]) * quality_multiplier
  return result
 
 func remove_socket_gem(socket_index: int, slot: String = "weapon") -> Dictionary:

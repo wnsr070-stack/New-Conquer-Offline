@@ -67,9 +67,10 @@ func get_combat_bonuses() -> Dictionary:
  var exp_bonus := 0.0
  var attack_pct := 0.0
  var magic_attack_pct := 0.0
- var dodge_pct := 0.0
- var hp_pct := 0.0
- var mana_pct := 0.0
+ var hit_accuracy_pct := 0.0
+ var weapon_exp_bonus := 0.0
+ var magic_exp_bonus := 0.0
+ var durability_bonus := 0.0
  for item in equipped.values():
   attack += int(item.get("attack_bonus",0))
   defense += int(item.get("defense_bonus",0))
@@ -78,12 +79,15 @@ func get_combat_bonuses() -> Dictionary:
   attack += int(gems.get("attack",0))
   attack_pct += float(gems.get("attack_pct",0.0))
   magic_attack_pct += float(gems.get("magic_attack_pct",0.0))
+  attack += int(round(float(item.get("attack_bonus",0)) * float(gems.get("attack_pct",0.0))))
+  magic_attack += int(round(float(item.get("magic_attack",0)) * float(gems.get("magic_attack_pct",0.0))))
   damage_reduction += float(gems.get("damage_reduction",0.0))
   exp_bonus += float(gems.get("exp_bonus",0.0))
-  dodge_pct += float(gems.get("dodge_pct",0.0))
-  hp_pct += float(gems.get("hp_pct",0.0))
-  mana_pct += float(gems.get("mana_pct",0.0))
- return {"attack":attack,"defense":defense,"magic_attack":magic_attack,"attack_pct":attack_pct,"magic_attack_pct":magic_attack_pct,"damage_reduction":damage_reduction,"exp_bonus":exp_bonus,"dodge_pct":dodge_pct,"hp_pct":hp_pct,"mana_pct":mana_pct}
+  hit_accuracy_pct += float(gems.get("hit_accuracy_pct",0.0))
+  weapon_exp_bonus += float(gems.get("weapon_exp_bonus",0.0))
+  magic_exp_bonus += float(gems.get("magic_exp_bonus",0.0))
+  durability_bonus += float(gems.get("durability_bonus",0.0))
+ return {"attack":attack,"defense":defense,"magic_attack":magic_attack,"attack_pct":attack_pct,"magic_attack_pct":magic_attack_pct,"damage_reduction":damage_reduction,"exp_bonus":exp_bonus,"hit_accuracy_pct":hit_accuracy_pct,"weapon_exp_bonus":weapon_exp_bonus,"magic_exp_bonus":magic_exp_bonus,"durability_bonus":durability_bonus}
 func _persist_equipment() -> void:
  var state := get_node_or_null("/root/GameState")
  if state != null:
