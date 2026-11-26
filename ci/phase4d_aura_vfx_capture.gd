@@ -130,7 +130,7 @@ func _run_capture() -> void:
   var plus_result: Dictionary = forging.compose_plus("weapon","Plus1Stone")
   if not plus_result.get("ok",false): _fail("plus_upgrade_"+str(i+1)+"_failed: "+str(plus_result)); return
  if int(gear.get_equipped("weapon").get("plus",0)) != 12: _fail("weapon_plus_12_not_reached"); return
- var armor := root.get_node("GearDatabase").get_armor_item("body_05_royal","Normal",1)
+ var armor: Dictionary = root.get_node("GearDatabase").get_armor_item("body_05_royal","Normal",1)
  if armor.is_empty(): _fail("approved_phase3b_armor_asset_missing_from_database"); return
  armor["plus"] = 0
  if not gear.equip_item("armor",armor): _fail("equip_plus_12_armor_failed"); return
