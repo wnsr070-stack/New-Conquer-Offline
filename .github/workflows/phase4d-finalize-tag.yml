@@ -1,0 +1,30 @@
+name: Finalize Phase 4D Tag
+on:
+  push:
+    branches:
+      - 'test/phase5-mobile-ui-audio-apk'
+permissions:
+  contents: write
+jobs:
+  create-phase4d-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and push phase4d-complete on the approved Phase 4D commit
+        env:
+          PHASE4D_SHA: 101e66bc9fe4e40ef91b804074fa2820c108d86c
+        run: |
+          set -euo pipefail
+          git cat-file -e "${PHASE4D_SHA}^{commit}"
+          if git ls-remote --exit-code --tags origin refs/tags/phase4d-complete >/dev/null 2>&1; then
+            echo "PHASE4D_TAG_ALREADY_EXISTS"
+            exit 1
+          fi
+          git tag -a phase4d-complete "${PHASE4D_SHA}" -m "Phase 4D complete: verified NPCs, aura and VFX"
+          git push origin refs/tags/phase4d-complete
+          test "$(git rev-parse phase4d-complete^{})" = "${PHASE4D_SHA}"
+          echo "PHASE4D_TAG_PUSH_OK: phase4d-complete -> ${PHASE4D_SHA}"
