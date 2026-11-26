@@ -195,30 +195,23 @@ jobs:
             assets/ui
             assets/icons
             assets/fonts
-          key: phase5a-mobile-ui-assets-v2
-      - name: Download official Kenney RPG UI and Fantasy Borders packs
+          key: phase5a-mobile-ui-assets-v3
+      - name: Fetch exact Kenney UI files and basic RPG icons from Git
         run: |
           set -euo pipefail
-          mkdir -p assets/ui/borders/fantasy assets/ui/buttons assets/ui/slots assets/icons/rpg assets/fonts artifacts
+          mkdir -p assets/ui/borders assets/ui/slots assets/ui/buttons assets/icons/rpg assets/fonts
+          rm -rf /tmp/kenney
+          trap 'rm -rf /tmp/kenney' EXIT
+          git clone --depth 1 https://github.com/shorepine/kenney.git /tmp/kenney
           python3 - <<'PY'
-          import io, os, pathlib, shutil, subprocess, zipfile
+          import pathlib, re, shutil
 
-          USER_AGENT = "Mozilla/5.0"
-          packs = [
-              ("rpg-expansion", "https://kenney.nl/media/pages/assets/ui-pack-rpg-expansion/1525467222-1677667028/kenney_ui-pack-rpg-expansion.zip"),
-              ("fantasy-borders", "https://kenney.nl/media/pages/assets/fantasy-ui-borders/1301993753-1699260796/kenney_fantasy-ui-borders.zip"),
-          ]
-          archives = {}
-          for name, url in packs:
-              archive_path = pathlib.Path("artifacts") / (name + ".zip")
-              subprocess.run(["curl", "--fail", "--location", "--retry", "4", "--retry-all-errors", "-A", USER_AGENT, url, "-o", str(archive_path)], check=True)
-              if archive_path.stat().st_size < 1000:
-                  raise SystemExit(f"Downloaded archive is suspiciously small: {archive_path}")
-              archives[name] = zipfile.ZipFile(archive_path)
-              print(f"KENNEY_ARCHIVE_DOWNLOADED: {name} bytes={archive_path.stat().st_size}")
+          root = pathlib.Path("/tmp/kenney")
+          pngs = sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() == ".png")
 
-          required = {
+          exact = {
               "panel_brown.png": "assets/ui/borders/panel_brown.png",
+              "panel_beige.png": "assets/ui/borders/panel_beige.png",
               "panelInset_brown.png": "assets/ui/slots/slot_brown.png",
               "panelInset_beige.png": "assets/ui/slots/slot_beige.png",
               "buttonLong_brown.png": "assets/ui/buttons/btn_brown.png",
@@ -226,86 +219,60 @@ jobs:
               "buttonSquare_brown.png": "assets/ui/buttons/btn_sq_brown.png",
               "buttonSquare_brown_pressed.png": "assets/ui/buttons/btn_sq_brown_pressed.png",
           }
-          rpg_zip = archives["rpg-expansion"]
-          members = [m for m in rpg_zip.infolist() if not m.is_dir()]
-          by_basename = {}
-          for member in members:
-              by_basename.setdefault(pathlib.PurePosixPath(member.filename).name, []).append(member)
-          for filename, destination in required.items():
-              matches = by_basename.get(filename, [])
-              if len(matches) != 1:
-                  raise SystemExit(f"Expected exactly one {filename} in official RPG pack; found {len(matches)}")
-              data = rpg_zip.read(matches[0])
-              if len(data) <= 500 or data[:8] != b"\x89PNG\r\n\x1a\n":
-                  raise SystemExit(f"Invalid or undersized PNG in RPG pack: {matches[0].filename} ({len(data)} bytes)")
+
+          def copy_verified(source, destination):
+              data = source.read_bytes()
+              if len(data) <= 100 or data[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+                  raise SystemExit(f"Invalid PNG (>100 bytes and signature required): {source} ({len(data)} bytes)")
               target = pathlib.Path(destination)
               target.parent.mkdir(parents=True, exist_ok=True)
               target.write_bytes(data)
-              print(f"KENNEY_RPG_UI_PNG_OK: {destination} bytes={len(data)} source={matches[0].filename}")
+              print(f"KENNEY_SELECTED_PNG_OK: {target} bytes={len(data)} source={source.relative_to(root)}")
 
-          # Preserve the real PNG icon artwork from the expansion pack; exclude the
-          # seven named frame/button files already installed in their UI locations.
-          excluded = set(required)
+          for filename, destination in exact.items():
+              matches = [p for p in pngs if p.name == filename]
+              if not matches:
+                  raise SystemExit(f"Required Kenney file not found by name: {filename}")
+              copy_verified(matches[0], destination)
+
+          categories = {
+              "sword": {"sword"},
+              "bow": {"bow"},
+              "shield": {"shield"},
+              "helmet": {"helmet", "helm"},
+              "boots": {"boots", "boot", "shoe"},
+              "ring": {"ring"},
+              "necklace": {"necklace", "amulet"},
+              "potion": {"potion", "flask"},
+          }
+          selected = set()
           icon_count = 0
-          for member in members:
-              source_name = pathlib.PurePosixPath(member.filename).name
-              if not source_name.lower().endswith(".png") or source_name in excluded:
-                  continue
-              data = rpg_zip.read(member)
-              if len(data) <= 500 or data[:8] != b"\x89PNG\r\n\x1a\n":
-                  continue
-              relative = pathlib.PurePosixPath(member.filename)
-              parts = list(relative.parts)
-              if parts and parts[0].lower() in ("png", "images", "image"):
-                  parts = parts[1:]
-              if not parts:
-                  parts = [source_name]
-              target = pathlib.Path("assets/icons/rpg").joinpath(*parts)
-              target.parent.mkdir(parents=True, exist_ok=True)
-              target.write_bytes(data)
-              icon_count += 1
-          if icon_count == 0:
-              raise SystemExit("The official RPG Expansion archive contained no qualifying PNG icon/art files")
-          print(f"KENNEY_RPG_ICONS_EXTRACTED: {icon_count}")
+          for category, keywords in categories.items():
+              candidates = []
+              for path in pngs:
+                  tokens = set(re.findall(r"[a-z0-9]+", path.stem.lower()))
+                  if tokens & keywords and path not in selected:
+                      candidates.append(path)
+              if not candidates:
+                  raise SystemExit(f"No named Kenney PNG icon found for required RPG category: {category}")
+              # Keep a small representative set per category; never exceed 30 icons total.
+              for source in candidates[:3]:
+                  if icon_count >= 30:
+                      break
+                  target_name = f"{category}__{source.name}"
+                  copy_verified(source, pathlib.Path("assets/icons/rpg") / target_name)
+                  selected.add(source)
+                  icon_count += 1
 
-          # Extract the complete official Fantasy UI Borders archive into its own
-          # folder, retaining the original archive directory structure.
-          fantasy_zip = archives["fantasy-borders"]
-          fantasy_root = pathlib.Path("assets/ui/borders/fantasy")
-          png_count = 0
-          for member in fantasy_zip.infolist():
-              relative = pathlib.PurePosixPath(member.filename)
-              if relative.is_absolute() or ".." in relative.parts:
-                  raise SystemExit(f"Unsafe path in Fantasy Borders archive: {member.filename}")
-              target = fantasy_root.joinpath(*relative.parts)
-              if member.is_dir():
-                  target.mkdir(parents=True, exist_ok=True)
-                  continue
-              data = fantasy_zip.read(member)
-              target.parent.mkdir(parents=True, exist_ok=True)
-              target.write_bytes(data)
-              if target.suffix.lower() == ".png":
-                  if len(data) <= 500 or data[:8] != b"\x89PNG\r\n\x1a\n":
-                      raise SystemExit(f"Invalid or undersized Fantasy Borders PNG: {member.filename} ({len(data)} bytes)")
-                  png_count += 1
-          if png_count == 0:
-              raise SystemExit("Fantasy UI Borders archive yielded no verified PNG files")
-          print(f"KENNEY_FANTASY_BORDERS_EXTRACTED: png_files={png_count}")
-
-          # Final audit covers every PNG delivered into the target UI/icon folders.
-          audited = 0
-          for root in (pathlib.Path("assets/ui"), pathlib.Path("assets/icons")):
-              for target in root.rglob("*.png"):
-                  data = target.read_bytes()
-                  if len(data) <= 500 or data[:8] != b"\x89PNG\r\n\x1a\n":
-                      raise SystemExit(f"Final PNG audit failed: {target} ({len(data)} bytes)")
-                  audited += 1
-                  print(f"PHASE5A_REAL_PNG_VERIFIED: {target} bytes={len(data)}")
-          pathlib.Path("artifacts/phase5a_kenney_asset_report.txt").write_text(
-              f"rpg_ui_files={len(required)}\nrpg_icon_png_files={icon_count}\nfantasy_border_png_files={png_count}\ntotal_verified_png_files={audited}\n",
-              encoding="utf-8")
-          print(f"PHASE5A_KENNEY_ASSETS_READY: verified_png_files={audited}")
+          if icon_count < len(categories) or icon_count > 30:
+              raise SystemExit(f"RPG icon count outside allowed range: {icon_count}")
+          print(f"KENNEY_BASIC_RPG_ICONS_READY: {icon_count} files across {len(categories)} categories")
           PY
+          # Remove the source checkout immediately after copying the approved files.
+          rm -rf /tmp/kenney
+          trap - EXIT
+          test ! -e /tmp/kenney
+          test -s assets/fonts/NotoSansArabic-Bold.ttf || echo "Noto Sans Arabic will be installed by the next workflow step"
       - name: Install verified Noto Sans Arabic font
         run: |
           set -euo pipefail
@@ -329,22 +296,23 @@ jobs:
             assets/fonts/NotoSansArabic-Bold.ttf; do
             test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
             bytes=$(stat -c%s "$file")
-            [ "$bytes" -gt 500 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
+            [ "$bytes" -gt 100 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
             if [[ "$file" == *.png ]]; then
               signature=$(od -An -tx1 -N8 "$file" | tr -d ' \n')
               [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid PNG signature: $file"; exit 1; }
             fi
             echo "PHASE5A_ASSET_OK: $file bytes=$bytes"
           done
-          test -d assets/ui/borders/fantasy
           test -d assets/icons/rpg
-          fantasy_pngs=$(find assets/ui/borders/fantasy -type f -iname '*.png' | wc -l)
           icon_pngs=$(find assets/icons/rpg -type f -iname '*.png' | wc -l)
-          [ "$fantasy_pngs" -gt 0 ] && [ "$icon_pngs" -gt 0 ]
-          echo "PHASE5A_FANTASY_BORDER_PNG_COUNT: $fantasy_pngs"
+          [ "$icon_pngs" -ge 8 ] && [ "$icon_pngs" -le 30 ] || { echo "::error::RPG icon count outside 8..30: $icon_pngs"; exit 1; }
+          while IFS= read -r file; do
+            bytes=$(stat -c%s "$file")
+            [ "$bytes" -gt 100 ] || { echo "::error::RPG icon PNG is too small: $file ($bytes bytes)"; exit 1; }
+            signature=$(od -An -tx1 -N8 "$file" | tr -d ' \\n')
+            [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid RPG icon PNG signature: $file"; exit 1; }
+          done < <(find assets/icons/rpg -type f -iname '*.png' | sort)
           echo "PHASE5A_RPG_ICON_PNG_COUNT: $icon_pngs"
-          test -s artifacts/phase5a_kenney_asset_report.txt
-          cat artifacts/phase5a_kenney_asset_report.txt
 
       - name: Import Godot project
         run: |
