@@ -57,7 +57,7 @@ func _ready() -> void:
     _spawn_playable_hero()
     if OS.has_feature("mobile") or OS.get_cmdline_user_args().has("--preview-mobile-hud"):
         _install_mobile_hud.call_deferred()
-    if OS.get_environment("CI_CAPTURE") == "1":
+    if OS.get_environment("CI_CAPTURE") == "1" and not OS.get_cmdline_user_args().has("--preview-mobile-hud"):
         _capture_hero_preview.call_deferred()
 func _remove_named_apron_meshes(node: Node, removed: Array[int]) -> void:
     for child in node.get_children():
