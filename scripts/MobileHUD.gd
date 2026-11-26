@@ -231,7 +231,7 @@ func _build_inventory(layout: VBoxContainer) -> void:
    var id := String(item.get("item_id",""))
    var data := _get_item_data(id)
    cell.text = "%s\nx%d" % [String(data.get("name",id)),int(item.get("count",1))]
-   var icon := ICON_SCRIPT.new()
+   var icon: Control = ICON_SCRIPT.new()
    icon.custom_minimum_size = Vector2(42,42)
    icon.configure(data,int(item.get("instance_data",{}).get("plus",data.get("plus",0))))
    cell.add_child(icon)
@@ -278,12 +278,13 @@ func _build_daily_rewards(layout: VBoxContainer) -> void:
  var rewards: Array = quests.DAILY_REWARDS if quests != null else []
  for day in range(7):
   var reward: Dictionary = rewards[day] if day < rewards.size() else {}
-  layout.add_child(_button("Day %d — %s" % [day+1,str(reward)],_claim_daily.bind(day)))
+  layout.add_child(_label("Day %d — %s" % [day+1,str(reward)]))
+ layout.add_child(_button("Claim today’s login reward",_claim_daily))
 
-func _claim_daily(day: int) -> void:
+func _claim_daily() -> void:
  var quests := get_node_or_null("/root/QuestSystem")
- if quests != null and quests.has_method("claim_daily_reward"):
-  quests.claim_daily_reward(day)
+ if quests != null and quests.has_method("claim_daily_login"):
+  quests.claim_daily_login()
  _open_window("Daily Login")
 
 func _build_artisan(layout: VBoxContainer) -> void:
@@ -304,7 +305,7 @@ func _forge_operation(slot: String) -> void:
  match _current_role:
   "Quality": forge.upgrade_quality(slot)
   "Level": forge.upgrade_level(slot)
-  "Sockets": forge.socket_gem(slot,"DragonGem",0)
+  "Sockets": forge.socket_gem("DragonGem",0,slot)
   "Anima": forge.upgrade_anima()
   _: forge.compose_plus(slot,"Plus1Stone")
  _open_window("ArtisanMaster")
