@@ -3,52 +3,17 @@ extends Node
 
 const CITY_DIRECTORIES := {
  "TwinCity": {
-  "Blacksmith":{"position":Vector3(-92,0,86),"type":"npc"},
-  "ArcherGod":{"position":Vector3(-52,0,-48),"type":"npc"},
-  "Ming":{"position":Vector3(24,0,36),"type":"npc"},
-  "LongDong":{"position":Vector3(-36,0,28),"type":"npc"},
-  "Blacknull":{"position":Vector3(44,0,-24),"type":"npc"},
-  "F.Chen":{"position":Vector3(-24,0,-38),"type":"npc"},
-  "Synsia":{"position":Vector3(38,0,42),"type":"npc"},
-  "GemCollector":{"position":Vector3(-42,0,44),"type":"npc"},
-  "MonsterSlayer":{"position":Vector3(52,0,18),"type":"npc"},
-  "EventMaster":{"position":Vector3(-18,0,52),"type":"npc"},
-  "ItemSocketingMaster":{"position":Vector3(18,0,-52),"type":"npc"},
-  "Celestine":{"position":Vector3(-62,0,12),"type":"npc"},
-  "RebirthMaster":{"position":Vector3(62,0,-12),"type":"npc"},
-  "GeneralQing":{"position":Vector3(28,0,-32),"type":"npc"},
-  "Fortuneteller":{"position":Vector3(115,0,115),"type":"npc"},
-  "Armorer":{"position":Vector3(-86,0,86),"type":"npc"},
-  "AccessoryMerchant":{"position":Vector3(-98,0,86),"type":"npc"},
-  "Pharmacist":{"position":Vector3(86,0,92),"type":"npc"},
-  "QuestMaster":{"position":Vector3(-86,0,-92),"type":"npc"},
-  "ArtisanMaster":{"position":Vector3(86,0,-92),"type":"npc"},
-  "Warehouseman":{"position":Vector3(-12,0,-12),"type":"npc"},
-  "Conductress":{"position":Vector3(12,0,-12),"type":"npc"},
-  "ImperialEnvoy":{"position":Vector3(0,0,-56),"type":"npc"},
-  "CentralPlaza":{"position":Vector3(0,0,0),"type":"landmark"},
-  "ImperialPalace":{"position":Vector3(0,3.5,-75),"type":"landmark"},
-  "QuestHall":{"position":Vector3(-92,0,-92),"type":"landmark"},
-  "Pagoda":{"position":Vector3(92,0,-92),"type":"landmark"},
-  "TeaHouse":{"position":Vector3(92,0,92),"type":"landmark"},
-  "BlacksmithForge":{"position":Vector3(-92,0,92),"type":"landmark"}
+  "Celestine":{"position":Vector3(-9,0,-58),"type":"npc"},"GeneralQing":{"position":Vector3(-4.5,0,-58),"type":"npc"},"ImperialEnvoy":{"position":Vector3(0,0,-58),"type":"npc"},"RebirthMaster":{"position":Vector3(4.5,0,-58),"type":"npc"},"ItemSocketingMaster":{"position":Vector3(9,0,-58),"type":"npc"},
+  "ArcherGod":{"position":Vector3(-22,0,-18),"type":"npc"},"EventMaster":{"position":Vector3(-22,0,-13.5),"type":"npc"},"MonsterSlayer":{"position":Vector3(-22,0,-9),"type":"npc"},"GemCollector":{"position":Vector3(-22,0,-4.5),"type":"npc"},"TCGuide":{"position":Vector3(-22,0,0),"type":"npc"},"ArenaGuard":{"position":Vector3(-22,0,4.5),"type":"npc"},
+  "Blacksmith":{"position":Vector3(-22.5,0,20),"type":"npc"},"Armorer":{"position":Vector3(-18,0,20),"type":"npc"},"ArtisanMaster":{"position":Vector3(-13.5,0,20),"type":"npc"},"AccessoryMerchant":{"position":Vector3(-9,0,20),"type":"npc"},"WeaponMaster":{"position":Vector3(-4.5,0,20),"type":"npc"},"GuildOfficer":{"position":Vector3(0,0,20),"type":"npc"},"Pharmacist":{"position":Vector3(4.5,0,20),"type":"npc"},"Warehouseman":{"position":Vector3(9,0,20),"type":"npc"},"Ming":{"position":Vector3(13.5,0,20),"type":"npc"},"LongDong":{"position":Vector3(18,0,20),"type":"npc"},"GuildDirector":{"position":Vector3(22.5,0,20),"type":"npc"},
+  "Conductress":{"position":Vector3(22,0,0),"type":"npc"},"Blacknull":{"position":Vector3(22,0,-4.5),"type":"npc"},"F.Chen":{"position":Vector3(22,0,-9),"type":"npc"},"Synsia":{"position":Vector3(22,0,-13.5),"type":"npc"},"DailyEnvoy":{"position":Vector3(22,0,-18),"type":"npc"},"LoveStone":{"position":Vector3(22,0,4.5),"type":"npc"},"Fortuneteller":{"position":Vector3(22,0,9),"type":"npc"},"CaptainLi":{"position":Vector3(22,0,13.5),"type":"npc"},
+  "CentralPlaza":{"position":Vector3(0,0,0),"type":"landmark"},"ImperialPalace":{"position":Vector3(0,3.5,-75),"type":"landmark"},"QuestHall":{"position":Vector3(-92,0,-92),"type":"landmark"},"Pagoda":{"position":Vector3(92,0,-92),"type":"landmark"},"TeaHouse":{"position":Vector3(92,0,92),"type":"landmark"},"BlacksmithForge":{"position":Vector3(-92,0,92),"type":"landmark"}
  },
- "PhoenixCastle":{
-  "CoachLin":{"position":Vector3(14,0,16),"type":"npc"},
-  "Alchemist":{"position":Vector3(-14,0,16),"type":"npc"},
-  "CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
- "ApeMountain":{
-  "SolarSaint":{"position":Vector3(16,0,-18),"type":"npc"},
-  "CelestialTaoist":{"position":Vector3(-16,0,-18),"type":"npc"},
-  "CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
- "DesertCity":{"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
- "BirdIsland":{"CityCenter":{"position":Vector3(0,4.6,0),"type":"landmark"}},
- "Market":{
-  "CloudSaint":{"position":Vector3(-18,0,14),"type":"npc"},
-  "TaoistMoon":{"position":Vector3(18,0,14),"type":"npc"},
-  "BlessedGreatMaster":{"position":Vector3(0,0,22),"type":"npc"},
-  "MarketSquare":{"position":Vector3.ZERO,"type":"landmark"}
- }
+ "PhoenixCastle":{"Pharmacist":{"position":Vector3(-9,0,-98),"type":"npc"},"Blacksmith":{"position":Vector3(-4.5,0,-98),"type":"npc"},"Warehouseman":{"position":Vector3(0,0,-98),"type":"npc"},"Conductress":{"position":Vector3(4.5,0,-98),"type":"npc"},"CoachLin":{"position":Vector3(9,0,-98),"type":"npc"},"Alchemist":{"position":Vector3(13.5,0,-98),"type":"npc"},"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
+ "ApeMountain":{"Pharmacist":{"position":Vector3(-84,0,-52),"type":"npc"},"Blacksmith":{"position":Vector3(-79.5,0,-52),"type":"npc"},"Warehouseman":{"position":Vector3(-75,0,-52),"type":"npc"},"Conductress":{"position":Vector3(-70.5,0,-52),"type":"npc"},"SolarSaint":{"position":Vector3(-66,0,-52),"type":"npc"},"CelestialTaoist":{"position":Vector3(-61.5,0,-52),"type":"npc"},"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
+ "DesertCity":{"Pharmacist":{"position":Vector3(-6.75,0,-88),"type":"npc"},"Blacksmith":{"position":Vector3(-2.25,0,-88),"type":"npc"},"Warehouseman":{"position":Vector3(2.25,0,-88),"type":"npc"},"Conductress":{"position":Vector3(6.75,0,-88),"type":"npc"},"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
+ "BirdIsland":{"Pharmacist":{"position":Vector3(25.25,4.6,2),"type":"npc"},"Blacksmith":{"position":Vector3(29.75,4.6,2),"type":"npc"},"Warehouseman":{"position":Vector3(34.25,4.6,2),"type":"npc"},"Conductress":{"position":Vector3(38.75,4.6,2),"type":"npc"},"CityCenter":{"position":Vector3(0,4.6,0),"type":"landmark"}},
+ "Market":{"CloudSaint":{"position":Vector3(-9,0,14),"type":"npc"},"TaoistMoon":{"position":Vector3(-4.5,0,14),"type":"npc"},"BlessedGreatMaster":{"position":Vector3(0,0,14),"type":"npc"},"Warehouseman":{"position":Vector3(4.5,0,14),"type":"npc"},"Conductress":{"position":Vector3(9,0,14),"type":"npc"},"MarketSquare":{"position":Vector3.ZERO,"type":"landmark"}}
 }
 var last_target_id := ""
 var navigation_in_progress := false

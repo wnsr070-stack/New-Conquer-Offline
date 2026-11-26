@@ -4,36 +4,61 @@ signal npc_interacted(npc_id: String, role_type: String)
 signal quest_npc_interacted(npc_id: String, role_type: String)
 
 const NPC_DEFINITIONS := [
- {"id":"Blacksmith","role":"shop","position":Vector3(-12,0,-9.6),"model":"warrior_male","prompt":"[Shop]"},
- {"id":"Armorer","role":"shop","position":Vector3(-7.199999999999999,0,-9.6),"model":"trojan_male","prompt":"[Shop]"},
- {"id":"AccessoryMerchant","role":"shop","position":Vector3(-2.4,0,-9.6),"model":"taoist_male","prompt":"[Shop]"},
- {"id":"Pharmacist","role":"shop","position":Vector3(2.4,0,-9.6),"model":"taoist_female","prompt":"[Shop]"},
- {"id":"QuestMaster","role":"quest","position":Vector3(7.199999999999999,0,-9.6),"model":"warrior_female","prompt":"[!]"},
- {"id":"ArtisanMaster","role":"forge","position":Vector3(12,0,-9.6),"model":"archer_male","prompt":"[Forge]"},
- {"id":"Warehouseman","role":"warehouse","position":Vector3(-12,0,-4.8),"model":"trojan_male","prompt":"[Box]"},
- {"id":"Conductress","role":"transport","position":Vector3(-7.199999999999999,0,-4.8),"model":"archer_female","prompt":"[Gate]"},
- {"id":"ImperialEnvoy","role":"story_quest","position":Vector3(-2.4,0,-4.8),"model":"taoist_male","prompt":"[?]"},
- {"id":"ArcherGod","city":"TwinCity","role":"quest","position":Vector3(2.4,0,-4.8),"model":"archer_male","prompt":"[!]"},
- {"id":"Ming","city":"TwinCity","role":"quest","position":Vector3(7.199999999999999,0,-4.8),"model":"taoist_female","prompt":"[!]"},
- {"id":"LongDong","city":"TwinCity","role":"quest","position":Vector3(12,0,-4.8),"model":"warrior_male","prompt":"[!]"},
- {"id":"Blacknull","city":"TwinCity","role":"quest","position":Vector3(-12,0,0),"model":"trojan_male","prompt":"[!]"},
- {"id":"F.Chen","city":"TwinCity","role":"quest","position":Vector3(-7.199999999999999,0,0),"model":"taoist_male","prompt":"[!]"},
- {"id":"Synsia","city":"TwinCity","role":"quest","position":Vector3(-2.4,0,0),"model":"archer_female","prompt":"[!]"},
- {"id":"GemCollector","city":"TwinCity","role":"quest","position":Vector3(2.4,0,0),"model":"taoist_male","prompt":"[!]"},
- {"id":"MonsterSlayer","city":"TwinCity","role":"quest","position":Vector3(7.199999999999999,0,0),"model":"warrior_male","prompt":"[!]"},
- {"id":"EventMaster","city":"TwinCity","role":"quest","position":Vector3(12,0,0),"model":"trojan_female","prompt":"[!]"},
- {"id":"ItemSocketingMaster","city":"TwinCity","role":"quest","position":Vector3(-12,0,4.8),"model":"warrior_female","prompt":"[!]"},
- {"id":"Celestine","city":"TwinCity","role":"quest","position":Vector3(-7.199999999999999,0,4.8),"model":"taoist_female","prompt":"[!]"},
- {"id":"RebirthMaster","city":"TwinCity","role":"quest","position":Vector3(-2.4,0,4.8),"model":"taoist_male","prompt":"[!]"},
- {"id":"GeneralQing","city":"TwinCity","role":"quest","position":Vector3(2.4,0,4.8),"model":"warrior_male","prompt":"[!]"},
- {"id":"Fortuneteller","city":"TwinCity","role":"quest","position":Vector3(7.199999999999999,0,4.8),"model":"taoist_female","prompt":"[!]"},
- {"id":"CloudSaint","city":"Market","role":"quest","position":Vector3(12,0,4.8),"model":"taoist_male","prompt":"[!]"},
- {"id":"TaoistMoon","city":"Market","role":"quest","position":Vector3(-12,0,9.6),"model":"taoist_female","prompt":"[!]"},
- {"id":"BlessedGreatMaster","city":"Market","role":"quest","position":Vector3(-7.199999999999999,0,9.6),"model":"warrior_male","prompt":"[!]"},
- {"id":"SolarSaint","city":"ApeMountain","role":"quest","position":Vector3(-2.4,0,9.6),"model":"taoist_male","prompt":"[!]"},
- {"id":"CelestialTaoist","city":"ApeMountain","role":"quest","position":Vector3(2.4,0,9.6),"model":"taoist_female","prompt":"[!]"},
- {"id":"CoachLin","city":"PhoenixCastle","role":"quest","position":Vector3(7.199999999999999,0,9.6),"model":"warrior_male","prompt":"[!]"},
- {"id":"Alchemist","city":"PhoenixCastle","role":"quest","position":Vector3(12,0,9.6),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Celestine","city":"TwinCity","role":"quest","position":Vector3(-9,0,-58),"model":"taoist_female","prompt":"[!]"},
+ {"id":"GeneralQing","city":"TwinCity","role":"quest","position":Vector3(-4.5,0,-58),"model":"warrior_male","prompt":"[!]"},
+ {"id":"ImperialEnvoy","city":"TwinCity","role":"quest","position":Vector3(0,0,-58),"model":"taoist_male","prompt":"[!]"},
+ {"id":"RebirthMaster","city":"TwinCity","role":"quest","position":Vector3(4.5,0,-58),"model":"taoist_male","prompt":"[!]"},
+ {"id":"ItemSocketingMaster","city":"TwinCity","role":"quest","position":Vector3(9,0,-58),"model":"warrior_female","prompt":"[!]"},
+ {"id":"ArcherGod","city":"TwinCity","role":"quest","position":Vector3(-22,0,-18),"model":"archer_male","prompt":"[!]"},
+ {"id":"EventMaster","city":"TwinCity","role":"quest","position":Vector3(-22,0,-13.5),"model":"trojan_female","prompt":"[!]"},
+ {"id":"MonsterSlayer","city":"TwinCity","role":"quest","position":Vector3(-22,0,-9),"model":"warrior_male","prompt":"[!]"},
+ {"id":"GemCollector","city":"TwinCity","role":"quest","position":Vector3(-22,0,-4.5),"model":"taoist_male","prompt":"[!]"},
+ {"id":"TCGuide","city":"TwinCity","role":"quest","position":Vector3(-22,0,0),"model":"archer_female","prompt":"[!]"},
+ {"id":"ArenaGuard","city":"TwinCity","role":"quest","position":Vector3(-22,0,4.5),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Blacksmith","city":"TwinCity","role":"shop","position":Vector3(-22.5,0,20),"model":"warrior_male","prompt":"[Shop]"},
+ {"id":"Armorer","city":"TwinCity","role":"shop","position":Vector3(-18,0,20),"model":"trojan_male","prompt":"[Shop]"},
+ {"id":"ArtisanMaster","city":"TwinCity","role":"forge","position":Vector3(-13.5,0,20),"model":"archer_male","prompt":"[Forge]"},
+ {"id":"AccessoryMerchant","city":"TwinCity","role":"shop","position":Vector3(-9,0,20),"model":"taoist_male","prompt":"[Shop]"},
+ {"id":"WeaponMaster","city":"TwinCity","role":"shop","position":Vector3(-4.5,0,20),"model":"warrior_male","prompt":"[Shop]"},
+ {"id":"GuildOfficer","city":"TwinCity","role":"quest","position":Vector3(0,0,20),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Pharmacist","city":"TwinCity","role":"shop","position":Vector3(4.5,0,20),"model":"taoist_female","prompt":"[Shop]"},
+ {"id":"Warehouseman","city":"TwinCity","role":"warehouse","position":Vector3(9,0,20),"model":"trojan_male","prompt":"[Box]"},
+ {"id":"Ming","city":"TwinCity","role":"quest","position":Vector3(13.5,0,20),"model":"taoist_female","prompt":"[!]"},
+ {"id":"LongDong","city":"TwinCity","role":"quest","position":Vector3(18,0,20),"model":"warrior_male","prompt":"[!]"},
+ {"id":"GuildDirector","city":"TwinCity","role":"quest","position":Vector3(22.5,0,20),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Conductress","city":"TwinCity","role":"transport","position":Vector3(22,0,0),"model":"taoist_male","prompt":"[Gate]"},
+ {"id":"Blacknull","city":"TwinCity","role":"quest","position":Vector3(22,0,-4.5),"model":"taoist_male","prompt":"[!]"},
+ {"id":"F.Chen","city":"TwinCity","role":"quest","position":Vector3(22,0,-9),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Synsia","city":"TwinCity","role":"quest","position":Vector3(22,0,-13.5),"model":"taoist_male","prompt":"[!]"},
+ {"id":"DailyEnvoy","city":"TwinCity","role":"quest","position":Vector3(22,0,-18),"model":"taoist_male","prompt":"[!]"},
+ {"id":"LoveStone","city":"TwinCity","role":"quest","position":Vector3(22,0,4.5),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Fortuneteller","city":"TwinCity","role":"quest","position":Vector3(22,0,9),"model":"taoist_male","prompt":"[!]"},
+ {"id":"CaptainLi","city":"TwinCity","role":"quest","position":Vector3(22,0,13.5),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Pharmacist","city":"PhoenixCastle","role":"shop","position":Vector3(-9,0,-98),"model":"taoist_female","prompt":"[Shop]"},
+ {"id":"Blacksmith","city":"PhoenixCastle","role":"shop","position":Vector3(-4.5,0,-98),"model":"warrior_male","prompt":"[Shop]"},
+ {"id":"Warehouseman","city":"PhoenixCastle","role":"warehouse","position":Vector3(0,0,-98),"model":"trojan_male","prompt":"[Box]"},
+ {"id":"Conductress","city":"PhoenixCastle","role":"transport","position":Vector3(4.5,0,-98),"model":"archer_female","prompt":"[Gate]"},
+ {"id":"CoachLin","city":"PhoenixCastle","role":"quest","position":Vector3(9,0,-98),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Alchemist","city":"PhoenixCastle","role":"quest","position":Vector3(13.5,0,-98),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Pharmacist","city":"ApeMountain","role":"shop","position":Vector3(-84,0,-52),"model":"taoist_female","prompt":"[Shop]"},
+ {"id":"Blacksmith","city":"ApeMountain","role":"shop","position":Vector3(-79.5,0,-52),"model":"warrior_male","prompt":"[Shop]"},
+ {"id":"Warehouseman","city":"ApeMountain","role":"warehouse","position":Vector3(-75,0,-52),"model":"trojan_male","prompt":"[Box]"},
+ {"id":"Conductress","city":"ApeMountain","role":"transport","position":Vector3(-70.5,0,-52),"model":"archer_female","prompt":"[Gate]"},
+ {"id":"SolarSaint","city":"ApeMountain","role":"quest","position":Vector3(-66,0,-52),"model":"taoist_male","prompt":"[!]"},
+ {"id":"CelestialTaoist","city":"ApeMountain","role":"quest","position":Vector3(-61.5,0,-52),"model":"taoist_female","prompt":"[!]"},
+ {"id":"Pharmacist","city":"DesertCity","role":"shop","position":Vector3(-6.75,0,-88),"model":"archer_male","prompt":"[!]"},
+ {"id":"Blacksmith","city":"DesertCity","role":"shop","position":Vector3(-2.25,0,-88),"model":"archer_male","prompt":"[!]"},
+ {"id":"Warehouseman","city":"DesertCity","role":"warehouse","position":Vector3(2.25,0,-88),"model":"archer_male","prompt":"[!]"},
+ {"id":"Conductress","city":"DesertCity","role":"transport","position":Vector3(6.75,0,-88),"model":"archer_male","prompt":"[!]"},
+ {"id":"Pharmacist","city":"BirdIsland","role":"shop","position":Vector3(25.25,4.6,2),"model":"archer_male","prompt":"[!]"},
+ {"id":"Blacksmith","city":"BirdIsland","role":"shop","position":Vector3(29.75,4.6,2),"model":"archer_male","prompt":"[!]"},
+ {"id":"Warehouseman","city":"BirdIsland","role":"warehouse","position":Vector3(34.25,4.6,2),"model":"archer_male","prompt":"[!]"},
+ {"id":"Conductress","city":"BirdIsland","role":"transport","position":Vector3(38.75,4.6,2),"model":"archer_male","prompt":"[!]"},
+ {"id":"CloudSaint","city":"Market","role":"quest","position":Vector3(-9,0,14),"model":"archer_male","prompt":"[!]"},
+ {"id":"TaoistMoon","city":"Market","role":"quest","position":Vector3(-4.5,0,14),"model":"archer_male","prompt":"[!]"},
+ {"id":"BlessedGreatMaster","city":"Market","role":"quest","position":Vector3(0,0,14),"model":"archer_male","prompt":"[!]"},
+ {"id":"Warehouseman","city":"Market","role":"warehouse","position":Vector3(4.5,0,14),"model":"archer_male","prompt":"[!]"},
+ {"id":"Conductress","city":"Market","role":"transport","position":Vector3(9,0,14),"model":"archer_male","prompt":"[!]"}
 ]
 const CharacterVisualControllerScript = preload("res://scripts/CharacterVisualController.gd")
 const INTERACTION_HEIGHT := 3.2
@@ -69,7 +94,7 @@ func spawn_city_npcs(city_root: Node3D) -> void:
  for definition in NPC_DEFINITIONS:
   # Twin City is the Phase 4D hub preview: place all 30 authored merchants and quest NPCs there.
   # Other city scenes retain their explicitly assigned NPC subsets.
-  if city_id != "TwinCity" and String(definition.get("city","TwinCity")) != city_id: continue
+  if String(definition.get("city","TwinCity")) != city_id: continue
   var npc_id := String(definition.id)
   if _npc_nodes.has(npc_id):
    var existing_npc: Variant = _npc_nodes[npc_id]
@@ -83,8 +108,12 @@ func spawn_city_npcs(city_root: Node3D) -> void:
   npc.name = "NPC_"+npc_id
   npc.set_meta("npc_id",npc_id)
   npc.set_meta("role_type",String(definition.role))
-  npc.position = _resolve_ground_position(city_root,definition.position)
   city_root.add_child(npc)
+  _ensure_authored_ground_collider(city_root,definition.position,npc_id)
+  npc.position = _resolve_ground_position(city_root,definition.position)
+  var facing_target := city_root.to_global(Vector3(0.0,definition.position.y,0.0))
+  if npc.global_position.distance_to(facing_target) > 0.01:
+   npc.look_at(facing_target,Vector3.UP)
   var character := CharacterVisualControllerScript.new() as Node3D
   if character == null:
    npc.free()
@@ -115,6 +144,22 @@ func spawn_city_npcs(city_root: Node3D) -> void:
  if city_id == "TwinCity":
   print("PHASE4D_NPC_OVERHEAD_PROMPTS_READY: spawned=",spawned_count," height=",INTERACTION_HEIGHT,"m")
 
+func _ensure_authored_ground_collider(city_root: Node3D, authored_position: Vector3, npc_id: String) -> void:
+ var key := "NPCGround_"+npc_id
+ if city_root.get_node_or_null(NodePath(key)) != null: return
+ var body := StaticBody3D.new()
+ body.name = key
+ body.position = Vector3(authored_position.x,authored_position.y-0.05,authored_position.z)
+ body.collision_layer = 1
+ body.collision_mask = 1
+ var collision := CollisionShape3D.new()
+ var shape := BoxShape3D.new()
+ shape.size = Vector3(4.2,0.1,4.2)
+ collision.shape = shape
+ body.add_child(collision)
+ city_root.add_child(body)
+ print("PHASE4D_NPC_AUTHORED_GROUND_COLLIDER_READY: id=",npc_id," surface_y=",authored_position.y)
+
 func _resolve_ground_position(city_root: Node3D, authored_position: Vector3) -> Vector3:
  var world := city_root.get_world_3d()
  if world != null:
@@ -129,14 +174,16 @@ func _resolve_ground_position(city_root: Node3D, authored_position: Vector3) -> 
    var ground_y := float(hit.position.y)
    print("PHASE4D_NPC_GROUND_RAY_OK: x=",authored_position.x," z=",authored_position.z," ground_y=",ground_y," collider=",hit.collider.name)
    return Vector3(authored_position.x,ground_y,authored_position.z)
- push_warning("PHASE4D_NPC_GROUND_RAY_MISS: using authored plaza floor height at "+str(authored_position))
- return Vector3(authored_position.x,0.2,authored_position.z)
+ push_warning("PHASE4D_NPC_GROUND_RAY_MISS: authored collider surface retained at "+str(authored_position))
+ return authored_position
 
 func _resolve_city_id(root: Node3D) -> String:
  var value := root.name.to_lower().replace("_","").replace(" ","")
  if value.contains("market"): return "Market"
  if value.contains("ape"): return "ApeMountain"
  if value.contains("phoenix"): return "PhoenixCastle"
+ if value.contains("desert"): return "DesertCity"
+ if value.contains("bird"): return "BirdIsland"
  return "TwinCity"
 
 func get_npc_definition(npc_id: String) -> Dictionary:
