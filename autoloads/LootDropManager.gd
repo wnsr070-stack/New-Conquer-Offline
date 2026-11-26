@@ -83,14 +83,14 @@ func on_monster_killed(monster:Node3D)->int:
 	if _rng.randf()<(0.025 if is_boss else 0.0015):
 		if spawn_drop({"item_id":"DragonBall","item_type":"Dragon Ball","amount":1,"rarity":"Super"},origin)!=null: spawned+=1
 	if _rng.randf()<(0.32 if is_boss else 0.10):
-		var gem_id:=["DragonGem","PhoenixGem","RainbowGem","VioletGem","MoonGem"][_rng.randi_range(0,4)]
+		var gem_id := String(["DragonGem","PhoenixGem","RainbowGem","VioletGem","MoonGem"][_rng.randi_range(0,4)])
 		if spawn_drop({"item_id":gem_id,"item_type":"Gems","amount":1,"rarity":"Elite"},origin)!=null: spawned+=1
 	if _rng.randf()<(0.40 if is_boss else 0.16):
-		var potion_id:=["HPPotion","MPPotion","Panacea"][_rng.randi_range(0,2)]
+		var potion_id := String(["HPPotion","MPPotion","Panacea"][_rng.randi_range(0,2)])
 		if spawn_drop({"item_id":potion_id,"item_type":"Potions","amount":_rng.randi_range(1,3),"rarity":"Refined"},origin)!=null: spawned+=1
 	if _rng.randf()<(0.24 if is_boss else 0.035):
-		var gear_id:=["GearBox","RandomWeapon","RandomArmor"][_rng.randi_range(0,2)]
-		var quality:=["Unique","Elite","Super"][_rng.randi_range(0,2)]
+		var gear_id := String(["GearBox","RandomWeapon","RandomArmor"][_rng.randi_range(0,2)])
+		var quality := String(["Unique","Elite","Super"][_rng.randi_range(0,2)])
 		if spawn_drop({"item_id":gear_id,"item_type":"Gear","amount":1,"rarity":quality},origin)!=null: spawned+=1
 	print("PHASE4D_MONSTER_LOOT_ROLLED: monster=",monster.name," boss=",is_boss," drops=",spawned)
 	return spawned
