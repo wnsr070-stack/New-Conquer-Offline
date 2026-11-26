@@ -22,6 +22,7 @@ var _window_menu: VBoxContainer
 
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ layout_direction = Control.LAYOUT_DIRECTION_LTR
  mouse_filter = Control.MOUSE_FILTER_PASS
  _build_hud()
  _install_arabic_theme()
@@ -39,6 +40,7 @@ func _process(_delta: float) -> void:
 func _build_hud() -> void:
  var root:=Control.new()
  root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ root.layout_direction = Control.LAYOUT_DIRECTION_LTR
  add_child(root)
  var hero:=_ornate_panel(root,Vector2(16,14),Vector2(365,164))
  var head:=HBoxContainer.new()
@@ -76,7 +78,8 @@ func _build_hud() -> void:
   mb.custom_minimum_size=Vector2(78,26)
   modes.add_child(mb)
  hero.add_child(modes)
- var qcard:=_ornate_panel(root,Vector2(16,185),Vector2(365,190))
+ var qcard:=_ornate_panel(root,Vector2(-390,450),Vector2(365,190))
+ qcard.set_anchors_preset(Control.PRESET_TOP_RIGHT)
  _quest_panel=VBoxContainer.new()
  _quest_panel.position=Vector2(12,8)
  _quest_panel.size=Vector2(340,170)
@@ -240,25 +243,31 @@ class RadarDisplay extends Control:
   draw_line(center+Vector2(0,-radius),center+Vector2(0,radius),Color(0.55,0.55,0.45,0.35),1.0)
   draw_circle(center,4.0,Color(0.25,0.95,0.55))
 
+func _root_autoload(node_name: String) -> Node:
+ if not is_inside_tree(): return null
+ var scene_root := get_tree().root
+ if scene_root == null: return null
+ return scene_root.get_node_or_null(node_name)
+
 func _connect_systems() -> void:
- var npcs := get_node_or_null("/root/NPCMerchantSystem")
+ var npcs := _root_autoload("NPCMerchantSystem")
  if npcs != null and npcs.has_signal("npc_interacted") and not npcs.npc_interacted.is_connected(_on_npc_interacted):
   npcs.npc_interacted.connect(_on_npc_interacted)
- var quests := get_node_or_null("/root/QuestSystem")
+ var quests := _root_autoload("QuestSystem")
  if quests != null:
   if quests.has_signal("quest_accepted") and not quests.quest_accepted.is_connected(_refresh_quests): quests.quest_accepted.connect(_refresh_quests)
   if quests.has_signal("quest_progressed") and not quests.quest_progressed.is_connected(_on_quest_progressed): quests.quest_progressed.connect(_on_quest_progressed)
   if quests.has_signal("quest_completed") and not quests.quest_completed.is_connected(_refresh_quests): quests.quest_completed.connect(_refresh_quests)
   if quests.has_signal("quest_ready_to_claim") and not quests.quest_ready_to_claim.is_connected(_refresh_quests): quests.quest_ready_to_claim.connect(_refresh_quests)
- var gear := get_node_or_null("/root/GearSystem")
+ var gear := _root_autoload("GearSystem")
  if gear != null and gear.has_signal("equipment_changed") and not gear.equipment_changed.is_connected(_on_equipment_changed):
   gear.equipment_changed.connect(_on_equipment_changed)
- var state := get_node_or_null("/root/GameState")
+ var state := _root_autoload("GameState")
  if state != null and state.has_signal("inventory_changed") and not state.inventory_changed.is_connected(_on_inventory_changed):
   state.inventory_changed.connect(_on_inventory_changed)
  if state != null and state.has_signal("warehouse_changed") and not state.warehouse_changed.is_connected(_on_warehouse_changed):
   state.warehouse_changed.connect(_on_warehouse_changed)
- var forging := get_node_or_null("/root/ForgingSystem")
+ var forging := _root_autoload("ForgingSystem")
  if forging != null and forging.has_signal("artisan_opened") and not forging.artisan_opened.is_connected(_open_artisan):
   forging.artisan_opened.connect(_open_artisan)
 
@@ -269,7 +278,7 @@ func _refresh_all() -> void:
 
 func _refresh_status() -> void:
  if _status_label==null: return
- var state:=get_node_or_null("/root/GameState")
+ var state:=_root_autoload("GameState")
  var player:Dictionary=state.player_data if state!=null else {}
  var hp:=int(player.get("hp",player.get("max_hp",100)))
  var max_hp:=maxi(1,int(player.get("max_hp",100)))
@@ -289,7 +298,7 @@ func _refresh_status() -> void:
 
 func _refresh_minimap() -> void:
  if _minimap_label == null: return
- var world := get_node_or_null("/root/WorldMapManager")
+ var world := _root_autoload("WorldMapManager")
  var city := "المدينة التوأم" if world == null or String(world.current_city)=="TwinCity" else String(world.current_city)
  var p := _find_hero()
  var pos := p.global_position if p != null else Vector3.ZERO
@@ -303,7 +312,7 @@ func _refresh_quests(_unused_a: Variant = null,_unused_b: Variant = null,_unused
  title.text="المهام النشطة  •  اضغط للانتقال التلقائي"
  title.add_theme_color_override("font_color",Color(1.0,0.82,0.42))
  _quest_panel.add_child(title)
- var quests:=get_node_or_null("/root/QuestSystem")
+ var quests:=_root_autoload("QuestSystem")
  if quests==null: return
  var tracked:Array=quests.get_tracked_quests() if quests.has_method("get_tracked_quests") else []
  for quest in tracked.slice(0,4):
@@ -314,7 +323,7 @@ func _refresh_quests(_unused_a: Variant = null,_unused_b: Variant = null,_unused
   _quest_panel.add_child(b)
 
 func _navigate_quest(id: String) -> void:
- var quests := get_node_or_null("/root/QuestSystem")
+ var quests := _root_autoload("QuestSystem")
  if quests != null and quests.has_method("navigate_to_quest"):
   _last_quest_id = id
   quests.navigate_to_quest(id)
@@ -388,19 +397,17 @@ func _send_chat_message(entry: LineEdit,log: Label) -> void:
   entry.clear()
 
 func _set_combat_mode(mode: String) -> void:
- var state:=get_node_or_null("/root/GameState")
+ var state:=_root_autoload("GameState")
  if state!=null: state.player_data["combat_mode"]=mode
 
 func _toggle_window_menu() -> void:
  if _window_menu != null: _window_menu.visible = not _window_menu.visible
 
 func _round_button(caption: String,callback: Callable) -> Button:
- var button:=_button(caption,callback)
+ var button := _button(caption,callback)
  button.custom_minimum_size=Vector2(58,54)
- button.add_theme_stylebox_override("normal",_flat_style(Color(0.10,0.075,0.045,0.96),Color(0.91,0.69,0.29),3))
- button.add_theme_stylebox_override("hover",_flat_style(Color(0.24,0.16,0.07,0.98),Color(1.0,0.84,0.45),3))
+ _apply_button_skin(button,true)
  return button
-
 func _quick_action(action: String) -> void:
  if action=="Auto-Hunt": _toggle_auto_combat()
  else: _open_window(action)
@@ -409,12 +416,12 @@ func _select_chat_tab(tab: String) -> void:
  print("CHAT_TAB_SELECTED: ",tab)
 
 func _cycle_target() -> void:
- var combat:=get_node_or_null("/root/CombatSystem")
+ var combat:=_root_autoload("CombatSystem")
  _hero=_find_hero()
  if combat!=null and _hero!=null: combat.current_target=combat.find_nearest_target(_hero)
 
 func _build_skill_window(layout: VBoxContainer) -> void:
- var skills:=get_node_or_null("/root/SkillSystem")
+ var skills:=_root_autoload("SkillSystem")
  var hero:=_find_hero()
  var available:Array=skills.get_available_skills(hero) if skills!=null and hero!=null else []
  var grid:=GridContainer.new()
@@ -450,11 +457,11 @@ func _build_system_window(layout: VBoxContainer) -> void:
  layout.add_child(HSeparator.new())
  layout.add_child(_label("الحفظ"))
  layout.add_child(_button("حفظ اللعبة الآن",func():
-  var state:=get_node_or_null("/root/GameState")
+  var state:=_root_autoload("GameState")
   if state!=null: state.save_game()
  ))
  layout.add_child(_button("العودة إلى المدينة",func():
-  var nav:=get_node_or_null("/root/WorldNavigationSystem")
+  var nav:=_root_autoload("WorldNavigationSystem")
   if nav!=null and nav.has_method("navigate_to_target"): nav.navigate_to_target("CentralPlaza")
  ))
 
@@ -487,7 +494,7 @@ func _build_guild_window(layout: VBoxContainer) -> void:
 
 
 func _build_inventory(layout: VBoxContainer) -> void:
- var state := get_node_or_null("/root/GameState")
+ var state := _root_autoload("GameState")
  var slots: Array = state.inventory_slots if state != null else []
  var grid := GridContainer.new()
  grid.columns = 8
@@ -513,8 +520,8 @@ func _build_inventory(layout: VBoxContainer) -> void:
  layout.add_child(footer)
 
 func _build_character(layout: VBoxContainer) -> void:
- var state := get_node_or_null("/root/GameState")
- var gear := get_node_or_null("/root/GearSystem")
+ var state := _root_autoload("GameState")
+ var gear := _root_autoload("GearSystem")
  var equipped: Dictionary = gear.equipped if gear != null else {}
  var grid := GridContainer.new()
  grid.columns = 5
@@ -536,7 +543,7 @@ func _build_character(layout: VBoxContainer) -> void:
  layout.add_child(_label("Battle Power: %d   ATK: %d   DEF: %d   M.ATK: %d" % [bp,int(stats.get("attack",0)),int(stats.get("defense",0)),int(stats.get("magic_attack",0))]))
 
 func _build_quest_book(layout: VBoxContainer) -> void:
- var quests := get_node_or_null("/root/QuestSystem")
+ var quests := _root_autoload("QuestSystem")
  if quests == null: return
  var categories := ["MAIN_PROMOTION","DAILY","WEEKLY","SIDE_QUESTS","ENDGAME_REBIRTH","DAILY_LOGIN"]
  var tabs := HBoxContainer.new()
@@ -595,19 +602,19 @@ func _select_quest_category(category: String) -> void:
  _open_window("Quests")
 
 func _accept_quest(id: String) -> void:
- var quests := get_node_or_null("/root/QuestSystem")
+ var quests := _root_autoload("QuestSystem")
  if quests != null and quests.accept_quest(id):
   _open_window("Quests")
 
 func _claim_quest_reward(id: String) -> void:
- var quests := get_node_or_null("/root/QuestSystem")
+ var quests := _root_autoload("QuestSystem")
  if quests != null and quests.claim_quest_reward(id):
   _open_window("Quests")
 
 func _build_daily_rewards(layout: VBoxContainer) -> void:
- var quests := get_node_or_null("/root/QuestSystem")
+ var quests := _root_autoload("QuestSystem")
  var rewards: Array = quests.DAILY_REWARDS if quests != null else []
- var state := get_node_or_null("/root/GameState")
+ var state := _root_autoload("GameState")
  var claimed_day := int(state.player_data.get("daily_login_day_index",-1)) if state != null else -1
  for day in range(7):
   var reward: Dictionary = rewards[day] if day < rewards.size() else {}
@@ -622,7 +629,7 @@ func _build_daily_rewards(layout: VBoxContainer) -> void:
  layout.add_child(_label("One reward per calendar day; seven-day cycle."))
 
 func _claim_daily() -> void:
- var quests := get_node_or_null("/root/QuestSystem")
+ var quests := _root_autoload("QuestSystem")
  if quests != null and quests.has_method("claim_daily_login"):
   quests.claim_daily_login()
  _open_window("Daily Login")
@@ -640,7 +647,7 @@ func _select_forge_tab(tab: String) -> void:
  _open_window("ArtisanMaster")
 
 func _forge_operation(slot: String) -> void:
- var forge := get_node_or_null("/root/ForgingSystem")
+ var forge := _root_autoload("ForgingSystem")
  if forge == null: return
  match _current_role:
   "Quality": forge.upgrade_quality(slot)
@@ -651,7 +658,7 @@ func _forge_operation(slot: String) -> void:
  _open_window("ArtisanMaster")
 
 func _build_warehouse(layout: VBoxContainer) -> void:
- var state := get_node_or_null("/root/GameState")
+ var state := _root_autoload("GameState")
  if state == null: return
  var scroll := ScrollContainer.new()
  scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -731,7 +738,7 @@ func _withdraw_all() -> void:
  _transfer_warehouse(false,true)
 
 func _transfer_warehouse(deposit: bool,all_items: bool) -> void:
- var state := get_node_or_null("/root/GameState")
+ var state := _root_autoload("GameState")
  if state == null: return
  if deposit:
   if _selected_inventory_slot < 0 or _selected_inventory_slot >= state.inventory_slots.size(): return
@@ -746,8 +753,8 @@ func _transfer_warehouse(deposit: bool,all_items: bool) -> void:
  _open_window("Warehouse")
 
 func _build_merchant(layout: VBoxContainer) -> void:
- var npc := get_node_or_null("/root/NPCMerchantSystem")
- var state := get_node_or_null("/root/GameState")
+ var npc := _root_autoload("NPCMerchantSystem")
+ var state := _root_autoload("GameState")
  layout.add_child(_label("Merchant: %s  |  Gold: %d" % [_current_npc,int(state.gold) if state != null else 0]))
  if npc == null or not npc.has_method("get_shop_inventory"): return
  var stock: Array = npc.get_shop_inventory(_current_npc)
@@ -787,19 +794,19 @@ func _build_merchant(layout: VBoxContainer) -> void:
    bag_list.add_child(row)
 
 func _merchant_buy(item_id: String,quantity: int) -> void:
- var npc := get_node_or_null("/root/NPCMerchantSystem")
+ var npc := _root_autoload("NPCMerchantSystem")
  if npc != null: npc.buy_item(_current_npc,item_id,quantity)
  _open_window("Merchant")
 
 func _merchant_sell(slot_index: int,quantity: int) -> void:
- var npc := get_node_or_null("/root/NPCMerchantSystem")
+ var npc := _root_autoload("NPCMerchantSystem")
  if npc != null: npc.sell_item(slot_index,quantity)
  _open_window("Merchant")
 
 func _build_map_window(layout: VBoxContainer) -> void:
  _refresh_minimap()
  layout.add_child(_label(_minimap_label.text))
- var nav := get_node_or_null("/root/WorldNavigationSystem")
+ var nav := _root_autoload("WorldNavigationSystem")
  if nav != null:
   for target in ["CentralPlaza","ArcherGod","ArtisanMaster","Warehouseman","ImperialPalace"]:
    layout.add_child(_button(target,func(): nav.navigate_to_target(target)))
@@ -815,7 +822,7 @@ func _build_npc_info(layout: VBoxContainer, name: String) -> void:
  layout.add_child(_label("Role: " + _current_role))
 
 func _get_item_data(item_id: String) -> Dictionary:
- var database := get_node_or_null("/root/GearDatabase")
+ var database := _root_autoload("GearDatabase")
  if database != null and database.has_method("get_item"):
   var data: Dictionary = database.get_item(item_id)
   if not data.is_empty(): return data
@@ -834,7 +841,7 @@ func _make_item_icon(data: Dictionary,plus: int = 0,icon_size: Vector2 = Vector2
  return icon
 
 func _use_potion(item_id: String) -> void:
- var state := get_node_or_null("/root/GameState")
+ var state := _root_autoload("GameState")
  if state != null and state.remove_item(item_id,1):
   if item_id == "HPPotion": state.player_data["hp"] = int(state.player_data.get("hp",100)) + 250
   else: state.player_data["mana"] = int(state.player_data.get("mana",100)) + 250
@@ -842,7 +849,7 @@ func _use_potion(item_id: String) -> void:
  _refresh_status()
 
 func _attack() -> void:
- var combat := get_node_or_null("/root/CombatSystem")
+ var combat := _root_autoload("CombatSystem")
  _hero = _find_hero()
  if combat != null and _hero != null:
   var target: Node3D = combat.find_nearest_target(_hero) as Node3D
@@ -855,12 +862,12 @@ func _use_secondary_skill() -> void:
  _use_skill_at(1)
 
 func _use_skill_at(index: int) -> void:
- var skills := get_node_or_null("/root/SkillSystem")
+ var skills := _root_autoload("SkillSystem")
  _hero = _find_hero()
  if skills == null or _hero == null: return
  var available: Array = skills.get_available_skills(_hero)
  if index < available.size():
-  var combat := get_node_or_null("/root/CombatSystem")
+  var combat := _root_autoload("CombatSystem")
   var target: Node3D = combat.find_nearest_target(_hero) if combat != null else null
   skills.use_skill(_hero,String(available[index]),target)
 
@@ -871,7 +878,7 @@ func _jump() -> void:
   if body.is_on_floor(): body.velocity.y = 6.5
 
 func _toggle_auto_combat() -> void:
- var combat := get_node_or_null("/root/CombatSystem")
+ var combat := _root_autoload("CombatSystem")
  _hero = _find_hero()
  if combat == null or _hero == null: return
  combat.combat_active = not combat.combat_active
@@ -915,11 +922,11 @@ func _install_arabic_theme() -> void:
 func _apply_arabic_rtl(node: Node) -> void:
  if node is Control:
   var control := node as Control
-  control.layout_direction = Control.LAYOUT_DIRECTION_RTL
-  control.text_direction = Control.TEXT_DIRECTION_RTL
+  control.layout_direction = Control.LAYOUT_DIRECTION_LTR
+  if node is Label or node is Button or node is RichTextLabel or node is LineEdit:
+   control.text_direction = Control.TEXT_DIRECTION_RTL
  for child in node.get_children():
   _apply_arabic_rtl(child)
-
 func _arabic(caption: String) -> String:
  var dictionary := {
   "Plus +1…+12":"التطوير +1 إلى +12","Quality":"الجودة","Level":"المستوى","Sockets":"فتح الثقوب","Anima":"ترقية الأنيما",
@@ -973,26 +980,43 @@ func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right
  panel.size=panel_size
  panel.position=offset
  if top_right: panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- var style:=StyleBoxTexture.new()
- style.texture=load("res://assets/ui/frame_gold.svg")
- style.texture_margin_left=24
- style.texture_margin_top=24
- style.texture_margin_right=24
- style.texture_margin_bottom=24
- panel.add_theme_stylebox_override("panel",style)
+ panel.add_theme_stylebox_override("panel",_texture_style("res://assets/ui/borders/panel_brown.png"))
  parent.add_child(panel)
  return panel
 
+func _texture_style(path: String) -> StyleBoxTexture:
+ var style := StyleBoxTexture.new()
+ var texture := load(path) as Texture2D
+ if texture == null:
+  push_warning("PHASE5A_UI_TEXTURE_MISSING: " + path)
+  return style
+ style.texture = texture
+ style.texture_margin_left = 12.0
+ style.texture_margin_top = 12.0
+ style.texture_margin_right = 12.0
+ style.texture_margin_bottom = 12.0
+ style.draw_center = true
+ return style
+
+func _slot_style() -> StyleBoxTexture:
+ return _texture_style("res://assets/ui/slots/slot_brown.png")
+
+func _apply_button_skin(button: Button,square := false) -> void:
+ var normal_path := "res://assets/ui/buttons/btn_sq_brown.png" if square else "res://assets/ui/buttons/btn_brown.png"
+ var pressed_path := "res://assets/ui/buttons/btn_sq_brown_pressed.png" if square else "res://assets/ui/buttons/btn_brown_pressed.png"
+ button.add_theme_stylebox_override("normal",_texture_style(normal_path))
+ button.add_theme_stylebox_override("hover",_texture_style(normal_path))
+ button.add_theme_stylebox_override("pressed",_texture_style(pressed_path))
 func _panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false,transparent:=false) -> Panel:
  return _ornate_panel(parent,offset,panel_size,top_right)
 
-func _button(caption: String, callback: Callable) -> Button:
+func _button(caption: String,callback: Callable) -> Button:
  var button := Button.new()
  button.text = _arabic(caption)
  button.custom_minimum_size = Vector2(70,34)
+ _apply_button_skin(button,false)
  button.pressed.connect(callback)
  return button
-
 func _label(caption: String) -> Label:
  var label := Label.new()
  label.text = _arabic(caption)
@@ -1034,7 +1058,7 @@ func _save_mobile_hud_preview(file_name: String) -> bool:
  return bytes > 1024
 
 func _seed_mobile_hud_preview_data() -> void:
- var state := get_node_or_null("/root/GameState")
+ var state := _root_autoload("GameState")
  if state != null:
   state.inventory_slots.clear()
   state.inventory.clear()
@@ -1043,8 +1067,8 @@ func _seed_mobile_hud_preview_data() -> void:
   state.add_item("DragonGem",3)
   state.add_item("Plus2Stone",8)
   state.add_item("HPPotion",50)
- var db := get_node_or_null("/root/GearDatabase")
- var gear := get_node_or_null("/root/GearSystem")
+ var db := _root_autoload("GearDatabase")
+ var gear := _root_autoload("GearSystem")
  if db != null and gear != null:
   var fixtures := {
    "weapon":"bow_lv10_normal_p12",
