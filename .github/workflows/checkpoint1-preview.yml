@@ -215,6 +215,20 @@ jobs:
           grep -q "PHASE3A3_ALL_SIX_CAPTURES_COMPLETE" artifacts/phase3a3.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE3A3_CAPTURE_FAILED|PHASE3A3_REQUIRED_ASSET_MISSING" artifacts/phase3a3.log
 
+      - name: Render MobileHUD inventory and character preview
+        run: |
+          set -euo pipefail
+          export LIBGL_ALWAYS_SOFTWARE=1
+          xvfb-run -a -s "-screen 0 1600x900x24" timeout 1500s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x900 -- --preview-mobile-hud 2>&1 | tee artifacts/mobile_hud_preview.log
+          test -s artifacts/mobile_hud_inventory_preview.png
+          test -s artifacts/mobile_hud_character_preview.png
+          for image in mobile_hud_inventory_preview.png mobile_hud_character_preview.png; do
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 1024 ] || { echo "::error::Mobile HUD preview $image is too small: $size bytes"; exit 1; }
+          done
+          grep -q "PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true" artifacts/mobile_hud_preview.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE5A_MOBILE_HUD_PREVIEW_FAILED" artifacts/mobile_hud_preview.log
+
       - name: Upload six captures and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -263,6 +277,9 @@ jobs:
             artifacts/hero_animation_build.log
             artifacts/twin_city_hero_isometric.png
             artifacts/godot.log
+            artifacts/mobile_hud_inventory_preview.png
+            artifacts/mobile_hud_character_preview.png
+            artifacts/mobile_hud_preview.log
       - name: Verify all six captures and checkpoint markers
         if: always()
         run: |
