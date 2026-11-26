@@ -26,6 +26,9 @@ func _ready() -> void:
     if not _build_city():
         await _shutdown(1)
         return
+    var npc_system := get_node_or_null("/root/NPCMerchantSystem")
+    if npc_system != null:
+        npc_system.spawn_city_npcs(self)
     var removed_aprons: Array[int] = [0]
     _remove_named_apron_meshes(self, removed_aprons)
     print("CHECKPOINT2_APRON_SURFACE_AUDIT_OK: removed_named_surfaces=", removed_aprons[0], "; city moat, bridges and dirt floor preserved")
@@ -592,6 +595,7 @@ func _spawn_playable_hero() -> void:
     hero.name = "TwinCityPlayableHero"
     var spawn_position := HERO_PLAZA_SPAWN
     hero.position = spawn_position
+    hero.add_to_group("player")
     add_child(hero)
     print("TWIN_CITY_PLAYABLE_HERO_SPAWNED: position=", spawn_position, " camera=Conquer45Iso")
 

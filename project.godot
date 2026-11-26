@@ -5,6 +5,8 @@ config/name="New Conquer Offline"
 run/main_scene="res://scenes/TwinCity.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 [autoload]
+WorldNavigationSystem="*res://autoloads/WorldNavigationSystem.gd"
+NPCMerchantSystem="*res://autoloads/NPCMerchantSystem.gd"
 WorldMapManager="*res://scripts/WorldMapManager.gd"
 ClassSystem="*res://autoloads/ClassSystem.gd"
 GearDatabase="*res://autoloads/GearDatabase.gd"
