@@ -20,6 +20,9 @@ var _city_root: Node3D
 var _npc_nodes: Dictionary = {}
 
 func _ready() -> void:
+ var forging := get_node_or_null("/root/ForgingSystem")
+ if forging != null and not npc_interacted.is_connected(forging.handle_npc_interaction):
+  npc_interacted.connect(forging.handle_npc_interaction)
  print("NPC_MERCHANT_SYSTEM_READY: imported_character_models_only=true")
 
 func spawn_city_npcs(city_root: Node3D) -> void:
