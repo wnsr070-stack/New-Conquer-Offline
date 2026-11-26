@@ -34,71 +34,183 @@ func _process(_delta: float) -> void:
  _refresh_minimap()
 
 func _build_hud() -> void:
- var root := Control.new()
+ var root:=Control.new()
  root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  add_child(root)
- var status := _panel(root, Vector2(16,16), Vector2(330,240))
- var status_box := VBoxContainer.new()
- status_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- status_box.add_theme_constant_override("separation",4)
- status.add_child(status_box)
- _status_label = Label.new()
+ var hero:=_ornate_panel(root,Vector2(16,14),Vector2(365,164))
+ var head:=HBoxContainer.new()
+ head.position=Vector2(12,8)
+ hero.add_child(head)
+ var portrait:=TextureRect.new()
+ portrait.texture=load("res://assets/ui/hero_portrait.svg")
+ portrait.custom_minimum_size=Vector2(68,68)
+ head.add_child(portrait)
+ var info:=VBoxContainer.new()
+ info.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ head.add_child(info)
+ _status_label=Label.new()
  _status_label.add_theme_font_size_override("font_size",15)
- status_box.add_child(_status_label)
- _quest_panel = VBoxContainer.new()
- _quest_panel.add_theme_constant_override("separation",3)
- status_box.add_child(_quest_panel)
- var map_panel := _panel(root, Vector2(-246,16), Vector2(230,142), true)
- _minimap_label = Label.new()
- _minimap_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- _minimap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
- _minimap_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
- map_panel.add_child(_minimap_label)
- var quick := HBoxContainer.new()
- quick.position = Vector2(-600,170)
+ info.add_child(_status_label)
+ var rank:=Label.new()
+ rank.text="RANGER  •  GUILD: NONE"
+ rank.add_theme_color_override("font_color",Color(0.95,0.79,0.42))
+ info.add_child(rank)
+ var sta:=ProgressBar.new()
+ sta.position=Vector2(92,91)
+ sta.custom_minimum_size=Vector2(250,12)
+ sta.max_value=100
+ sta.value=100
+ sta.show_percentage=false
+ hero.add_child(sta)
+ var buffs:=Label.new()
+ buffs.text="✦  ◆  ♜  ✚"
+ buffs.position=Vector2(95,109)
+ hero.add_child(buffs)
+ var modes:=HBoxContainer.new()
+ modes.position=Vector2(10,135)
+ for mode in ["Peace","Team","Capture","PK"]:
+  var mb:=_button(mode,_set_combat_mode.bind(mode))
+  mb.custom_minimum_size=Vector2(78,26)
+  modes.add_child(mb)
+ hero.add_child(modes)
+ var qcard:=_ornate_panel(root,Vector2(16,185),Vector2(365,190))
+ _quest_panel=VBoxContainer.new()
+ _quest_panel.position=Vector2(12,8)
+ _quest_panel.size=Vector2(340,170)
+ qcard.add_child(_quest_panel)
+ var radar:=_ornate_panel(root,Vector2(-246,14),Vector2(230,220),true)
+ _minimap_label=Label.new()
+ _minimap_label.position=Vector2(12,10)
+ _minimap_label.size=Vector2(206,195)
+ _minimap_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ _minimap_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+ radar.add_child(_minimap_label)
+ var quick:=HBoxContainer.new()
  quick.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- quick.add_theme_constant_override("separation",5)
+ quick.position=Vector2(-500,242)
  root.add_child(quick)
- for pair in [["Bag","Inventory"],["Hero","Character"],["Quest","Quests"],["Daily","Daily Login"],["Map","Map"],["Chat","Chat"]]:
-  quick.add_child(_button(String(pair[0]),_open_window.bind(String(pair[1]))))
- var joystick := _panel(root, Vector2(24,-220), Vector2(190,190), false, true)
- joystick.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- joystick.gui_input.connect(_on_joystick_input)
- _joystick_center = Vector2(95,95)
- var base := ColorRect.new()
- base.color = Color(0.25,0.34,0.48,0.38)
- base.position = Vector2(22,22)
- base.size = Vector2(146,146)
- base.mouse_filter = Control.MOUSE_FILTER_IGNORE
- joystick.add_child(base)
- var stick := Label.new()
- stick.text = "◎"
- stick.add_theme_font_size_override("font_size",66)
- stick.position = Vector2(53,45)
- stick.mouse_filter = Control.MOUSE_FILTER_IGNORE
- joystick.add_child(stick)
- var combat := VBoxContainer.new()
- combat.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
- combat.position = Vector2(-250,-260)
- combat.add_theme_constant_override("separation",8)
- root.add_child(combat)
- var row1 := HBoxContainer.new()
- combat.add_child(row1)
- row1.add_child(_button("Potion HP",_use_potion.bind("HPPotion")))
- row1.add_child(_button("Potion MP",_use_potion.bind("MPPotion")))
- var row2 := HBoxContainer.new()
- combat.add_child(row2)
- row2.add_child(_button("Attack",_attack))
- row2.add_child(_button("Jump",_jump))
- row2.add_child(_button("Skill 1",_use_primary_skill))
- var row3 := HBoxContainer.new()
- combat.add_child(row3)
- row3.add_child(_button("Skill 2",_use_secondary_skill))
- row3.add_child(_button("Auto",_toggle_auto_combat))
- _window_layer = Control.new()
+ for p in [["Daily","Daily Login"],["Hunt","Auto-Hunt"],["Map","Map"],["Settings","System"]]:
+  var b:=_button(String(p[0]),_quick_action.bind(String(p[1])))
+  b.custom_minimum_size=Vector2(112,32)
+  quick.add_child(b)
+ var chat:=_ornate_panel(root,Vector2(16,-390),Vector2(360,165))
+ chat.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ var tabs:=HBoxContainer.new()
+ tabs.position=Vector2(8,7)
+ for t in ["All","Talk","Whisper","Team","Guild","System"]:
+  var b:=_button(t,_select_chat_tab.bind(t))
+  b.custom_minimum_size=Vector2(54,26)
+  tabs.add_child(b)
+ chat.add_child(tabs)
+ var log:=Label.new()
+ log.text="[System] Welcome to Twin City"
+ log.position=Vector2(12,42)
+ log.size=Vector2(330,72)
+ chat.add_child(log)
+ var entry:=LineEdit.new()
+ entry.placeholder_text="Tap to type a message..."
+ entry.position=Vector2(10,120)
+ entry.size=Vector2(275,30)
+ chat.add_child(entry)
+ var send:=_button("Send",_send_chat_message.bind(entry,log))
+ send.position=Vector2(290,120)
+ send.custom_minimum_size=Vector2(58,30)
+ chat.add_child(send)
+ var joy:=_ornate_panel(root,Vector2(18,-205),Vector2(190,190))
+ joy.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ joy.gui_input.connect(_on_joystick_input)
+ var joyart:=TextureRect.new()
+ joyart.texture=load("res://assets/ui/joystick.svg")
+ joyart.position=Vector2(8,8)
+ joyart.size=Vector2(174,174)
+ joyart.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ joy.add_child(joyart)
+ var bottom:=Control.new()
+ bottom.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ root.add_child(bottom)
+ var hp:=LiquidOrb.new()
+ hp.name="HPOrb"
+ hp.orb_color=Color(0.86,0.12,0.16)
+ hp.label="HP"
+ hp.position=Vector2(560,-148)
+ hp.size=Vector2(112,112)
+ hp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ hp.add_to_group("hud_orbs")
+ bottom.add_child(hp)
+ var mp:=LiquidOrb.new()
+ mp.name="MPOrb"
+ mp.orb_color=Color(0.12,0.42,0.95)
+ mp.label="MP"
+ mp.position=Vector2(928,-148)
+ mp.size=Vector2(112,112)
+ mp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ mp.add_to_group("hud_orbs")
+ bottom.add_child(mp)
+ var exp:=HBoxContainer.new()
+ exp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ exp.position=Vector2(680,-115)
+ for i in range(10):
+  var c:=ColorRect.new()
+  c.custom_minimum_size=Vector2(24,14)
+  c.color=Color(0.83,0.61,0.17)
+  exp.add_child(c)
+ bottom.add_child(exp)
+ var hot:=HBoxContainer.new()
+ hot.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ hot.position=Vector2(630,-205)
+ for i in range(10):
+  var b:=_button("F%d"%(i+1),_use_skill_at.bind(i))
+  b.custom_minimum_size=Vector2(40,38)
+  hot.add_child(b)
+ bottom.add_child(hot)
+ var nav:=HBoxContainer.new()
+ nav.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ nav.position=Vector2(620,-58)
+ for p in [["Status","Character"],["Skill","Skill"],["Bag","Inventory"],["Quest","Quests"],["Market","Merchant"],["Guild","Guild"],["System","System"]]:
+  var b:=_button(String(p[0]),_open_window.bind(String(p[1])))
+  b.custom_minimum_size=Vector2(66,34)
+  nav.add_child(b)
+ bottom.add_child(nav)
+ var actions:=VBoxContainer.new()
+ actions.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+ actions.position=Vector2(-225,-260)
+ root.add_child(actions)
+ var row:=HBoxContainer.new()
+ row.add_child(_button("Scatter",_use_primary_skill))
+ row.add_child(_button("Fly",_jump))
+ actions.add_child(row)
+ row=HBoxContainer.new()
+ var target:=_button("Target",_cycle_target)
+ target.custom_minimum_size=Vector2(76,62)
+ row.add_child(target)
+ var attack:=_button("ATTACK",_attack)
+ attack.custom_minimum_size=Vector2(116,82)
+ attack.add_theme_font_size_override("font_size",20)
+ row.add_child(attack)
+ actions.add_child(row)
+ row=HBoxContainer.new()
+ row.add_child(_button("Arrow Rain",_use_secondary_skill))
+ row.add_child(_button("Rapid Fire",_use_primary_skill))
+ actions.add_child(row)
+ _window_layer=Control.new()
  _window_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- _window_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+ _window_layer.mouse_filter=Control.MOUSE_FILTER_STOP
  add_child(_window_layer)
+
+class LiquidOrb extends Control:
+ var orb_color:=Color.RED
+ var label:="HP"
+ var ratio:=1.0
+ func _draw()->void:
+  var c:=size*0.5
+  var r:=minf(size.x,size.y)*0.43
+  draw_circle(c,r,Color(0.035,0.035,0.06,0.96))
+  var y:=c.y+r-2.0*r*clampf(ratio,0.0,1.0)
+  var pts:=PackedVector2Array([c+Vector2(-r,r),c+Vector2(r,r),Vector2(c.x+r,y),Vector2(c.x-r,y)])
+  draw_colored_polygon(pts,Color(orb_color.r,orb_color.g,orb_color.b,0.9))
+  draw_arc(c,r,0.0,TAU,64,Color(0.95,0.78,0.35),5.0,true)
+  draw_arc(c,r-7.0,0.0,TAU,64,Color(1.0,0.9,0.64,0.65),1.5,true)
+  draw_string(ThemeDB.fallback_font,c+Vector2(-15,5),label,HORIZONTAL_ALIGNMENT_CENTER,48,16,Color.WHITE)
 
 func _connect_systems() -> void:
  var npcs := get_node_or_null("/root/NPCMerchantSystem")
@@ -128,20 +240,22 @@ func _refresh_all() -> void:
  _refresh_quests()
 
 func _refresh_status() -> void:
- if _status_label == null: return
- var state := get_node_or_null("/root/GameState")
- var player: Dictionary = state.player_data if state != null else {}
- var hp := int(player.get("hp",player.get("max_hp",100)))
- var max_hp := int(player.get("max_hp",100))
- var mp := int(player.get("mana",100))
- var stamina := int(player.get("stamina",100))
- var gold := int(state.gold) if state != null else 0
- var name := String(player.get("name","Ranger"))
- var level := int(player.get("level",1))
- var rank := String(player.get("rank","Novice"))
- var battle_power := int(player.get("battle_power",0))
- var cps := int(player.get("cps",player.get("conquer_points",0)))
- _status_label.text = "%s  |  %s  Lv.%d\nHP %d/%d   MP %d   STA %d\nGold %d   CPs %d" % [name,rank,level,hp,max_hp,mp,stamina,gold,battle_power]
+ if _status_label==null: return
+ var state:=get_node_or_null("/root/GameState")
+ var player:Dictionary=state.player_data if state!=null else {}
+ var hp:=int(player.get("hp",player.get("max_hp",100)))
+ var max_hp:=maxi(1,int(player.get("max_hp",100)))
+ var mp:=int(player.get("mana",100))
+ var max_mp:=maxi(1,int(player.get("max_mana",100)))
+ var gold:=int(state.gold) if state!=null else 0
+ var name:=String(player.get("name","Ranger"))
+ var level:=int(player.get("level",1))
+ var cps:=int(player.get("cps",player.get("conquer_points",0)))
+ var bp:=int(player.get("battle_power",0))
+ _status_label.text="%s  Lv.%d\\nHP %d/%d  MP %d/%d\\nGold %d  CPs %d  BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
+ for orb in get_tree().get_nodes_in_group("hud_orbs"):
+  orb.ratio=float(hp)/float(max_hp) if orb.label=="HP" else float(mp)/float(max_mp)
+  orb.queue_redraw()
 
 func _refresh_minimap() -> void:
  if _minimap_label == null: return
@@ -151,21 +265,22 @@ func _refresh_minimap() -> void:
  var pos := p.global_position if p != null else Vector3.ZERO
  _minimap_label.text = "MAP\n%s\nX %.1f  Z %.1f" % [city,pos.x,pos.z]
 
-func _refresh_quests(_unused_a: Variant = null, _unused_b: Variant = null, _unused_c: Variant = null) -> void:
- if _active_window == "Quests":
-  call_deferred("_open_window","Quests")
- if _quest_panel == null: return
+func _refresh_quests(_unused_a: Variant = null,_unused_b: Variant = null,_unused_c: Variant = null) -> void:
+ if _active_window=="Quests": call_deferred("_open_window","Quests")
+ if _quest_panel==null: return
  for child in _quest_panel.get_children(): child.queue_free()
- var title := Label.new()
- title.text = "ACTIVE QUESTS"
- title.add_theme_font_size_override("font_size",13)
+ var title:=Label.new()
+ title.text="QUEST TRACKER  [+] Available   [?] Active   [!] Ready"
+ title.add_theme_color_override("font_color",Color(1.0,0.82,0.42))
  _quest_panel.add_child(title)
- var quests := get_node_or_null("/root/QuestSystem")
- if quests == null: return
- var tracked: Array = quests.get_tracked_quests() if quests.has_method("get_tracked_quests") else []
- for quest in tracked.slice(0,3):
-  var b := _button("%s  %d/%d" % [String(quest.title),int(quest.progress),int(quest.required)],_navigate_quest.bind(String(quest.id)))
-  b.custom_minimum_size = Vector2(290,28)
+ var quests:=get_node_or_null("/root/QuestSystem")
+ if quests==null: return
+ var tracked:Array=quests.get_tracked_quests() if quests.has_method("get_tracked_quests") else []
+ for quest in tracked.slice(0,4):
+  var status:=String(quest.get("status","ACTIVE"))
+  var marker:="!" if status=="READY_TO_CLAIM" else "?" if status=="ACTIVE" else "+"
+  var b:=_button("[%s] %s  %d/%d" % [marker,String(quest.title),int(quest.progress),int(quest.required)],_navigate_quest.bind(String(quest.id)))
+  b.custom_minimum_size=Vector2(330,27)
   _quest_panel.add_child(b)
 
 func _navigate_quest(id: String) -> void:
@@ -219,6 +334,11 @@ func _open_window(window_name: String) -> void:
  header.add_child(_button("X",func(): _active_window=""; panel.queue_free()))
  match window_name:
   "Inventory": _build_inventory(layout)
+  "Bag": _build_inventory(layout)
+  "Status": _build_character(layout)
+  "Skill": _build_skill_window(layout)
+  "System": _build_system_window(layout)
+  "Guild": _build_guild_window(layout)
   "Character": _build_character(layout)
   "Quests": _build_quest_book(layout)
   "Daily Login": _build_daily_rewards(layout)
@@ -228,6 +348,62 @@ func _open_window(window_name: String) -> void:
   "Map": _build_map_window(layout)
   "Chat": _build_chat(layout)
   _: _build_npc_info(layout,window_name)
+
+func _send_chat_message(entry: LineEdit,log: Label) -> void:
+ if not entry.text.strip_edges().is_empty():
+  log.text+="\\n[You] "+entry.text
+  entry.clear()
+
+func _set_combat_mode(mode: String) -> void:
+ var state:=get_node_or_null("/root/GameState")
+ if state!=null: state.player_data["combat_mode"]=mode
+
+func _quick_action(action: String) -> void:
+ if action=="Auto-Hunt": _toggle_auto_combat()
+ else: _open_window(action)
+
+func _select_chat_tab(tab: String) -> void:
+ print("CHAT_TAB_SELECTED: ",tab)
+
+func _cycle_target() -> void:
+ var combat:=get_node_or_null("/root/CombatSystem")
+ _hero=_find_hero()
+ if combat!=null and _hero!=null: combat.current_target=combat.find_nearest_target(_hero)
+
+func _build_skill_window(layout: VBoxContainer) -> void:
+ var skills:=get_node_or_null("/root/SkillSystem")
+ var hero:=_find_hero()
+ var available:Array=skills.get_available_skills(hero) if skills!=null and hero!=null else []
+ var grid:=GridContainer.new()
+ grid.columns=2
+ layout.add_child(grid)
+ var names:=["Scatter","Fly","Arrow Rain","Rapid Fire","Cyclone","Superman","Shield","Dash","Poison","Meditation","Intensify","XP Skill","Fatal Strike","Revive"]
+ for i in range(14):
+  var row:=VBoxContainer.new()
+  row.add_child(_label("%02d  %s" % [i+1,String(available[i]) if i<available.size() else names[i]]))
+  var xp:=ProgressBar.new()
+  xp.max_value=100
+  xp.custom_minimum_size=Vector2(260,10)
+  row.add_child(xp)
+  grid.add_child(row)
+ layout.add_child(_label("Weapon & Skill Proficiency"))
+
+func _build_system_window(layout: VBoxContainer) -> void:
+ for setting in [["BGM Volume",0.75],["SFX Volume",0.85],["Camera Distance",1.0]]:
+  layout.add_child(_label(String(setting[0])))
+  var slider:=HSlider.new()
+  slider.min_value=0.0
+  slider.max_value=2.0 if setting[0]=="Camera Distance" else 1.0
+  slider.value=float(setting[1])
+  layout.add_child(slider)
+ layout.add_child(_button("Save Game",func():
+  var state:=get_node_or_null("/root/GameState")
+  if state!=null: state.save_game()
+ ))
+
+func _build_guild_window(layout: VBoxContainer) -> void:
+ layout.add_child(_label("Guild • offline guild system integration pending"))
+
 
 func _build_inventory(layout: VBoxContainer) -> void:
  var state := get_node_or_null("/root/GameState")
@@ -638,20 +814,32 @@ func _find_hero() -> Node3D:
  var legacy := get_tree().root.find_child("TwinCityPlayableHero",true,false)
  return legacy as Node3D if legacy is Node3D else null
 
-func _panel(parent: Control, offset: Vector2, panel_size: Vector2, top_right := false, transparent := false) -> Panel:
- var panel := Panel.new()
- panel.custom_minimum_size = panel_size
- panel.size = panel_size
- panel.position = offset
+func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
+ var style:=StyleBoxFlat.new()
+ style.bg_color=bg
+ style.border_color=border
+ style.set_border_width_all(width)
+ style.set_corner_radius_all(6)
+ return style
+
+func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false) -> Panel:
+ var panel:=Panel.new()
+ panel.custom_minimum_size=panel_size
+ panel.size=panel_size
+ panel.position=offset
  if top_right: panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- var style := StyleBoxFlat.new()
- style.bg_color = Color(0.025,0.045,0.085,0.86 if transparent else 0.94)
- style.border_color = Color(0.42,0.60,0.82,0.95)
- style.set_border_width_all(2)
- style.set_corner_radius_all(10)
+ var style:=StyleBoxTexture.new()
+ style.texture=load("res://assets/ui/frame_gold.svg")
+ style.texture_margin_left=24
+ style.texture_margin_top=24
+ style.texture_margin_right=24
+ style.texture_margin_bottom=24
  panel.add_theme_stylebox_override("panel",style)
  parent.add_child(panel)
  return panel
+
+func _panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false,transparent:=false) -> Panel:
+ return _ornate_panel(parent,offset,panel_size,top_right)
 
 func _button(caption: String, callback: Callable) -> Button:
  var button := Button.new()
