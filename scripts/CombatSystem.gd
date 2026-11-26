@@ -1,6 +1,7 @@
 extends Node
 signal target_changed(target: Node3D)
 signal damage_dealt(target: Node3D, amount: int, critical: bool)
+signal monster_killed(monster: Node3D)
 signal loot_visual_registered(loot_node: Node3D, item_rarity: String, item_type: String)
 const RANGED_RANGE := 18.0
 const MELEE_RANGE := 3.5
@@ -112,7 +113,9 @@ func _apply_damage(target: Node3D,damage: int,critical: bool,hero: Node3D,source
  combat_active = true
  current_target = target
  print("PHASE4C_DAMAGE_APPLIED: source=",source," target=",target.name," damage=",actual_damage," critical=",critical," hp=",target.current_hp,"/",target.max_hp)
- if target.current_hp <= 0: _on_monster_killed(target,get_node_or_null("/root/GameState"))
+ if target.current_hp <= 0:
+  monster_killed.emit(target)
+  _on_monster_killed(target,get_node_or_null("/root/GameState"))
  return {"ok":true,"damage":actual_damage,"critical":critical,"hp":int(target.current_hp),"damage_label":target.get_node_or_null("FloatingDamage") != null}
 
 func _play_attack_animation(hero: Node3D,class_id: String) -> void:

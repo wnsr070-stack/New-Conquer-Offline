@@ -89,3 +89,18 @@ func _place_player(position: Vector3) -> void:
 func clear_cache() -> void:
  last_target_id = ""
  navigation_in_progress = false
+
+func navigate_to_position(city_id: String, destination: Vector3) -> bool:
+ var world_map := get_node_or_null("/root/WorldMapManager")
+ if world_map == null or not world_map.CITY_SCENES.has(city_id): return false
+ if navigation_in_progress: return false
+ if city_id == String(world_map.current_city):
+  _place_player(destination)
+  return true
+ navigation_in_progress = true
+ world_map.travel_to_city(city_id,destination)
+ await get_tree().process_frame
+ await get_tree().process_frame
+ _place_player(destination)
+ navigation_in_progress = false
+ return true

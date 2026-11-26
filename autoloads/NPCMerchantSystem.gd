@@ -1,6 +1,7 @@
 extends Node
 ## Runtime NPC placement uses imported Phase 3B humanoid GLB assets only.
 signal npc_interacted(npc_id: String, role_type: String)
+signal quest_npc_interacted(npc_id: String, role_type: String)
 
 const NPC_DEFINITIONS := [
  {"id":"Blacksmith","role":"shop","position":Vector3(-92,0,86),"model":"warrior_male","prompt":"[Shop]"},
@@ -135,6 +136,7 @@ func _on_npc_input(_camera: Camera3D,event: InputEvent,_position: Vector3,_norma
   pressed = event.pressed
  if pressed:
   npc_interacted.emit(npc_id,role_type)
+  quest_npc_interacted.emit(npc_id,role_type)
   print("NPC_INTERACTED: id=",npc_id," role=",role_type)
 
 func _process(_delta: float) -> void:
@@ -163,6 +165,7 @@ func interact(npc_id: String) -> bool:
  if definition.is_empty():
   return false
  npc_interacted.emit(npc_id,String(definition.role))
+ quest_npc_interacted.emit(npc_id,String(definition.role))
  return true
 
 func clear_cache() -> void:
