@@ -665,6 +665,7 @@ func _label(caption: String) -> Label:
 
 func _run_mobile_hud_preview() -> void:
  await get_tree().process_frame
+ _seed_mobile_hud_preview_data()
  _open_window("Inventory")
  await RenderingServer.frame_post_draw
  if not _save_mobile_hud_preview("mobile_hud_inventory_preview.png"):
@@ -696,3 +697,16 @@ func _save_mobile_hud_preview(file_name: String) -> bool:
  file.close()
  print("PHASE5A_MOBILE_HUD_PREVIEW_FILE: ",path," bytes=",bytes)
  return bytes > 1024
+
+func _seed_mobile_hud_preview_data() -> void:
+ var state := get_node_or_null("/root/GameState")
+ if state != null:
+  state.add_item("HPPotion",12)
+  state.add_item("bow_lv10_normal_p1",1,{"plus":12})
+  state.add_item("body_03_beginner_normal_p1",1,{"plus":8})
+  state.add_item("DragonGem",3)
+ var gear := get_node_or_null("/root/GearSystem")
+ if gear != null and gear.equipped is Dictionary:
+  gear.equipped["weapon"]={"id":"bow_lv10_normal_p1","name":"Beginner Bow","type":"Weapon","family":"bow","plus":12}
+  gear.equipped["armor"]={"id":"body_03_beginner_normal_p1","name":"Beginner Leather Armor","type":"Armor","slot":"armor","plus":8}
+ print("PHASE5A_MOBILE_HUD_PREVIEW_FIXTURES_READY: bag_icons=4 equipped=2 save_untouched=true")
