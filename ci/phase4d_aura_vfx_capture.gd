@@ -122,7 +122,7 @@ func _run_capture() -> void:
  var combat := root.get_node("CombatSystem")
  var skills := root.get_node("SkillSystem")
  state.gold = 2000000
- state.inventory = {"Plus1Stone":24,"Meteor":4,"DragonBall":2,"DragonGem":2}
+ state.inventory = {"Plus1Stone":24,"Meteor":4,"DragonBall":5,"ToughDrill":1,"DragonGem":2}
  state.player_data["class"] = "archer"
  state.player_data["attack"] = 120
  if not gear.equip_weapon("bow_lv40_normal_p1","archer"): _fail("equip_approved_bow_failed"); return
