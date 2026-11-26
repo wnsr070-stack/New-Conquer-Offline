@@ -127,7 +127,7 @@ func _run_capture() -> void:
  npc_preview_camera.position = Vector3(0.0,78.0,54.0)
  npc_preview_camera.look_at(city.to_global(Vector3(0.0,0.5,-20.0)),Vector3.UP)
  npc_preview_camera.make_current()
- if get_viewport().get_camera_3d() != npc_preview_camera:
+ if root.get_camera_3d() != npc_preview_camera:
   _fail("twin_city_npc_preview_camera_not_active")
   return
  print("PHASE4D_TWIN_CITY_NPC_PANORAMIC_CAMERA_OK: orthographic_size=68 elevated=true target=plaza_and_palace_stairs full_body_height=2.8m names=true prompts=true plaza_grid=6x5")
