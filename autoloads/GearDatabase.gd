@@ -65,6 +65,7 @@ func _initialize() -> void:
      var item_id := "%s_lv%d_%s_p%d" % [family,level,quality.to_lower(),plus]
      items[item_id] = {"id":item_id,"family":family,"level":level,"quality":quality,"plus":plus,"classes":WEAPON_FAMILIES[family].classes,"model_keys":WEAPON_FAMILIES[family].models,"tier_color":_tier_color(level),"display_name":"%s Lv.%d %s +%d" % [family.replace("_"," ").capitalize(),level,quality,plus],"base_attack":_family_attack(family),"base_defense":_family_defense(family),"composition_points":0,"sockets":[],"gem_bonuses":{"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}}
  _initialize_armor_items()
+ _initialize_quest_items()
  initialized = true
  print("PHASE3B_GEAR_DATABASE_READY: ",items.size()," weapon+armor variants; armor_assets=33 classes=7")
 func _tier_color(level: int) -> Color:
@@ -107,3 +108,9 @@ func clear_cache() -> void:
  items.clear()
  initialized = false
  print("PHASE4D_GEAR_DATABASE_CACHE_CLEARED")
+
+func _initialize_quest_items() -> void:
+ var rows := [["EuxeniteOre","Euxenite Ore"],["RebuildOre","Rebuild Ore"],["PeaceCommandToken","Peace Command Token"],["ChaosCommandToken","Chaos Command Token"],["DesertedCommandToken","Deserted Command Token"],["ProsperousCommandToken","Prosperous Command Token"],["DisturbedCommandToken","Disturbed Command Token"],["CalmedCommandToken","Calmed Command Token"],["SoulJade","Soul Jade"],["MoonBox","Moon Box"],["CleanWater","Clean Water"],["CelestialStone","Celestial Stone"],["HeavenFan","Heaven Fan"],["StarTower","Star Tower"],["ThunderGem","Thunder Gem"],["GloryGem","Glory Gem"]]
+ for row in rows:
+  items[String(row[0])] = {"id":String(row[0]),"display_name":String(row[1]),"type":"QuestItem","family":"quest_item","level":1,"quality":"Normal","plus":0,"stackable":true,"classes":EQUIPMENT_CLASSES.duplicate(),"sockets":[],"gem_bonuses":{}}
+ print("PHASE4D_CLASSIC_QUEST_ITEMS_READY: count=",rows.size())

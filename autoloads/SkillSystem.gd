@@ -133,6 +133,7 @@ func use_skill(hero: Node3D, skill_id: String, target: Node3D = null) -> Diction
   var style := "fire" if skill_id in ["hercules","blade_tempest","arrow_rain"] else "blue"
   if target != null: vfx.play_skill_vfx("shockwave",style,target.global_position+Vector3(0,0.65,0),hero.global_position.direction_to(target.global_position))
   else: vfx.play_skill_vfx("flattened",style,hero.global_position+Vector3(0,0.08,0),-hero.global_transform.basis.z)
+ if hit_count > 0 and state != null: state.add_skill_proficiency(skill_id,1.0)
  skill_used.emit(skill_id,hit_count)
  print("PHASE4C_SKILL_USED: id=",skill_id," class=",class_id," weapon=",get_equipped_mode(hero)," targets=",hit_count)
  return {"ok":true,"skill":skill_id,"targets_hit":hit_count,"cooldown":float(cooldowns.get(skill_id,0.0))}

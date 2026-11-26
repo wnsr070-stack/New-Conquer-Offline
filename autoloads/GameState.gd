@@ -12,6 +12,8 @@ var xp: float = 0.0
 var xp_ready_time_left: float = 0.0
 var inventory: Dictionary = {}
 var anima_phase: int = 0
+var weapon_proficiency: Dictionary = {}
+var skill_proficiency: Dictionary = {}
 func _ready() -> void: _initialize()
 func _initialize() -> void:
  _load_save()
@@ -45,10 +47,14 @@ func _load_save() -> void:
  gold = maxi(0,int(config.get_value("economy","gold",0)))
  exp = maxi(0,int(player_data.get("exp",0)))
  inventory = player_data.get("inventory",{}).duplicate(true)
+ weapon_proficiency = player_data.get("weapon_proficiency",{}).duplicate(true)
+ skill_proficiency = player_data.get("skill_proficiency",{}).duplicate(true)
 func save_game() -> bool:
  player_data["exp"] = exp
  player_data["anima_phase"] = anima_phase
  player_data["inventory"] = inventory.duplicate(true)
+ player_data["weapon_proficiency"] = weapon_proficiency.duplicate(true)
+ player_data["skill_proficiency"] = skill_proficiency.duplicate(true)
  var config := ConfigFile.new()
  config.set_value("meta","version",SAVE_VERSION)
  config.set_value("player","data",player_data)
@@ -114,3 +120,29 @@ func _refresh_character_aura() -> void:
  var gear := get_node_or_null("/root/GearSystem")
  if gear != null and gear.has_method("_apply_runtime_aura"):
   gear.call("_apply_runtime_aura")
+
+func add_weapon_proficiency(id: String, amount: float = 1.0) -> float:
+ if id.is_empty() or amount <= 0.0: return 0.0
+ var gained := amount * get_proficiency_gem_multiplier("weapon")
+ weapon_proficiency[id] = float(weapon_proficiency.get(id,0.0))+gained
+ save_game()
+ return gained
+func add_skill_proficiency(id: String, amount: float = 1.0) -> float:
+ if id.is_empty() or amount <= 0.0: return 0.0
+ var gained := amount * get_proficiency_gem_multiplier("skill")
+ skill_proficiency[id] = float(skill_proficiency.get(id,0.0))+gained
+ save_game()
+ return gained
+func get_proficiency_gem_multiplier(kind: String) -> float:
+ var result := 1.0
+ var gear := get_node_or_null("/root/GearSystem")
+ if gear == null: return result
+ for item in gear.equipped.values():
+  for socket in item.get("sockets",[]):
+   var gem := String(socket.get("gem_id",socket.get("id",""))) if socket is Dictionary else String(socket)
+   var quality := String(socket.get("quality",item.get("quality","Normal"))) if socket is Dictionary else String(item.get("quality","Normal"))
+   if kind=="weapon" and gem.to_lower().contains("violet"):
+    result += 0.30 if quality=="Normal" else 0.50 if quality=="Refined" else 1.0 if quality=="Super" else 0.0
+   elif kind=="skill" and gem.to_lower().contains("moon"):
+    result += 0.15 if quality=="Normal" else 0.30 if quality=="Refined" else 0.50 if quality=="Super" else 0.0
+ return result

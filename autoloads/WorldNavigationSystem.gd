@@ -4,6 +4,20 @@ extends Node
 const CITY_DIRECTORIES := {
  "TwinCity": {
   "Blacksmith":{"position":Vector3(-92,0,86),"type":"npc"},
+  "ArcherGod":{"position":Vector3(-52,0,-48),"type":"npc"},
+  "Ming":{"position":Vector3(24,0,36),"type":"npc"},
+  "LongDong":{"position":Vector3(-36,0,28),"type":"npc"},
+  "Blacknull":{"position":Vector3(44,0,-24),"type":"npc"},
+  "F.Chen":{"position":Vector3(-24,0,-38),"type":"npc"},
+  "Synsia":{"position":Vector3(38,0,42),"type":"npc"},
+  "GemCollector":{"position":Vector3(-42,0,44),"type":"npc"},
+  "MonsterSlayer":{"position":Vector3(52,0,18),"type":"npc"},
+  "EventMaster":{"position":Vector3(-18,0,52),"type":"npc"},
+  "ItemSocketingMaster":{"position":Vector3(18,0,-52),"type":"npc"},
+  "Celestine":{"position":Vector3(-62,0,12),"type":"npc"},
+  "RebirthMaster":{"position":Vector3(62,0,-12),"type":"npc"},
+  "GeneralQing":{"position":Vector3(28,0,-32),"type":"npc"},
+  "Fortuneteller":{"position":Vector3(115,0,115),"type":"npc"},
   "Armorer":{"position":Vector3(-86,0,86),"type":"npc"},
   "AccessoryMerchant":{"position":Vector3(-98,0,86),"type":"npc"},
   "Pharmacist":{"position":Vector3(86,0,92),"type":"npc"},
@@ -19,8 +33,14 @@ const CITY_DIRECTORIES := {
   "TeaHouse":{"position":Vector3(92,0,92),"type":"landmark"},
   "BlacksmithForge":{"position":Vector3(-92,0,92),"type":"landmark"}
  },
- "PhoenixCastle":{"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
- "ApeMountain":{"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
+ "PhoenixCastle":{
+  "CoachLin":{"position":Vector3(14,0,16),"type":"npc"},
+  "Alchemist":{"position":Vector3(-14,0,16),"type":"npc"},
+  "CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
+ "ApeMountain":{
+  "SolarSaint":{"position":Vector3(16,0,-18),"type":"npc"},
+  "CelestialTaoist":{"position":Vector3(-16,0,-18),"type":"npc"},
+  "CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
  "DesertCity":{"CityCenter":{"position":Vector3.ZERO,"type":"landmark"}},
  "BirdIsland":{"CityCenter":{"position":Vector3(0,4.6,0),"type":"landmark"}},
  "Market":{"MarketSquare":{"position":Vector3.ZERO,"type":"landmark"}}

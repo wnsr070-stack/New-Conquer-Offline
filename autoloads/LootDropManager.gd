@@ -88,6 +88,12 @@ func on_monster_killed(monster:Node3D)->int:
 	if _rng.randf()<(0.40 if is_boss else 0.16):
 		var potion_id := String(["HPPotion","MPPotion","Panacea"][_rng.randi_range(0,2)])
 		if spawn_drop({"item_id":potion_id,"item_type":"Potions","amount":_rng.randi_range(1,3),"rarity":"Refined"},origin)!=null: spawned+=1
+	if _rng.randf()<(0.06 if is_boss else 0.008):
+		var material := String(["EuxeniteOre","RebuildOre","CleanWater","PeaceCommandToken","ChaosCommandToken","DesertedCommandToken","ProsperousCommandToken","DisturbedCommandToken","CalmedCommandToken"][_rng.randi_range(0,8)])
+		if spawn_drop({"item_id":material,"item_type":"Quest Material","amount":1,"rarity":"Refined"},origin)!=null: spawned+=1
+	if is_boss and _rng.randf()<0.02:
+		var relic := String(["SoulJade","MoonBox","CelestialStone","HeavenFan","StarTower","ThunderGem","GloryGem"][_rng.randi_range(0,6)])
+		if spawn_drop({"item_id":relic,"item_type":"Quest Relic","amount":1,"rarity":"Super"},origin)!=null: spawned+=1
 	if _rng.randf()<(0.24 if is_boss else 0.035):
 		var gear_id := String(["GearBox","RandomWeapon","RandomArmor"][_rng.randi_range(0,2)])
 		var quality := String(["Unique","Elite","Super"][_rng.randi_range(0,2)])

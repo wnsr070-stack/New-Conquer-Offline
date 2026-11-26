@@ -13,6 +13,27 @@ const NPC_DEFINITIONS := [
  {"id":"Warehouseman","role":"warehouse","position":Vector3(-12,0,-12),"model":"trojan_male","prompt":"[Box]"},
  {"id":"Conductress","role":"transport","position":Vector3(12,0,-12),"model":"archer_female","prompt":"[Gate]"},
  {"id":"ImperialEnvoy","role":"story_quest","position":Vector3(0,0,-56),"model":"taoist_male","prompt":"[?]"}
+ {"id":"ArcherGod","city":"TwinCity","role":"quest","position":Vector3(-52,0,-48),"model":"archer_male","prompt":"[!]"},
+ {"id":"Ming","city":"TwinCity","role":"quest","position":Vector3(24,0,36),"model":"taoist_female","prompt":"[!]"},
+ {"id":"LongDong","city":"TwinCity","role":"quest","position":Vector3(-36,0,28),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Blacknull","city":"TwinCity","role":"quest","position":Vector3(44,0,-24),"model":"trojan_male","prompt":"[!]"},
+ {"id":"F.Chen","city":"TwinCity","role":"quest","position":Vector3(-24,0,-38),"model":"taoist_male","prompt":"[!]"},
+ {"id":"Synsia","city":"TwinCity","role":"quest","position":Vector3(38,0,42),"model":"archer_female","prompt":"[!]"},
+ {"id":"GemCollector","city":"TwinCity","role":"quest","position":Vector3(-42,0,44),"model":"taoist_male","prompt":"[!]"},
+ {"id":"MonsterSlayer","city":"TwinCity","role":"quest","position":Vector3(52,0,18),"model":"warrior_male","prompt":"[!]"},
+ {"id":"EventMaster","city":"TwinCity","role":"quest","position":Vector3(-18,0,52),"model":"trojan_female","prompt":"[!]"},
+ {"id":"ItemSocketingMaster","city":"TwinCity","role":"quest","position":Vector3(18,0,-52),"model":"warrior_female","prompt":"[!]"},
+ {"id":"Celestine","city":"TwinCity","role":"quest","position":Vector3(-62,0,12),"model":"taoist_female","prompt":"[!]"},
+ {"id":"RebirthMaster","city":"TwinCity","role":"quest","position":Vector3(62,0,-12),"model":"taoist_male","prompt":"[!]"},
+ {"id":"GeneralQing","city":"TwinCity","role":"quest","position":Vector3(28,0,-32),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Fortuneteller","city":"TwinCity","role":"quest","position":Vector3(115,0,115),"model":"taoist_female","prompt":"[!]"},
+ {"id":"CloudSaint","city":"Market","role":"quest","position":Vector3(-18,0,14),"model":"taoist_male","prompt":"[!]"},
+ {"id":"TaoistMoon","city":"Market","role":"quest","position":Vector3(18,0,14),"model":"taoist_female","prompt":"[!]"},
+ {"id":"BlessedGreatMaster","city":"Market","role":"quest","position":Vector3(0,0,22),"model":"warrior_male","prompt":"[!]"},
+ {"id":"SolarSaint","city":"ApeMountain","role":"quest","position":Vector3(16,0,-18),"model":"taoist_male","prompt":"[!]"},
+ {"id":"CelestialTaoist","city":"ApeMountain","role":"quest","position":Vector3(-16,0,-18),"model":"taoist_female","prompt":"[!]"},
+ {"id":"CoachLin","city":"PhoenixCastle","role":"quest","position":Vector3(14,0,16),"model":"warrior_male","prompt":"[!]"},
+ {"id":"Alchemist","city":"PhoenixCastle","role":"quest","position":Vector3(-14,0,16),"model":"taoist_male","prompt":"[!]"},
 ]
 const CHARACTER_ROOT := "res://assets/phase3b/characters/"
 const INTERACTION_HEIGHT := 3.2
@@ -30,7 +51,9 @@ func spawn_city_npcs(city_root: Node3D) -> void:
  if city_root == null or not is_instance_valid(city_root):
   return
  _city_root = city_root
+ var city_id := _resolve_city_id(city_root)
  for definition in NPC_DEFINITIONS:
+  if String(definition.get("city","TwinCity")) != city_id: continue
   var npc_id := String(definition.id)
   if _npc_nodes.has(npc_id) and is_instance_valid(_npc_nodes[npc_id]):
    continue
@@ -58,8 +81,20 @@ func spawn_city_npcs(city_root: Node3D) -> void:
   _add_name_label(npc,npc_id)
   _add_interaction_prompt(npc,npc_id,String(definition.role),String(definition.prompt))
   _npc_nodes[npc_id] = npc
-  print("TWIN_CITY_NPC_SPAWNED: id=",npc_id," role=",definition.role," pos=",definition.position," source=",character_path)
- print("TWIN_CITY_NPC_REGISTRY_READY: spawned=",_npc_nodes.size()," requested=",NPC_DEFINITIONS.size())
+  print("PHASE4D_QUEST_NPC_SPAWNED: id=",npc_id," role=",definition.role," pos=",definition.position," source=",character_path)
+ print("PHASE4D_CITY_NPC_REGISTRY_READY: spawned=",_npc_nodes.size()," requested=",NPC_DEFINITIONS.size())
+
+func _resolve_city_id(root: Node3D) -> String:
+ var value := root.name.to_lower().replace("_","").replace(" ","")
+ if value.contains("market"): return "Market"
+ if value.contains("ape"): return "ApeMountain"
+ if value.contains("phoenix"): return "PhoenixCastle"
+ return "TwinCity"
+
+func get_npc_definition(npc_id: String) -> Dictionary:
+ for definition in NPC_DEFINITIONS:
+  if String(definition.id) == npc_id: return definition.duplicate(true)
+ return {}
 
 func _fit_character_height(root: Node3D,target_height: float) -> void:
  var bounds := _mesh_bounds(root,Transform3D.IDENTITY)
@@ -157,11 +192,7 @@ func _process(_delta: float) -> void:
 func interact(npc_id: String) -> bool:
  if not _npc_nodes.has(npc_id):
   return false
- var definition: Dictionary = {}
- for entry in NPC_DEFINITIONS:
-  if String(entry.id) == npc_id:
-   definition = entry
-   break
+ var definition: Dictionary = get_npc_definition(npc_id)
  if definition.is_empty():
   return false
  npc_interacted.emit(npc_id,String(definition.role))

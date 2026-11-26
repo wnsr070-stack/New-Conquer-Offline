@@ -76,6 +76,7 @@ func perform_attack(hero: Node3D,target: Node3D,force_critical: bool = false) ->
  var distance := hero.global_position.distance_to(target.global_position)
  if distance > _weapon_range(hero): return {"ok":false,"reason":"out_of_range","distance":distance}
  _play_attack_animation(hero,_hero_class(hero))
+ var weapon_family := _equipped_weapon_family()
  var state := get_node_or_null("/root/GameState")
  var player_data: Dictionary = state.player_data if state != null else {}
  var gear_stats: Dictionary = _gear_bonuses()
@@ -86,7 +87,9 @@ func perform_attack(hero: Node3D,target: Node3D,force_critical: bool = false) ->
  var multiplier := float(hero.get_meta("physical_damage_multiplier",1.0))*float(anima.get("attack_multiplier",1.0))
  var raw_damage := maxi(1,attack-defense)
  var damage := int(round(float(raw_damage)*(CRITICAL_MULTIPLIER if critical else 1.0)*multiplier))
- return _apply_damage(target,damage,critical,hero,"basic_attack")
+ var result := _apply_damage(target,damage,critical,hero,"basic_attack")
+ if bool(result.get("ok",false)) and state != null: state.add_weapon_proficiency(weapon_family,1.0)
+ return result
 
 func apply_skill_damage(hero: Node3D,target: Node3D,skill_multiplier: float,skill_id: String) -> Dictionary:
  if hero == null or not _is_alive_monster(target): return {"ok":false,"reason":"invalid_target"}
@@ -178,6 +181,12 @@ func _grant_combat_xp(delta: float) -> void:
 
 func _is_alive_monster(node: Node) -> bool:
  return node != null and is_instance_valid(node) and node.has_method("is_dead") and not node.is_dead() and int(node.get("current_hp")) > 0
+
+func _equipped_weapon_family() -> String:
+ var gear := get_node_or_null("/root/GearSystem")
+ if gear == null: return "unarmed"
+ var item: Dictionary = gear.get_equipped("weapon")
+ return String(item.get("family",item.get("id","unarmed")))
 
 func _gear_bonuses() -> Dictionary:
  var gear := get_node_or_null("/root/GearSystem")
