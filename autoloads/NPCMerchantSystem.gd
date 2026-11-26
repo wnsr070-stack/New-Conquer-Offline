@@ -243,7 +243,9 @@ func _on_npc_proximity_entered(body: Node3D,npc_id: String,role_type: String) ->
    if is_instance_valid(prompt_value):
     var prompt := prompt_value as Label3D
     if is_instance_valid(prompt): prompt.visible = true
- print("NPC_PROXIMITY_ENTERED: id=",npc_id," role=",role_type," radius=",INTERACTION_RADIUS,"m")
+ npc_interacted.emit(npc_id,role_type)
+ quest_npc_interacted.emit(npc_id,role_type)
+ print("NPC_PROXIMITY_ENTERED: id=",npc_id," role=",role_type," radius=",INTERACTION_RADIUS,"m auto_interaction=true")
 
 func _on_npc_proximity_exited(body: Node3D,npc_id: String) -> void:
  if not is_instance_valid(body) or not body.is_in_group("player"):
