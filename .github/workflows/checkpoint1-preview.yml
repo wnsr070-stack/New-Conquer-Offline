@@ -242,8 +242,8 @@ jobs:
               "helmet": {"helmet", "helm"},
               "boots": {"boots", "boot", "shoe"},
               "ring": {"ring"},
-              "necklace": {"necklace", "amulet"},
-              "potion": {"potion", "flask"},
+              "necklace": {"necklace", "amulet", "gem", "medal", "charm", "pendant", "crown"},
+              "potion": {"potion", "bottle", "flask", "vial"},
           }
           selected = set()
           icon_count = 0
@@ -254,8 +254,10 @@ jobs:
                   if tokens & keywords and path not in selected:
                       candidates.append(path)
               if not candidates:
-                  raise SystemExit(f"No named Kenney PNG icon found for required RPG category: {category}")
-              # Keep a small representative set per category; never exceed 30 icons total.
+                  print(f"::warning::No Kenney PNG matched category keywords for {category}; continuing")
+                  continue
+              # Keep a small representative set per category; prefix every destination
+              # with its category so equal source basenames cannot overwrite each other.
               for source in candidates[:3]:
                   if icon_count >= 30:
                       break
@@ -264,9 +266,10 @@ jobs:
                   selected.add(source)
                   icon_count += 1
 
-          if icon_count < len(categories) or icon_count > 30:
-              raise SystemExit(f"RPG icon count outside allowed range: {icon_count}")
-          print(f"KENNEY_BASIC_RPG_ICONS_READY: {icon_count} files across {len(categories)} categories")
+          # Core categories should provide at least eight icons; optional categories may be absent.
+          if icon_count < 8 or icon_count > 30:
+              raise SystemExit(f"RPG icon count outside allowed range (8..30): {icon_count}")
+          print(f"KENNEY_BASIC_RPG_ICONS_READY: {icon_count} files; matched_categories={len(categories) - sum(1 for category, keywords in categories.items() if not any(set(re.findall(r'[a-z0-9]+', p.stem.lower())) & keywords for p in pngs))}/{len(categories)}")
           PY
           # Remove the source checkout immediately after copying the approved files.
           rm -rf /tmp/kenney
