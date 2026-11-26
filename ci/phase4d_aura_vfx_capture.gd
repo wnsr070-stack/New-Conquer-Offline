@@ -5,7 +5,9 @@ func _initialize() -> void:
  call_deferred("_ready")
 func _ready() -> void:
  await _run_capture()
- if _capture_failed: return
+ if _capture_failed:
+  quit(1)
+  return
  # _run_capture has returned, so all of its local scene/resource references are out of scope.
  var autoload_names := ["WorldMapManager","ClassSystem","GearDatabase","GearSystem","EquipmentVisualManager","GlobalEconomy","GameState","CombatSystem","SkillSystem","ForgingSystem","AuraAndVFXManager","LootDropManager"]
  var preserved_autoloads: Array[Node] = []
