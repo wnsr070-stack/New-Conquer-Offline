@@ -48,8 +48,11 @@ func _ready() -> void:
  print("NPC_MERCHANT_SYSTEM_READY: imported_character_models_only=true")
 
 func _exit_tree() -> void:
- # NPCs parented to the city are released by that scene; only free detached leftovers here.
- for npc_value in _npc_nodes.values():
+ # The city may already have freed its children before this autoload exits.
+ # Validate every Variant before casting or dereferencing it.
+ for npc_value: Variant in _npc_nodes.values():
+  if not is_instance_valid(npc_value):
+   continue
   var npc := npc_value as Node3D
   if is_instance_valid(npc) and npc.get_parent() == null:
    npc.free()
@@ -68,8 +71,12 @@ func spawn_city_npcs(city_root: Node3D) -> void:
   # Other city scenes retain their explicitly assigned NPC subsets.
   if city_id != "TwinCity" and String(definition.get("city","TwinCity")) != city_id: continue
   var npc_id := String(definition.id)
-  if _npc_nodes.has(npc_id) and is_instance_valid(_npc_nodes[npc_id]):
-   continue
+  if _npc_nodes.has(npc_id):
+   var existing_npc: Variant = _npc_nodes[npc_id]
+   if is_instance_valid(existing_npc):
+    spawned_count += 1
+    continue
+   _npc_nodes.erase(npc_id)
   # Use the same imported-character construction path as CharacterVisualController.
   # The Phase 4D workflow restores this exact approved source as Male_Ranger.glb.
   var npc := Node3D.new()
@@ -199,15 +206,26 @@ func _on_npc_input(_camera: Camera3D,event: InputEvent,_position: Vector3,_norma
   print("NPC_INTERACTED: id=",npc_id," role=",role_type)
 
 func _process(_delta: float) -> void:
- var player := get_tree().get_first_node_in_group("player") as Node3D
- if player == null:
+ var player_value: Variant = get_tree().get_first_node_in_group("player")
+ if not is_instance_valid(player_value):
   return
- for npc_id in _npc_nodes:
-  var npc := _npc_nodes[npc_id] as Node3D
-  if not is_instance_valid(npc):
+ var player := player_value as Node3D
+ if not is_instance_valid(player):
+  return
+ for npc_id in _npc_nodes.keys():
+  var npc_value: Variant = _npc_nodes.get(npc_id)
+  if not is_instance_valid(npc_value):
+   _npc_nodes.erase(npc_id)
    continue
-  var prompt := npc.get_node_or_null("InteractionPrompt") as Label3D
-  if prompt == null:
+  var npc := npc_value as Node3D
+  if not is_instance_valid(npc):
+   _npc_nodes.erase(npc_id)
+   continue
+  var prompt_value: Variant = npc.get_node_or_null("InteractionPrompt")
+  if not is_instance_valid(prompt_value):
+   continue
+  var prompt := prompt_value as Label3D
+  if not is_instance_valid(prompt):
    continue
   var nearby := player.global_position.distance_to(npc.global_position) <= INTERACTION_RADIUS
   var target_scale := 1.0 if nearby else 0.72
@@ -224,9 +242,10 @@ func interact(npc_id: String) -> bool:
  return true
 
 func clear_cache() -> void:
+ # Drop all references without casting or touching nodes that may already be freed.
  _npc_nodes.clear()
  _city_root = null
- print("NPC_MERCHANT_SYSTEM_CACHE_CLEARED")
+ print("NPC_MERCHANT_SYSTEM_CACHE_CLEARED: registry=0 city_root=null")
 
 func get_transport_destinations() -> Array[String]:
  return ["TwinCity","PhoenixCastle","ApeMountain","DesertCity","BirdIsland","Market"]
