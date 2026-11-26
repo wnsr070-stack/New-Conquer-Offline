@@ -260,7 +260,7 @@ func _build_character(layout: VBoxContainer) -> void:
   cell.add_child(icon)
   icon.position = Vector2(2,4)
   grid.add_child(cell)
- var stats := gear.get_combat_bonuses() if gear != null else {}
+ var stats: Dictionary = gear.get_combat_bonuses() if gear != null else {}
  var player: Dictionary = state.player_data if state != null else {}
  var bp := int(player.get("battle_power",int(stats.get("attack",0))+int(stats.get("defense",0))))
  layout.add_child(_label("Battle Power: %d   ATK: %d   DEF: %d   M.ATK: %d" % [bp,int(stats.get("attack",0)),int(stats.get("defense",0)),int(stats.get("magic_attack",0))]))
@@ -359,7 +359,7 @@ func _attack() -> void:
  var combat := get_node_or_null("/root/CombatSystem")
  _hero = _find_hero()
  if combat != null and _hero != null:
-  var target := combat.find_nearest_target(_hero)
+  var target: Node3D = combat.find_nearest_target(_hero) as Node3D
   if target != null: combat.perform_attack(_hero,target)
 
 func _use_primary_skill() -> void:
