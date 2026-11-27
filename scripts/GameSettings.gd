@@ -128,8 +128,23 @@ func _route_audio_node(node: Node) -> void:
         player.set("bus", "SFX")
 
 func _on_node_added(node: Node) -> void:
-    call_deferred("_apply_node_settings", node)
-    call_deferred("_route_audio_node", node)
+    if node == null or not is_instance_valid(node):
+        return
+    var instance_id: int = node.get_instance_id()
+    call_deferred("_apply_node_settings_by_id", instance_id)
+    call_deferred("_route_audio_node_by_id", instance_id)
+
+func _apply_node_settings_by_id(instance_id: int) -> void:
+    var node := instance_from_id(instance_id) as Node
+    if node == null:
+        return
+    _apply_node_settings(node)
+
+func _route_audio_node_by_id(instance_id: int) -> void:
+    var node := instance_from_id(instance_id) as Node
+    if node == null:
+        return
+    _route_audio_node(node)
 
 func apply_world_settings() -> void:
     if not is_inside_tree():
