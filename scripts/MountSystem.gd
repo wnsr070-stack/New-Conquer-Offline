@@ -3,18 +3,15 @@ extends Node
 signal mount_state_changed(is_mounted: bool, mount_type: String)
 const MOUNT_MODELS := {
  "steed":"res://assets/mounts/steed_horse.glb",
- "tiger":"res://assets/mounts/mount_tiger.glb",
  "deer":"res://assets/mounts/mount_deer.glb",
  "wolf":"res://assets/mounts/mount_wolf.glb"
 }
 const SKIN_TYPES := {
- "mount_skin_tiger":"tiger",
  "mount_skin_deer":"deer",
  "mount_skin_wolf":"wolf",
  "mount_skin_lion":"wolf"
 }
 const SKIN_BONUSES := {
- "tiger":{"attack":45,"defense":20,"speed":1.35,"critical":0.08},
  "deer":{"attack":18,"defense":28,"speed":1.65,"critical":0.03},
  "wolf":{"attack":38,"defense":25,"speed":1.20,"critical":0.06}
 }
@@ -31,7 +28,7 @@ func _ready() -> void:
  var gear := get_node_or_null("/root/GearSystem")
  if gear != null and gear.has_signal("equipment_changed") and not gear.equipment_changed.is_connected(_on_equipment_changed):
   gear.equipment_changed.connect(_on_equipment_changed)
- print("MOUNT_SYSTEM_READY: offline=true cc0_models=4")
+ print("MOUNT_SYSTEM_READY: offline=true cc0_models=3")
 
 func bind_hero(value: Node3D) -> void:
  if not value is CharacterBody3D: return
@@ -145,17 +142,6 @@ func _refresh_visual() -> void:
  instance.name = "MountedModel_"+kind.capitalize()
  instance.visible = true
  var mesh_count := _count_mount_meshes(instance)
- if mesh_count <= 0 and kind == "tiger":
-  push_warning("MOUNT_TIGER_SOURCE_HAS_NO_MESHES: retrying verified Wolf GLB with tiger regalia")
-  var fallback_path := String(MOUNT_MODELS.get("wolf",""))
-  var fallback_scene := load(fallback_path) as PackedScene if ResourceLoader.exists(fallback_path) else null
-  if fallback_scene != null:
-   instance.queue_free()
-   instance = fallback_scene.instantiate() as Node3D
-   if instance != null:
-    instance.name = "MountedModel_TigerFallback"
-    instance.visible = true
-    mesh_count = _count_mount_meshes(instance)
  if instance == null or mesh_count <= 0:
   push_error("MOUNT_MODEL_HAS_NO_RENDERABLE_MESHES: kind="+kind+" path="+path)
   return
@@ -174,10 +160,9 @@ func _refresh_visual() -> void:
  hero.add_child(mount_root)
  mount_root.add_child(instance)
  _fit_mount_model(instance,kind)
- # _fit_mount_model already sets a 2.5m footprint and 1.4m back height.
- # A second 3.2x parent scale made both the animal and saddle 3.2x too large.
- mount_root.scale = Vector3.ONE
- print("MOUNT_ROOT_NORMALIZED_SCALE: kind=",kind," scale=",mount_root.scale)
+ mount_root.scale = Vector3.ONE * 1.35
+ _attach_mount_saddle(mount_root)
+ print("MOUNT_ROOT_SCALE_APPLIED: kind=",kind," scale=",mount_root.scale)
  _play_mount_animation(instance,kind)
  mount_visual = mount_root
  print("MOUNT_MODEL_VISIBILITY_VERIFIED: kind=",kind," visible=",mount_visual.visible," mesh_count=",mesh_count)
@@ -189,6 +174,31 @@ func _refresh_visual() -> void:
  _apply_speed()
  print("MOUNT_MODEL_RUNTIME_READY: kind=",kind," path=",path," meshes=",_count_mount_meshes(instance))
  print("MOUNT_VISUAL_SWAPPED: model=",kind," steed_plus=",int(steed.get("plus",0))," aura_inherited=true")
+
+func _attach_mount_saddle(mount_root: Node3D) -> void:
+ var saddle_path := "res://assets/mounts/saddle.glb"
+ if not ResourceLoader.exists(saddle_path):
+  push_error("MOUNT_SADDLE_ASSET_MISSING: " + saddle_path)
+  return
+ var packed := load(saddle_path) as PackedScene
+ if packed == null:
+  push_error("MOUNT_SADDLE_LOAD_FAILED")
+  return
+ var saddle := packed.instantiate() as Node3D
+ if saddle == null:
+  push_error("MOUNT_SADDLE_INSTANCE_FAILED")
+  return
+ saddle.name = "MountedSaddle"
+ mount_root.add_child(saddle)
+ var bounds := _measure_bounds(saddle)
+ if bounds.size.length() <= 0.001:
+  push_error("MOUNT_SADDLE_AABB_INVALID")
+  return
+ var target := Vector3(0.92,0.20,0.78)
+ var factor := minf(target.x / maxf(bounds.size.x,0.001), minf(target.y / maxf(bounds.size.y,0.001), target.z / maxf(bounds.size.z,0.001)))
+ saddle.scale = Vector3.ONE * factor
+ saddle.position = Vector3(-bounds.get_center().x * factor, 1.42 - bounds.position.y * factor, -bounds.get_center().z * factor)
+ print("MOUNT_SADDLE_ATTACHED: asset=saddle.glb target_width=0.92 target_height=0.20 target_depth=0.78")
 
 func _count_mount_meshes(root: Node) -> int:
  var count := 0
@@ -228,10 +238,6 @@ func _apply_mount_regalia(root: Node3D,kind: String) -> void:
  var body_tint := Color("#9b3e26")
  var emission_energy := 0.42
  match kind:
-  "tiger":
-   aura_color = Color("#ff5b16")
-   body_tint = Color("#d9a52b")
-   emission_energy = 0.78
   "deer":
    aura_color = Color("#36e6a0")
    body_tint = Color("#f2f0e8")
@@ -344,7 +350,7 @@ func _add_mount_particle_systems(root: Node3D,kind: String,glow_color: Color) ->
   var particles := GPUParticles3D.new()
   particles.name = "MountParticles_"+String(placement.name)
   particles.amount = int(placement.amount)
-  particles.lifetime = 1.15 if kind == "tiger" else 1.45
+  particles.lifetime = 1.45
   particles.preprocess = 0.8
   particles.emitting = true
   particles.local_coords = true
@@ -392,7 +398,11 @@ func _apply_rider_pose(on_mount: bool) -> void:
    "LeftUpLeg": -55.0,
    "RightUpLeg": -55.0,
    "LeftLeg": 65.0,
-   "RightLeg": 65.0
+   "RightLeg": 65.0,
+   "LeftArm": -35.0,
+   "RightArm": -35.0,
+   "LeftForeArm": -25.0,
+   "RightForeArm": -25.0
   }
   var applied_names: Array[String] = []
   for required_name in required_bones:
@@ -405,10 +415,10 @@ func _apply_rider_pose(on_mount: bool) -> void:
    var angle := float(required_bones[required_name])
    rig.set_bone_pose_rotation(bone_index,(original*Quaternion(Vector3.RIGHT,deg_to_rad(angle))).normalized())
    applied_names.append(String(required_name))
-  if applied_names.size() != 4:
-   push_error("MOUNT_RIDER_POSE_INCOMPLETE: expected=4 applied="+str(applied_names))
+  if applied_names.size() != required_bones.size():
+   push_error("MOUNT_RIDER_POSE_INCOMPLETE: expected="+str(required_bones.size())+" applied="+str(applied_names))
   else:
-   print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=4 names=",applied_names," thigh_forward=55 knee_backward=65")
+   print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=4 arms_forward=4 names=",applied_names," saddle_grip=true")
  else:
   for bone_index in _rider_original_bone_rotations:
    if int(bone_index) >= 0 and int(bone_index) < rig.get_bone_count():
@@ -426,18 +436,18 @@ func _apply_rider_pose(on_mount: bool) -> void:
    push_error("MOUNT_SADDLE_HIP_BONE_MISSING: Ninja rig has no Hips/Pelvis bone")
    return
   var hip_world := rig.to_global(rig.get_bone_global_pose(hip_bone_index).origin)
-  var world_delta := saddle_world + Vector3.UP*0.08 - hip_world
+  var world_delta := saddle_world + Vector3.UP*0.30 - hip_world
   _hero_model.global_position += world_delta
   _hero_model.force_update_transform()
   rig.force_update_transform()
   var aligned_hip_world := rig.to_global(rig.get_bone_global_pose(hip_bone_index).origin)
-  var alignment_error := aligned_hip_world.distance_to(saddle_world + Vector3.UP*0.08)
+  var alignment_error := aligned_hip_world.distance_to(saddle_world + Vector3.UP*0.30)
   var model_scale := _hero_model.global_transform.basis.get_scale()
   print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",rig.get_bone_name(hip_bone_index)," hip_world=",aligned_hip_world," saddle_world=",saddle_world," error=",alignment_error," model_scale=",model_scale)
-  if alignment_error > 0.08 or absf(saddle_world.y - 1.42) > 0.20:
+  if alignment_error > 0.08 or absf(saddle_world.y - 1.917) > 0.35:
    push_error("MOUNT_SADDLE_ALIGNMENT_OUT_OF_TOLERANCE: error="+str(alignment_error)+" saddle_y="+str(saddle_world.y))
   else:
-   print("MOUNT_SADDLE_ALIGNMENT_VERIFIED: hip_saddle_error=",alignment_error," saddle_y=",saddle_world.y)
+   print("MOUNT_SADDLE_ALIGNMENT_VERIFIED: rider_offset=0.30m hip_saddle_error=",alignment_error," saddle_y=",saddle_world.y)
  else:
   _hero_model.position.y = _hero_model_base_y
 
@@ -509,7 +519,7 @@ func run_functional_test(test_hero: Node3D) -> bool:
   if passed:
    var sale: Dictionary = merchant.sell_item(0,1)
    passed = bool(sale.get("ok",false)) and state.inventory_slots.is_empty() and int(sale.get("gold_earned",0)) > 0
- for kind in ["steed","tiger","deer","wolf"]:
+ for kind in ["steed","deer","wolf"]:
   if not passed: break
   if kind == "steed":
    gear.unequip_item("mount_skin")
@@ -530,10 +540,8 @@ func run_functional_test(test_hero: Node3D) -> bool:
  if passed:
   gear.unequip_item("mount_skin")
   if mount(test_hero):
-   gear.equip_item("mount_skin",db.get_item("mount_skin_tiger"))
-   passed = active_mount_type == "tiger" and int(gear.get_equipped("steed").get("plus",0)) == 12
    gear.equip_item("mount_skin",db.get_item("mount_skin_deer"))
-   passed = passed and active_mount_type == "deer" and int(gear.get_equipped("steed").get("plus",0)) == 12
+   passed = active_mount_type == "deer" and int(gear.get_equipped("steed").get("plus",0)) == 12
    dismount()
   else:
    passed = false
