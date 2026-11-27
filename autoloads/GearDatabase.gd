@@ -123,15 +123,15 @@ func _initialize_mount_items() -> void:
  var fixtures := [
   {"id":"preview_heaven_fan","name":"الفانة السماوية","slot":"fan","family":"fan","type":"Equipment","base_attack":18,"base_defense":4},
   {"id":"preview_star_tower","name":"تاور النجمة","slot":"tower","family":"tower","type":"Equipment","base_attack":8,"base_defense":24},
-  {"id":"preview_steed","name":"الخيل +12","slot":"steed","family":"steed","type":"Mount","base_attack":0,"base_defense":0,"mount_speed":180},
+  {"id":"preview_steed","name":"الخيل +12","slot":"steed","family":"steed","type":"Mount","base_attack":0,"base_defense":0,"mount_speed":180,"max_hp_bonus":500,"mount_speed_bonus":0.75},
   {"id":"preview_fire_tiger_skin","name":"سكن المطية الأسطورية: النمر الناري","slot":"mount_skin","family":"mount_skin","type":"MountSkin","base_attack":0,"base_defense":0},
   {"id":"preview_wing","name":"جناح سماوي","slot":"wing","family":"wing","type":"Wing","base_attack":0,"base_defense":0},
   {"id":"preview_mount_whip","name":"سوط ركوب","slot":"mount_whip","family":"mount_whip","type":"MountWhip","base_attack":0,"base_defense":0},
   {"id":"preview_garment","name":"زي الحارس","slot":"garment","family":"garment","type":"Garment","base_attack":0,"base_defense":0,"max_hp_bonus":900,"defense_bonus":55},
   {"id":"preview_weapon_accessory","name":"زخرفة السلاح","slot":"weapon_accessory","family":"weapon_accessory","type":"WeaponAccessory","base_attack":0,"base_defense":0,"attack_bonus":75,"critical":0.12},
-  {"id":"mount_skin_tiger","name":"سكن النمر الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"tiger","type":"MountSkin","base_attack":45,"base_defense":20},
-  {"id":"mount_skin_deer","name":"سكن الغزال الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"deer","type":"MountSkin","base_attack":18,"base_defense":28},
-  {"id":"mount_skin_wolf","name":"سكن الذئب الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"wolf","type":"MountSkin","base_attack":38,"base_defense":25}
+  {"id":"mount_skin_tiger","name":"سكن النمر الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"tiger","type":"MountSkin","base_attack":45,"base_defense":20,"attack_bonus":45,"defense_bonus":20,"critical":0.08,"movement_speed_bonus":1.35},
+  {"id":"mount_skin_deer","name":"سكن الغزال الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"deer","type":"MountSkin","base_attack":18,"base_defense":28,"attack_bonus":18,"defense_bonus":28,"critical":0.03,"movement_speed_bonus":1.65},
+  {"id":"mount_skin_wolf","name":"سكن الذئب الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"wolf","type":"MountSkin","base_attack":38,"base_defense":25,"attack_bonus":38,"defense_bonus":25,"critical":0.06,"movement_speed_bonus":1.20}
  ]
  for fixture in fixtures:
   var fixture_id := String(fixture.id)
@@ -150,6 +150,9 @@ func _initialize_mount_items() -> void:
     item["sockets"] = []
     item["attack_bonus"] = int(fixture.base_attack) + plus * 4
     item["defense_bonus"] = int(fixture.base_defense) + plus * 3
+    if String(fixture.slot) == "steed":
+     item["max_hp_bonus"] = 500 + plus * 180
+     item["mount_speed_bonus"] = 0.75 + float(plus) * 0.055
     item["gem_bonuses"] = {"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}
     item["display_name"] = String(fixture.name) + " +" + str(plus)
     items[item_id] = item
