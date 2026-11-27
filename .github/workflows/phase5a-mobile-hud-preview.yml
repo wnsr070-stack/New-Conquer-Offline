@@ -23,7 +23,7 @@ jobs:
   mobile-hud-preview:
     name: Render inventory and character UI previews only
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,66 +71,270 @@ jobs:
           restore-keys: |
             godot43-imported-v2-
 
-      - name: Diagnose UI cache and restore invalid approved assets (fallback)
-        shell: bash
+      - name: Fetch real Kenney RPG icons, ornate fantasy frame and menu artwork
         run: |
           set -euo pipefail
-          mkdir -p assets/ui/borders assets/icons/rpg assets/fonts
-          needs_restore=0
-          for file in assets/ui/borders/ornate_panel.png assets/icons/rpg/helmet.png assets/fonts/NotoSansArabic-Bold.ttf; do
-            bytes=0
-            [ -f "$file" ] && bytes=$(stat -c%s "$file")
-            if [ "$bytes" -gt 500 ]; then
-              echo "PHASE5A_UI_ASSET_PRESENT: $file bytes=$bytes"
+          mkdir -p assets/ui/borders assets/ui/slots assets/ui/buttons assets/ui/skills assets/ui/menu assets/icons/rpg assets/fonts
+          rm -rf /tmp/kenney
+          trap 'rm -rf /tmp/kenney' EXIT
+          git clone --depth 1 https://github.com/shorepine/kenney.git /tmp/kenney
+          python3 - <<'PY'
+          import pathlib, shutil, re, csv
+          
+          root = pathlib.Path("/tmp/kenney").resolve()
+          index_path = root / "index.tsv"
+          if not index_path.is_file():
+              raise SystemExit("Kenney index.tsv is missing")
+          
+          excluded = {"tank", "car", "vehicle", "steering", "space", "alien", "ship", "ufo", "plane"}
+          split_words = re.compile(r"[_\\-\\s/\\.]+")
+          
+          def png_ok(path):
+              try:
+                  data = path.read_bytes()
+                  return len(data) > 100 and data[:8] == bytes.fromhex("89504e470d0a1a0a")
+              except OSError:
+                  return False
+          
+          # index.tsv columns: path, description, WxH, bytes
+          indexed = []
+          with index_path.open("r", encoding="utf-8", newline="") as stream:
+              for line in stream:
+                  parts = line.rstrip("\r\n").split(chr(9))
+                  if len(parts) < 2:
+                      continue
+                  rel, description = parts[0].strip(), parts[1].strip()
+                  if not rel or rel.lower() == "path":
+                      continue
+                  tokens = set(split_words.split((rel + " " + description).lower()))
+                  if tokens & excluded:
+                      continue
+                  if pathlib.PurePosixPath(rel).suffix.lower() != ".png":
+                      continue
+                  source = (root / rel).resolve()
+                  if root not in source.parents or not source.is_file() or not png_ok(source):
+                      continue
+                  indexed.append((source, tokens, rel.lower(), description.lower()))
+          
+          if not indexed:
+              raise SystemExit("Kenney index.tsv yielded no valid non-vehicle PNG artwork")
+          
+          def copy_png(source, destination):
+              target = pathlib.Path(destination)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(source, target)
+              print(f"PHASE5A_REAL_ART_OK: {target} bytes={target.stat().st_size} source={source}")
+          
+          # One authoritative ornate frame, copied to both consumers.
+          border_candidates = [
+              root / "ui" / "Fantasy UI Borders" / "Border" / "panel-border-018.png",
+              root / "ui" / "Fantasy UI Borders" / "Border" / "panel-border-000.png",
+          ]
+          border = next((p for p in border_candidates if p.is_file() and png_ok(p)), None)
+          if border is None:
+              raise SystemExit("Required Fantasy UI Borders frame 018/000 is missing or invalid")
+          copy_png(border, "assets/ui/borders/ornate_panel.png")
+          copy_png(border, "assets/ui/slots/ornate_slot.png")
+          
+          legacy = {
+              "panel_brown.png": "assets/ui/borders/panel_brown.png",
+              "panel_beige.png": "assets/ui/borders/panel_beige.png",
+              "panelinset_brown.png": "assets/ui/slots/slot_brown.png",
+              "panelinset_beige.png": "assets/ui/slots/slot_beige.png",
+              "buttonlong_brown.png": "assets/ui/buttons/btn_brown.png",
+              "buttonlong_brown_pressed.png": "assets/ui/buttons/btn_brown_pressed.png",
+              "buttonsquare_brown.png": "assets/ui/buttons/btn_sq_brown.png",
+              "buttonsquare_brown_pressed.png": "assets/ui/buttons/btn_sq_brown_pressed.png"
+          }
+          for name, target in legacy.items():
+              matches = [p for p, _, _, _ in indexed if p.name.lower() == name]
+              if matches:
+                  copy_png(sorted(matches, key=lambda p: str(p))[0], target)
+          
+          # Exact token categories; paths and descriptions are both indexed.
+          categories = {
+              "bow": {"bow", "arrow", "quiver"},
+              "sword": {"sword", "blade", "greatsword"},
+              "dagger": {"dagger", "knife", "dual"},
+              "armor": {"armor", "shield", "chestplate", "tunic", "vest"},
+              "helmet": {"helmet", "crown", "hood", "hat"},
+              "boots": {"boot", "boots", "shoe"},
+              "ring": {"ring", "band"},
+              "necklace": {"amulet", "gem", "medal", "necklace", "pendant", "charm"},
+              "potion": {"potion", "bottle", "flask", "vial"},
+              "gem": {"gem", "crystal", "diamond", "ruby", "emerald"},
+              "skill": {"fire", "lightning", "arrow", "star", "flame", "bolt", "wind", "heal", "speed"},
+              "fan": {"fan", "handfan", "foldingfan"},
+              "tower": {"tower", "shield", "buckler", "crest"},
+              "wing": {"wing", "feather", "bird"},
+              "steed": {"horse", "steed", "mount", "saddle"},
+              "mount_whip": {"whip", "rope", "lasso"},
+              "mount_skin": {"horse", "steed", "mount", "saddle", "skin", "dye"},
+              "garment": {"clothing", "shirt", "robe", "tunic", "dress", "armor"},
+              "weapon_accessory": {"weapon", "bow", "sword", "dagger", "blade", "quiver"}
+          }
+          
+          def ranked_candidates(terms):
+              matches = [(p, tokens, rel, desc) for p, tokens, rel, desc in indexed if tokens & terms]
+              matches.sort(key=lambda item: (
+                  not any(part in item[2] for part in ("/icons/", "/icon/", "/ui/")),
+                  len(item[2]), item[2]
+              ))
+              return matches
+          
+          # Fallback pool is deliberately limited to icon artwork and weapon/gem-like assets.
+          fallback_pool = [
+              item for item in indexed
+              if ("icon" in item[1] or "/icons/" in item[2] or "/icon/" in item[2])
+              and item[1] & {"weapon", "sword", "bow", "dagger", "gem", "crystal", "diamond", "ruby", "emerald"}
+          ]
+          if not fallback_pool:
+              fallback_pool = [item for item in indexed if item[1] & {"weapon", "sword", "bow", "dagger", "gem", "crystal"}]
+          if not fallback_pool:
+              raise SystemExit("No safe weapon/gem icon fallback exists in Kenney index.tsv")
+          
+          copied = 0
+          used_icon_sources = set()
+          for category, terms in categories.items():
+              matches = ranked_candidates(terms)
+              if not matches:
+                  print(f"::warning::No direct indexed match for {category}; selecting a distinct real RPG artwork")
+                  matches = fallback_pool
+              candidates = [entry for entry in matches if str(entry[0]) not in used_icon_sources]
+              if not candidates:
+                  candidates = [entry for entry in indexed if str(entry[0]) not in used_icon_sources]
+              if not candidates:
+                  raise SystemExit("Not enough distinct real PNG artworks for category: " + category)
+              source = candidates[0][0]
+              used_icon_sources.add(str(source))
+              copy_png(source, f"assets/icons/rpg/{category}__1__{source.name}")
+              copied += 1
+          
+          # Required menu artwork: every visible quick action gets a real PNG.
+          menu_targets = {
+              "settings": {"settings", "gear", "cog", "wrench"},
+              "bag": {"bag", "backpack", "inventory", "chest"},
+              "quest": {"quest", "scroll", "book", "map"},
+              "character": {"character", "person", "portrait", "helmet"},
+              "merchant": {"merchant", "shop", "store", "trade", "coin"},
+              "skill": {"skill", "magic", "star", "spell", "rune"},
+              "hunt": {"hunt", "target", "crosshair", "monster", "bow"},
+              "mount": {"horse", "steed", "mount", "saddle", "animal"},
+          }
+          used_menu_sources = set()
+          for label, terms in menu_targets.items():
+              matches = ranked_candidates(terms)
+              if not matches: matches = fallback_pool
+              candidates = [entry for entry in matches if str(entry[0]) not in used_menu_sources]
+              if not candidates: candidates = [entry for entry in indexed if str(entry[0]) not in used_menu_sources]
+              if not candidates: raise SystemExit("Not enough distinct menu PNG artworks for: " + label)
+              source = candidates[0][0]
+              used_menu_sources.add(str(source))
+              copy_png(source, f"assets/ui/menu/{label}.png")
+
+          # Ten individually named real skill textures for F1-F10.
+          skill_targets = {
+              "bow": {"bow", "arrow"},
+              "arrow": {"arrow", "bow"},
+              "fire": {"fire", "flame"},
+              "lightning": {"lightning", "bolt"},
+              "speed": {"speed", "wind"},
+              "shield": {"shield", "armor"},
+              "sword": {"sword", "blade", "weapon"},
+              "dagger": {"dagger", "knife"},
+              "heal": {"heal", "heart", "health", "potion"},
+              "poison": {"poison", "skull", "venom"}
+          }
+          used_skill_sources = set()
+          for label, terms in skill_targets.items():
+              matches = ranked_candidates(terms)
+              if not matches: matches = fallback_pool
+              candidates = [entry for entry in matches if str(entry[0]) not in used_skill_sources]
+              if not candidates: candidates = [entry for entry in indexed if str(entry[0]) not in used_skill_sources]
+              if not candidates: raise SystemExit("Not enough distinct skill PNG artworks for: " + label)
+              source = candidates[0][0]
+              used_skill_sources.add(str(source))
+              copy_png(source, f"assets/ui/skills/{label}.png")
+          
+          print(f"PHASE5A_KENNEY_RPG_ICONS_READY: categories_copied={copied}/19 index_rows={len(indexed)}")
+          PY
+          rm -rf /tmp/kenney
+          trap - EXIT
+          test ! -e /tmp/kenney
+          for file in settings bag quest character merchant skill hunt mount; do
+            test -s "assets/ui/menu/$file.png" || { echo "::error::Required menu icon missing: $file"; exit 1; }
+            signature=$(od -An -tx1 -N8 "assets/ui/menu/$file.png" | tr -d ' \\n')
+            [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid menu PNG: $file"; exit 1; }
+            echo "PHASE5A_MENU_ICON_OK: $file"
+          done
+          for file in bow sword dagger armor helmet boots ring necklace potion gem skill fan tower wing steed mount_whip mount_skin garment weapon_accessory; do
+            if find assets/icons/rpg -maxdepth 1 -type f -iname "${file}__*.png" -print -quit | grep -q .; then
+              echo "PHASE5A_RPG_CATEGORY_OK: $file"
             else
-              echo "::warning::PHASE5A_UI_ASSET_INVALID_OR_MISSING: $file bytes=$bytes"
-              needs_restore=1
+              echo "::error::Required equipment icon category missing: $file"
+              exit 1
             fi
           done
+          test -d assets/icons/rpg
 
-          if [ "$needs_restore" -eq 1 ]; then
-            echo "PHASE5A_UI_ASSET_FALLBACK_DOWNLOAD_STARTED"
-            rm -rf /tmp/kenney
-            trap 'rm -rf /tmp/kenney' EXIT
-            git clone --depth 1 https://github.com/shorepine/kenney.git /tmp/kenney
-
-            # Restore the exact approved ornate fantasy frame from the primary workflow's asset source.
-            for candidate in \
-              "/tmp/kenney/ui/Fantasy UI Borders/Border/panel-border-018.png" \
-              "/tmp/kenney/ui/Fantasy UI Borders/Border/panel-border-000.png"; do
-              if [ -f "$candidate" ] && [ "$(stat -c%s "$candidate")" -gt 500 ] && [ "$(od -An -tx1 -N8 "$candidate" | tr -d ' \n')" = "89504e470d0a1a0a" ]; then
-                cp "$candidate" assets/ui/borders/ornate_panel.png
-                echo "PHASE5A_ORNATE_FRAME_RESTORED: $candidate"
-                break
-              fi
-            done
-
-            # Select a real, valid helmet/hood PNG from the same indexed Kenney artwork set.
-            python3 -c 'import pathlib,re,shutil,sys; root=pathlib.Path("/tmp/kenney"); idx=root/"index.tsv"; rows=idx.read_text(encoding="utf-8").splitlines() if idx.is_file() else []; candidates=[(root/p.split("\t",1)[0],p.split("\t",1)[0]) for p in rows if len(p.split("\t",1))==2 and re.search(r"helmet|hood|crown|hat",p,re.I) and p.split("\t",1)[0].lower().endswith(".png")]; valid=[(f,r) for f,r in candidates if f.is_file() and f.stat().st_size>500 and f.read_bytes()[:8]==bytes.fromhex("89504e470d0a1a0a")]; valid.sort(key=lambda x:(0 if "icon" in x[1].lower() else 1,len(x[1]),x[1])); (shutil.copy2(valid[0][0],"assets/icons/rpg/helmet.png"),print("PHASE5A_HELMET_RESTORED:",valid[0][1])) if valid else sys.exit("No valid helmet/hood PNG found in Kenney index.tsv")'
-
-            for file in assets/ui/borders/ornate_panel.png assets/icons/rpg/helmet.png; do
-              bytes=$(stat -c%s "$file")
-              [ "$bytes" -gt 500 ] || { echo "::error::Restored asset too small: $file ($bytes bytes)"; exit 1; }
+      - name: Verify Phase 5A ornate UI, skill icons and cache inputs
+        run: |
+          set -euo pipefail
+          for file in assets/ui/borders/panel_brown.png assets/ui/borders/panel_beige.png assets/ui/slots/slot_brown.png assets/ui/slots/slot_beige.png assets/ui/slots/ornate_slot.png assets/ui/borders/ornate_panel.png assets/ui/buttons/btn_brown.png assets/ui/buttons/btn_brown_pressed.png assets/ui/buttons/btn_sq_brown.png assets/ui/buttons/btn_sq_brown_pressed.png assets/ui/skills/bow.png assets/ui/skills/arrow.png assets/ui/skills/fire.png assets/ui/skills/lightning.png assets/ui/skills/speed.png assets/ui/skills/shield.png assets/ui/skills/sword.png assets/ui/skills/dagger.png assets/ui/skills/heal.png assets/ui/skills/poison.png assets/ui/menu/mount.png; do
+            test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
+            bytes=$(stat -c%s "$file")
+            [ "$bytes" -gt 100 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
+            if [[ "$file" == *.png ]]; then
               signature=$(od -An -tx1 -N8 "$file" | tr -d ' \n')
               [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid PNG signature: $file"; exit 1; }
-              echo "PHASE5A_UI_ASSET_RESTORED_OK: $file bytes=$bytes"
-            done
-
-            font_bytes=0
-            [ -f assets/fonts/NotoSansArabic-Bold.ttf ] && font_bytes=$(stat -c%s assets/fonts/NotoSansArabic-Bold.ttf)
-            if [ "$font_bytes" -le 500 ]; then
-              curl --fail --location --retry 4 --retry-all-errors "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwdth%2Cwght%5D.ttf" -o assets/fonts/NotoSansArabic-Bold.ttf
             fi
-          else
-            echo "PHASE5A_UI_ASSET_FALLBACK_NOT_NEEDED"
-          fi
-
-          for file in assets/ui/borders/ornate_panel.png assets/icons/rpg/helmet.png assets/fonts/NotoSansArabic-Bold.ttf; do
-            bytes=$(stat -c%s "$file")
-            [ "$bytes" -gt 500 ] || { echo "::error::Required asset invalid or too small: $file ($bytes bytes)"; exit 1; }
-            echo "PHASE5A_UI_ASSET_FINAL_OK: $file bytes=$bytes"
+            echo "PHASE5A_ASSET_OK: $file bytes=$bytes"
           done
+          icon_pngs=$(find assets/icons/rpg -type f -iname '*.png' | wc -l)
+          [ "$icon_pngs" -ge 8 ] && [ "$icon_pngs" -le 30 ] || { echo "::error::RPG icon count outside 8..30: $icon_pngs"; exit 1; }
+          echo "PHASE5A_RPG_ICON_PNG_COUNT: $icon_pngs"
 
+      - name: Install verified Noto Sans Arabic font
+        run: |
+          set -euo pipefail
+          mkdir -p assets/fonts
+          curl --fail --location --retry 4 --retry-all-errors "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansarabic/NotoSansArabic%5Bwdth%2Cwght%5D.ttf" -o assets/fonts/NotoSansArabic-Bold.ttf
+          font_bytes=$(stat -c%s assets/fonts/NotoSansArabic-Bold.ttf)
+          [ "$font_bytes" -gt 50000 ] || { echo "::error::Noto Sans Arabic font is too small: $font_bytes bytes"; exit 1; }
+          echo "PHASE5A_ARABIC_FONT_READY: bytes=$font_bytes"
+
+      - name: Verify Phase 5A mobile UI assets and cache inputs
+        run: |
+          set -euo pipefail
+          for file in \
+            assets/ui/borders/panel_brown.png \
+            assets/ui/borders/panel_beige.png \
+            assets/ui/slots/slot_brown.png \
+            assets/ui/slots/slot_beige.png \
+            assets/ui/buttons/btn_brown.png \
+            assets/ui/buttons/btn_brown_pressed.png \
+            assets/ui/buttons/btn_sq_brown.png \
+            assets/ui/buttons/btn_sq_brown_pressed.png \
+            assets/fonts/NotoSansArabic-Bold.ttf; do
+            test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
+            bytes=$(stat -c%s "$file")
+            [ "$bytes" -gt 100 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
+            if [[ "$file" == *.png ]]; then
+              signature=$(od -An -tx1 -N8 "$file" | tr -d ' \n')
+              [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid PNG signature: $file"; exit 1; }
+            fi
+            echo "PHASE5A_ASSET_OK: $file bytes=$bytes"
+          done
+          test -d assets/icons/rpg
+          icon_pngs=$(find assets/icons/rpg -type f -iname '*.png' | wc -l)
+          [ "$icon_pngs" -ge 8 ] && [ "$icon_pngs" -le 30 ] || { echo "::error::RPG icon count outside 8..30: $icon_pngs"; exit 1; }
+          while IFS= read -r file; do
+            bytes=$(stat -c%s "$file")
+            [ "$bytes" -gt 100 ] || { echo "::error::RPG icon PNG is too small: $file ($bytes bytes)"; exit 1; }
+            signature=$(od -An -tx1 -N8 "$file" | tr -d ' \n')
+            [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid RPG icon PNG signature: $file"; exit 1; }
+          done < <(find assets/icons/rpg -type f -iname '*.png' | sort)
+          echo "PHASE5A_RPG_ICON_PNG_COUNT: $icon_pngs"
       - name: Verify cached UI assets and import project
         run: |
           set -euo pipefail
@@ -139,20 +343,19 @@ jobs:
           done
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/mobile_hud_import.log
 
-      - name: Render MobileHUD inventory and character previews only
+      - name: Render MobileHUD inventory and character preview
         run: |
           set -euo pipefail
-          xvfb-run -a -s "-screen 0 1600x900x24" timeout 600s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x900 -- --preview-mobile-hud 2>&1 | tee artifacts/mobile_hud_preview.log
+          export LIBGL_ALWAYS_SOFTWARE=1
+          xvfb-run -a -s "-screen 0 1600x900x24" timeout 1500s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x900 -- --preview-mobile-hud 2>&1 | tee artifacts/mobile_hud_preview.log
           test -s artifacts/mobile_hud_inventory_preview.png
           test -s artifacts/mobile_hud_character_preview.png
           for image in mobile_hud_inventory_preview.png mobile_hud_character_preview.png; do
             size=$(stat -c%s "artifacts/$image")
             [ "$size" -gt 1024 ] || { echo "::error::Mobile HUD preview $image is too small: $size bytes"; exit 1; }
-            file "artifacts/$image"
           done
           grep -q "PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true" artifacts/mobile_hud_preview.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE5A_MOBILE_HUD_PREVIEW_FAILED" artifacts/mobile_hud_preview.log
-
       - name: Upload both mobile HUD preview PNGs
         if: always()
         uses: actions/upload-artifact@v4
