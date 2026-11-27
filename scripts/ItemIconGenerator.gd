@@ -91,6 +91,10 @@ func _item_kind(data: Dictionary) -> String:
   "mount_skin": return "mount_skin"
   "garment": return "garment"
   "weapon_accessory": return "weapon_accessory"
+  "weapon":
+   if text.contains("dagger"): return "dagger"
+   if text.contains("sword") or text.contains("blade"): return "sword"
+   return "bow"
  if text.contains("bow"): return "bow"
  if text.contains("steed") or text.contains("horse") or text.contains("mount"): return "steed"
  if text.contains("fan"): return "fan"
