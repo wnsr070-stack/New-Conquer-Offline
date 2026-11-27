@@ -197,7 +197,7 @@ func _build_hud() -> void:
  attack.position=Vector2(138,138)
  attack.size=Vector2(104,104)
  combat.add_child(attack)
- var arc_buttons:=[["قفزة",_jump,Vector2(100,78)],["تشتت",_use_primary_skill,Vector2(48,38)],["طيران",_jump,Vector2(4,78)],["مطر",_use_secondary_skill,Vector2(48,118)],["سريع",_use_primary_skill,Vector2(100,4)],["هدف",_cycle_target,Vector2(4,158)]]
+ var arc_buttons: Array =[["قفزة",_jump,Vector2(100,78)],["تشتت",_use_primary_skill,Vector2(48,38)],["طيران",_jump,Vector2(4,78)],["مطر",_use_secondary_skill,Vector2(48,118)],["سريع",_use_primary_skill,Vector2(100,4)],["هدف",_cycle_target,Vector2(4,158)]]
  for item in arc_buttons:
   var b:=_round_button(String(item[0]),item[1])
   b.position=item[2]
@@ -446,7 +446,7 @@ func _build_skill_window(layout: VBoxContainer) -> void:
  var grid:=GridContainer.new()
  grid.columns=2
  layout.add_child(grid)
- var names:=["Scatter","Fly","Arrow Rain","Rapid Fire","Cyclone","Superman","Shield","Dash","Poison","Meditation","Intensify","XP Skill","Fatal Strike","Revive"]
+ var names: Array[String] =["Scatter","Fly","Arrow Rain","Rapid Fire","Cyclone","Superman","Shield","Dash","Poison","Meditation","Intensify","XP Skill","Fatal Strike","Revive"]
  for i in range(14):
   var row:=VBoxContainer.new()
   row.add_child(_label("%02d  %s" % [i+1,String(available[i]) if i<available.size() else names[i]]))
@@ -666,7 +666,7 @@ func _build_character(layout: VBoxContainer) -> void:
 func _build_quest_book(layout: VBoxContainer) -> void:
  var quests := _root_autoload("QuestSystem")
  if quests == null: return
- var categories := ["MAIN_PROMOTION","DAILY","WEEKLY","SIDE_QUESTS","ENDGAME_REBIRTH","DAILY_LOGIN"]
+ var categories: Array[String] = ["MAIN_PROMOTION","DAILY","WEEKLY","SIDE_QUESTS","ENDGAME_REBIRTH","DAILY_LOGIN"]
  var tabs := HBoxContainer.new()
  tabs.add_theme_constant_override("separation",3)
  layout.add_child(tabs)
@@ -1030,7 +1030,7 @@ func _on_joystick_input(event: InputEvent) -> void:
   _dragging_joystick = event.pressed
   if not event.pressed: _joystick_vector = Vector2.ZERO
  elif event is InputEventScreenDrag and _dragging_joystick:
-  var local := (event as InputEventScreenDrag).position - Vector2(95,95)
+  var local: Vector2 = (event as InputEventScreenDrag).position - Vector2(95,95)
   _joystick_vector = local.limit_length(1.0)
   _hero = _find_hero()
   if _hero is CharacterBody3D:
@@ -1069,7 +1069,7 @@ func _apply_arabic_rtl(node: Node) -> void:
  for child in node.get_children():
   _apply_arabic_rtl(child)
 func _arabic(caption: String) -> String:
- var dictionary := {
+ var dictionary: Dictionary = {
   "Plus +1…+12":"التطوير +1 إلى +12","Quality":"الجودة","Level":"المستوى","Sockets":"فتح الثقوب","Anima":"ترقية الأنيما",
   "MAIN PROMOTION":"المهام الرئيسية والترقية","Daily Quests":"المهام اليومية","Weekly":"الأسبوعية","Side Quests":"الجانبية","Endgame Rebirth":"الميلاد الثاني",
   "Ranger":"رامٍ","Battle Power":"قوة المعركة","HP":"الحياة","MP":"الطاقة","Stamina":"القدرة على التحمل",
@@ -1211,7 +1211,7 @@ func _seed_mobile_hud_preview_data() -> void:
  var db := _root_autoload("GearDatabase")
  var gear := _root_autoload("GearSystem")
  if db != null and gear != null:
-  var fixtures := {
+  var fixtures: Dictionary = {
    "weapon":"bow_lv10_normal_p12",
    "armor":"body_03_beginner_super_p12",
    "helmet":"helmet_01_beginner_super_p12",
