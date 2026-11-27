@@ -195,21 +195,18 @@ jobs:
             assets/ui
             assets/icons
             assets/fonts
-          key: phase5a-mobile-ui-assets-v5
-      - name: Fetch real RPG icons, ornate Kenney frames and menu artwork
+          key: phase5a-mobile-ui-assets-v6
+      - name: Fetch real Kenney RPG icons, ornate fantasy frame and menu artwork
         run: |
           set -euo pipefail
           mkdir -p assets/ui/borders assets/ui/slots assets/ui/buttons assets/ui/skills assets/ui/menu assets/icons/rpg assets/fonts
-          rm -rf /tmp/kenney /tmp/rpg_icons
-          trap 'rm -rf /tmp/kenney /tmp/rpg_icons' EXIT
+          rm -rf /tmp/kenney
+          trap 'rm -rf /tmp/kenney' EXIT
           git clone --depth 1 https://github.com/shorepine/kenney.git /tmp/kenney
-          git clone --depth 1 https://github.com/sven-m/rpg-icons.git /tmp/rpg_icons
           python3 - <<'PY'
-          import pathlib, re, struct, shutil
+          import pathlib, shutil
 
-          kenney = pathlib.Path("/tmp/kenney")
-          rpg = pathlib.Path("/tmp/rpg_icons")
-
+          root = pathlib.Path("/tmp/kenney")
           def png_ok(path):
               try:
                   data = path.read_bytes()
@@ -217,95 +214,136 @@ jobs:
               except OSError:
                   return False
 
+          pngs = [p for p in root.rglob("*.png") if p.is_file() and png_ok(p)]
+          if not pngs:
+              raise SystemExit("Kenney clone contains no valid PNG artwork")
+
           def copy_png(source, destination):
-              if not png_ok(source):
-                  raise SystemExit(f"Invalid PNG source: {source}")
               target = pathlib.Path(destination)
               target.parent.mkdir(parents=True, exist_ok=True)
               shutil.copy2(source, target)
               print(f"PHASE5A_REAL_ART_OK: {target} bytes={target.stat().st_size} source={source}")
 
-          # Copy a real engraved fantasy border from the Kenney repository.
-          border_files = [p for p in kenney.rglob("*.png") if p.is_file() and p.name.lower() in {"border-018.png", "border-024.png"} and png_ok(p)]
-          if not border_files:
-              border_files = [p for p in kenney.rglob("*.png") if p.is_file() and "border" in p.stem.lower() and png_ok(p)]
-          if not border_files:
-              raise SystemExit("No real Kenney Fantasy UI border PNG was found")
-          border = sorted(border_files, key=lambda p: (p.name.lower() != "border-018.png", p.name.lower() != "border-024.png", str(p)))[0]
+          # Prefer the requested Fantasy UI Borders pack and exact engraved frames.
+          border_candidates = [
+              p for p in pngs
+              if "fantasy ui borders" in str(p.parent).lower()
+              and p.name.lower() in {"border-018.png", "border-024.png"}
+          ]
+          if not border_candidates:
+              border_candidates = [
+                  p for p in pngs
+                  if "fantasy" in str(p).lower() and "border" in p.stem.lower()
+              ]
+          if not border_candidates:
+              border_candidates = [
+                  p for p in pngs
+                  if "border" in p.stem.lower() and ("ui" in str(p).lower() or "fantasy" in str(p).lower())
+              ]
+          if not border_candidates:
+              raise SystemExit("No engraved Fantasy UI Borders PNG found in Kenney clone")
+          border = sorted(border_candidates, key=lambda p: (
+              p.name.lower() != "border-018.png",
+              p.name.lower() != "border-024.png",
+              len(str(p)),
+              str(p)
+          ))[0]
           copy_png(border, "assets/ui/borders/ornate_panel.png")
 
-          # Keep existing panel/slot/button resources available to the HUD.
-          pngs = [p for p in kenney.rglob("*.png") if p.is_file() and png_ok(p)]
+          # Preserve the existing brown panel/slot/button resources when present.
           legacy = {
               "panel_brown.png": "assets/ui/borders/panel_brown.png",
               "panel_beige.png": "assets/ui/borders/panel_beige.png",
-              "panelInset_brown.png": "assets/ui/slots/slot_brown.png",
-              "panelInset_beige.png": "assets/ui/slots/slot_beige.png",
-              "buttonLong_brown.png": "assets/ui/buttons/btn_brown.png",
-              "buttonLong_brown_pressed.png": "assets/ui/buttons/btn_brown_pressed.png",
-              "buttonSquare_brown.png": "assets/ui/buttons/btn_sq_brown.png",
-              "buttonSquare_brown_pressed.png": "assets/ui/buttons/btn_sq_brown_pressed.png"
+              "panelinset_brown.png": "assets/ui/slots/slot_brown.png",
+              "panelinset_beige.png": "assets/ui/slots/slot_beige.png",
+              "buttonlong_brown.png": "assets/ui/buttons/btn_brown.png",
+              "buttonlong_brown_pressed.png": "assets/ui/buttons/btn_brown_pressed.png",
+              "buttonsquare_brown.png": "assets/ui/buttons/btn_sq_brown.png",
+              "buttonsquare_brown_pressed.png": "assets/ui/buttons/btn_sq_brown_pressed.png"
           }
           for name, target in legacy.items():
-              matches = [p for p in pngs if p.name.lower() == name.lower()]
+              matches = [p for p in pngs if p.name.lower() == name]
               if matches:
-                  copy_png(sorted(matches)[0], target)
+                  copy_png(sorted(matches, key=lambda p: str(p))[0], target)
 
-          # Menu icons are selected by semantic filenames, never synthesized.
+          def score(path, terms):
+              stem = path.stem.lower().replace("_", " ").replace("-", " ")
+              parents = " ".join(part.lower().replace("_", " ").replace("-", " ") for part in path.parts)
+              searchable = stem + " " + parents
+              hits = sum(1 for term in terms if term in searchable)
+              if "icon" in searchable or "icons" in searchable:
+                  hits += 3
+              if "ui" in searchable or "interface" in searchable:
+                  hits += 1
+              return hits
+
+          def choose(label, terms, preferred=()):
+              candidates = [(score(p, terms), p) for p in pngs]
+              candidates = [(s, p) for s, p in candidates if s > 0 and any(t in (p.stem + " " + str(p.parent)).lower() for t in terms)]
+              if preferred:
+                  candidates.sort(key=lambda item: (
+                      not any(token in str(item[1]).lower() for token in preferred),
+                      -item[0], len(str(item[1])), str(item[1])
+                  ))
+              else:
+                  candidates.sort(key=lambda item: (-item[0], len(str(item[1])), str(item[1])))
+              if not candidates:
+                  raise SystemExit(f"Missing real Kenney icon artwork for {label}; searched terms={terms}")
+              return candidates[0][1]
+
+          # Menu artwork is copied from Kenney's real icon folders.
           menu_terms = {
-              "settings": ("gear", "cog", "settings"),
-              "bag": ("backpack", "inventory", "bag"),
-              "quest": ("quest", "scroll", "mission"),
-              "character": ("character", "person", "avatar", "player")
+              "settings": ("gear", "cog", "settings", "wrench"),
+              "bag": ("backpack", "inventory", "bag", "chest"),
+              "quest": ("quest", "scroll", "mission", "map"),
+              "character": ("character", "person", "avatar", "player", "knight")
           }
           for label, terms in menu_terms.items():
-              matches = [p for p in pngs if any(term in p.stem.lower() for term in terms)]
-              if not matches:
-                  raise SystemExit(f"Missing real Kenney menu icon for {label}: {terms}")
-              copy_png(sorted(matches, key=lambda p: (len(p.stem), str(p)))[0], f"assets/ui/menu/{label}.png")
+              source = choose("menu/" + label, terms, ("icon", "icons", "ui"))
+              copy_png(source, f"assets/ui/menu/{label}.png")
 
-          # Keep skill artwork sourced from actual Kenney PNG assets.
+          # All item/skill categories come exclusively from Kenney's icon artwork.
+          category_terms = {
+              "bow": ("bow", "archery"),
+              "sword": ("sword", "blade", "weapon"),
+              "dagger": ("dagger", "knife", "short sword"),
+              "armor": ("armor", "armour", "chestplate", "breastplate", "body armor"),
+              "helmet": ("helmet", "helm", "headgear"),
+              "boots": ("boots", "boot", "shoe", "footwear"),
+              "ring": ("ring", "band"),
+              "necklace": ("necklace", "amulet", "pendant"),
+              "potion": ("potion", "flask", "vial", "elixir"),
+              "gem": ("gem", "jewel", "crystal", "diamond", "ruby", "emerald"),
+              "skill": ("skill", "spell", "magic", "ability", "power")
+          }
+          copied = 0
+          for category, terms in category_terms.items():
+              source = choose("rpg/" + category, terms, ("icon", "icons", "rpg"))
+              copy_png(source, f"assets/icons/rpg/{category}__1__{source.name}")
+              copied += 1
+
+          # Additional Kenney combat skill icons, also sourced from real PNG files.
           skill_terms = {
-              "bow": ("bow",), "arrow": ("arrow",), "fire": ("fire", "flame"),
-              "lightning": ("bolt", "lightning"), "speed": ("wing", "speed"),
-              "shield": ("shield",)
+              "bow": ("bow", "arrow", "archery"),
+              "fire": ("fire", "flame", "burn"),
+              "lightning": ("lightning", "bolt", "thunder"),
+              "speed": ("wing", "speed", "haste"),
+              "shield": ("shield", "guard", "defense")
           }
           for label, terms in skill_terms.items():
-              matches = [p for p in pngs if any(term in p.stem.lower() for term in terms)]
-              if not matches:
-                  raise SystemExit(f"Missing real Kenney skill icon for {label}")
-              copy_png(sorted(matches, key=lambda p: (len(p.stem), str(p)))[0], f"assets/ui/skills/{label}.png")
+              source = choose("skills/" + label, terms, ("icon", "icons", "ui"))
+              copy_png(source, f"assets/ui/skills/{label}.png")
 
-          # Pull full-colour, illustrated RPG icons from the requested repository.
-          rpg_pngs = [p for p in rpg.rglob("*.png") if p.is_file() and png_ok(p)]
-          category_terms = {
-              "bow": ("bow",), "sword": ("sword", "blade"), "dagger": ("dagger", "knife"),
-              "armor": ("armor", "armour", "chest", "body"), "helmet": ("helmet", "helm"),
-              "boots": ("boots", "boot", "shoe"), "ring": ("ring",),
-              "necklace": ("necklace", "amulet", "pendant"), "potion": ("potion", "flask", "vial"),
-              "gem": ("gem", "jewel", "crystal", "stone"), "skill": ("skill", "spell", "magic")
-          }
-          total = 0
-          for category, terms in category_terms.items():
-              candidates = [p for p in rpg_pngs if any(term in p.stem.lower() for term in terms)]
-              if not candidates:
-                  raise SystemExit(f"rpg-icons repository has no matching PNG for category {category}")
-              for index, source in enumerate(sorted(candidates, key=lambda p: (len(p.stem), str(p)))[:3]):
-                  copy_png(source, f"assets/icons/rpg/{category}__{index+1}__{source.name}")
-                  total += 1
-          if total < 10:
-              raise SystemExit(f"Insufficient real RPG icon coverage: {total}")
-          print(f"PHASE5A_RPG_COLOUR_ICONS_READY: categories={len(category_terms)} files={total}")
+          print(f"PHASE5A_KENNEY_RPG_ICONS_READY: categories={copied} menu=4 skills=5")
           PY
-          rm -rf /tmp/kenney /tmp/rpg_icons
+          rm -rf /tmp/kenney
           trap - EXIT
           test ! -e /tmp/kenney
-          test ! -e /tmp/rpg_icons
           test -s assets/ui/borders/ornate_panel.png
-          test -s assets/ui/menu/settings.png
-          test -s assets/ui/menu/bag.png
-          test -s assets/ui/menu/quest.png
-          test -s assets/ui/menu/character.png
+          for file in settings bag quest character; do test -s "assets/ui/menu/$file.png"; done
+          for file in bow sword dagger armor helmet boots ring necklace potion gem skill; do
+            find assets/icons/rpg -maxdepth 1 -type f -iname "$file__*.png" -print -quit | grep -q .
+          done
       - name: Verify Phase 5A ornate UI, skill icons and cache inputs
         run: |
           set -euo pipefail
