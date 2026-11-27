@@ -306,10 +306,11 @@ func _on_respawn_timeout() -> void:
 		_model.position = _model_rest_position
 		_model.rotation = Vector3.ZERO
 		_model.scale = _model_rest_scale
+	var game_settings := get_node_or_null("/root/GameSettings")
 	if _nameplate != null:
-		_nameplate.visible = true
+		_nameplate.visible = bool(game_settings.get_setting("show_names", true)) if game_settings != null else true
 	if _health_bar_sprite != null:
-		_health_bar_sprite.visible = true
+		_health_bar_sprite.visible = bool(game_settings.get_setting("show_hp_bars", true)) if game_settings != null else true
 	_play_idle()
 	respawned.emit(self)
 
