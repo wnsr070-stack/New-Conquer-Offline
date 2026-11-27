@@ -278,7 +278,7 @@ jobs:
             assets/ui
             assets/icons
             assets/fonts
-          key: phase5a-mobile-ui-assets-v8
+          key: phase5a-mobile-ui-assets-v9-real-equipment-icons
       - name: Fetch real Kenney RPG icons, ornate fantasy frame and menu artwork
         run: |
           set -euo pipefail
@@ -361,9 +361,9 @@ jobs:
           
           # Exact token categories; paths and descriptions are both indexed.
           categories = {
-              "bow": {"bow"},
-              "sword": {"sword"},
-              "dagger": {"dagger"},
+              "bow": {"bow", "arrow", "quiver"},
+              "sword": {"sword", "blade", "greatsword"},
+              "dagger": {"dagger", "knife", "dual"},
               "armor": {"armor", "shield", "chestplate", "tunic", "vest"},
               "helmet": {"helmet", "crown", "hood", "hat"},
               "boots": {"boot", "boots", "shoe"},
@@ -371,7 +371,15 @@ jobs:
               "necklace": {"amulet", "gem", "medal", "necklace", "pendant", "charm"},
               "potion": {"potion", "bottle", "flask", "vial"},
               "gem": {"gem", "crystal", "diamond", "ruby", "emerald"},
-              "skill": {"fire", "lightning", "arrow", "star", "flame", "bolt", "wind", "heal", "speed"}
+              "skill": {"fire", "lightning", "arrow", "star", "flame", "bolt", "wind", "heal", "speed"},
+              "fan": {"fan", "handfan", "foldingfan"},
+              "tower": {"tower", "shield", "buckler", "crest"},
+              "wing": {"wing", "feather", "bird"},
+              "steed": {"horse", "steed", "mount", "saddle"},
+              "mount_whip": {"whip", "rope", "lasso"},
+              "mount_skin": {"horse", "steed", "mount", "saddle", "skin", "dye"},
+              "garment": {"clothing", "shirt", "robe", "tunic", "dress", "armor"},
+              "weapon_accessory": {"weapon", "bow", "sword", "dagger", "blade", "quiver"}
           }
           
           def ranked_candidates(terms):
@@ -394,12 +402,19 @@ jobs:
               raise SystemExit("No safe weapon/gem icon fallback exists in Kenney index.tsv")
           
           copied = 0
+          used_icon_sources = set()
           for category, terms in categories.items():
               matches = ranked_candidates(terms)
               if not matches:
-                  print(f"::warning::No direct indexed match for {category}; using weapon/gem icon fallback")
+                  print(f"::warning::No direct indexed match for {category}; selecting a distinct real RPG artwork")
                   matches = fallback_pool
-              source = matches[0][0]
+              candidates = [entry for entry in matches if str(entry[0]) not in used_icon_sources]
+              if not candidates:
+                  candidates = [entry for entry in indexed if str(entry[0]) not in used_icon_sources]
+              if not candidates:
+                  raise SystemExit("Not enough distinct real PNG artworks for category: " + category)
+              source = candidates[0][0]
+              used_icon_sources.add(str(source))
               copy_png(source, f"assets/icons/rpg/{category}__1__{source.name}")
               copied += 1
           
@@ -412,6 +427,7 @@ jobs:
               "merchant": {"merchant", "shop", "store", "trade", "coin"},
               "skill": {"skill", "magic", "star", "spell", "rune"},
               "hunt": {"hunt", "target", "crosshair", "monster", "bow"},
+              "mount": {"horse", "steed", "mount", "saddle", "animal"},
           }
           for label, terms in menu_targets.items():
               matches = ranked_candidates(terms)
@@ -441,24 +457,25 @@ jobs:
           rm -rf /tmp/kenney
           trap - EXIT
           test ! -e /tmp/kenney
-          for file in settings bag quest character merchant skill hunt; do
+          for file in settings bag quest character merchant skill hunt mount; do
             test -s "assets/ui/menu/$file.png" || { echo "::error::Required menu icon missing: $file"; exit 1; }
             signature=$(od -An -tx1 -N8 "assets/ui/menu/$file.png" | tr -d ' \\n')
             [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid menu PNG: $file"; exit 1; }
             echo "PHASE5A_MENU_ICON_OK: $file"
           done
-          for file in bow sword dagger armor helmet boots ring necklace potion gem skill; do
+          for file in bow sword dagger armor helmet boots ring necklace potion gem skill fan tower wing steed mount_whip mount_skin garment weapon_accessory; do
             if find assets/icons/rpg -maxdepth 1 -type f -iname "${file}__*.png" -print -quit | grep -q .; then
               echo "PHASE5A_RPG_CATEGORY_OK: $file"
             else
-              echo "::warning::Optional RPG category icon missing: $file"
+              echo "::error::Required equipment icon category missing: $file"
+              exit 1
             fi
           done
           test -d assets/icons/rpg
       - name: Verify Phase 5A ornate UI, skill icons and cache inputs
         run: |
           set -euo pipefail
-          for file in assets/ui/borders/panel_brown.png assets/ui/borders/panel_beige.png assets/ui/slots/slot_brown.png assets/ui/slots/slot_beige.png assets/ui/slots/ornate_slot.png assets/ui/borders/ornate_panel.png assets/ui/buttons/btn_brown.png assets/ui/buttons/btn_brown_pressed.png assets/ui/buttons/btn_sq_brown.png assets/ui/buttons/btn_sq_brown_pressed.png assets/ui/skills/bow.png assets/ui/skills/arrow.png assets/ui/skills/fire.png assets/ui/skills/lightning.png assets/ui/skills/speed.png assets/ui/skills/shield.png assets/ui/skills/sword.png assets/ui/skills/dagger.png assets/ui/skills/heal.png assets/ui/skills/poison.png; do
+          for file in assets/ui/borders/panel_brown.png assets/ui/borders/panel_beige.png assets/ui/slots/slot_brown.png assets/ui/slots/slot_beige.png assets/ui/slots/ornate_slot.png assets/ui/borders/ornate_panel.png assets/ui/buttons/btn_brown.png assets/ui/buttons/btn_brown_pressed.png assets/ui/buttons/btn_sq_brown.png assets/ui/buttons/btn_sq_brown_pressed.png assets/ui/skills/bow.png assets/ui/skills/arrow.png assets/ui/skills/fire.png assets/ui/skills/lightning.png assets/ui/skills/speed.png assets/ui/skills/shield.png assets/ui/skills/sword.png assets/ui/skills/dagger.png assets/ui/skills/heal.png assets/ui/skills/poison.png assets/ui/menu/mount.png; do
             test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
             bytes=$(stat -c%s "$file")
             [ "$bytes" -gt 100 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
