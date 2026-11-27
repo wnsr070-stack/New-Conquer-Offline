@@ -317,7 +317,7 @@ jobs:
       - name: Verify Phase 5A ornate UI, skill icons and cache inputs
         run: |
           set -euo pipefail
-          for file in assets/ui/borders/panel_brown.png assets/ui/borders/panel_beige.png assets/ui/borders/ornate_panel.png assets/ui/slots/slot_brown.png assets/ui/slots/slot_beige.png assets/ui/slots/ornate_slot.png assets/ui/buttons/btn_brown.png assets/ui/buttons/btn_brown_pressed.png assets/ui/buttons/btn_sq_brown.png assets/ui/buttons/btn_sq_brown_pressed.png assets/ui/skills/bow.png assets/ui/skills/arrow.png assets/ui/skills/fire.png assets/ui/skills/lightning.png assets/ui/skills/speed.png assets/ui/skills/shield.png assets/fonts/NotoSansArabic-Bold.ttf; do
+          for file in assets/ui/borders/panel_brown.png assets/ui/borders/panel_beige.png assets/ui/borders/ornate_panel.png assets/ui/slots/slot_brown.png assets/ui/slots/slot_beige.png assets/ui/slots/ornate_slot.png assets/ui/buttons/btn_brown.png assets/ui/buttons/btn_brown_pressed.png assets/ui/buttons/btn_sq_brown.png assets/ui/buttons/btn_sq_brown_pressed.png assets/ui/skills/bow.png assets/ui/skills/arrow.png assets/ui/skills/fire.png assets/ui/skills/lightning.png assets/ui/skills/speed.png assets/ui/skills/shield.png; do
             test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
             bytes=$(stat -c%s "$file")
             [ "$bytes" -gt 100 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
