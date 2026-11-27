@@ -202,7 +202,7 @@ func run_functional_test(test_hero: Node3D) -> bool:
  var steed: Dictionary = db.get_item("preview_steed_p12")
  if steed.is_empty(): return false
  gear.equip_item("steed",steed)
- if not gear.get_equipped("steed").is_empty() == true: return false
+ if gear.get_equipped("steed").is_empty(): return false
  var garment: Dictionary = db.get_item("preview_garment")
  var accessory: Dictionary = db.get_item("preview_weapon_accessory")
  gear.equip_item("garment",garment)
