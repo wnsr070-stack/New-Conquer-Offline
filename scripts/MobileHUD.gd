@@ -1732,19 +1732,23 @@ func _set_skill_button_icon(button: Button,kind: String,hotkey: String = "") -> 
  else:
   push_error("PHASE5A_SKILL_ICON_MISSING: " + filename)
  if not hotkey.is_empty():
+  var badge_panel:=Panel.new()
+  badge_panel.name="SkillHotkeyBadge"
+  badge_panel.position=Vector2(1,0)
+  badge_panel.size=Vector2(15,12)
+  badge_panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  badge_panel.add_theme_stylebox_override("panel",_flat_style(Color(0.035,0.025,0.015,0.98),Color(0.92,0.68,0.22),1))
+  badge_panel.z_index=4
   var badge:=Label.new()
-  badge.name="SkillHotkeyBadge"
   badge.text=hotkey
-  badge.position=Vector2(1,0)
-  badge.size=Vector2(15,12)
+  badge.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
   badge.add_theme_font_size_override("font_size",8)
   badge.add_theme_color_override("font_color",Color(1.0,0.91,0.65))
-  badge.add_theme_stylebox_override("normal",_flat_style(Color(0.035,0.025,0.015,0.96),Color(0.92,0.68,0.22),1))
   badge.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
   badge.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
   badge.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  badge.z_index=4
-  button.add_child(badge)
+  badge_panel.add_child(badge)
+  button.add_child(badge_panel)
 
 func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false) -> Panel:
  var panel:=Panel.new()
