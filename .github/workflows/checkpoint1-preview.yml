@@ -523,7 +523,7 @@ jobs:
           import pathlib, shutil, subprocess, struct, json, urllib.request
           root = pathlib.Path("/tmp/quaternius-showcase")
           output = pathlib.Path("assets/mounts")
-          mapping = {"Horse":"steed_horse.glb", "Deer":"mount_deer.glb", "Wolf":"mount_wolf.glb"}
+          mapping = {"Horse":"steed_horse.glb", "Wolf":"mount_wolf.glb"}  # Preserve the director-selected Stag.glb fetched in the first asset step.
           for identity, filename in mapping.items():
               candidates = [p for p in (root / "public/glb").rglob("*.glb") if identity.lower() in p.stem.lower()]
               if not candidates:
