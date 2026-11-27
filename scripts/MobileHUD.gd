@@ -75,7 +75,7 @@ func _build_hud() -> void:
  portrait_ring.mouse_filter=Control.MOUSE_FILTER_IGNORE
  portrait_stack.add_child(portrait_ring)
  head.add_child(portrait_stack)
-var info:=VBoxContainer.new()
+ var info:=VBoxContainer.new()
  info.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
  info.custom_minimum_size=Vector2(230,0)
  head.add_child(info)
@@ -273,7 +273,7 @@ var info:=VBoxContainer.new()
 
  _window_layer=Control.new()
  _window_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- _window_layer.mouse_filter=Control.MOUSE_FILTER_STOP
+ _window_layer.mouse_filter=Control.MOUSE_FILTER_IGNORE
  _window_layer.z_index=30
  add_child(_window_layer)
 
@@ -1524,7 +1524,7 @@ func _set_skill_button_icon(button: Button,kind: String) -> void:
   icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
   icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
   icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-  icon_rect.position = Vector2(1,1)
+  icon_rect.position = (button.size-Vector2(32,32))*0.5
   icon_rect.size = Vector2(32,32)
   button.add_child(icon_rect)
  else:
