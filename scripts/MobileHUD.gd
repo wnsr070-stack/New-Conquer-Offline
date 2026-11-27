@@ -119,9 +119,20 @@ func _build_hud() -> void:
  quick.set_anchors_preset(Control.PRESET_TOP_RIGHT)
  quick.position=Vector2(-205,210)
  root.add_child(quick)
- for p in [["⚙","System"],["日","Daily Login"],["✦","Auto-Hunt"],["☰","Menu"]]:
-  var b:=_round_button(String(p[0]),_toggle_window_menu if String(p[1])=="Menu" else _quick_action.bind(String(p[1])))
-  quick.add_child(b)
+ for p in [["⚙","الإعدادات","System","settings"],["🎒","الحقيبة","Inventory","bag"],["♟","الشخصية","Character","character"],["📜","المهام","Quests","quest"]]:
+  var entry:=VBoxContainer.new()
+  entry.custom_minimum_size=Vector2(54,64)
+  entry.add_theme_constant_override("separation",1)
+  var icon_button:=_round_button("",_quick_action.bind(String(p[2])))
+  icon_button.custom_minimum_size=Vector2(48,42)
+  icon_button.icon=load("res://assets/ui/menu/"+String(p[3]+".png")) as Texture2D
+  icon_button.expand_icon=true
+  entry.add_child(icon_button)
+  var caption:=_label(String(p[1]))
+  caption.add_theme_font_size_override("font_size",10)
+  caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+  entry.add_child(caption)
+  quick.add_child(entry)
 
  _window_menu=VBoxContainer.new()
  _window_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -159,14 +170,14 @@ func _build_hud() -> void:
  send.custom_minimum_size=Vector2(58,30)
  chat.add_child(send)
 
- var joy:=_ornate_panel(root,Vector2(18,-205),Vector2(190,190))
+ var joy:=_ornate_panel(root,Vector2(18,-154),Vector2(152,152))
  joy.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- joy.z_index=40
+ joy.z_index=45
  joy.visible=true
  joy.gui_input.connect(_on_joystick_input)
  var joyart:=JoystickVisual.new()
  joyart.position=Vector2(8,8)
- joyart.size=Vector2(174,174)
+ joyart.size=Vector2(136,136)
  joyart.mouse_filter=Control.MOUSE_FILTER_IGNORE
  joy.add_child(joyart)
 
@@ -252,7 +263,7 @@ class SplitOrb extends Control:
 class JoystickVisual extends Control:
  func _draw() -> void:
   var center := size*0.5
-  var radius := minf(size.x,size.y)*0.45
+  var radius := minf(size.x,size.y)*0.48
   draw_circle(center,radius,Color(0.08,0.10,0.14,0.65))
   draw_arc(center,radius,0.0,TAU,64,Color(0.88,0.76,0.52,0.78),4.0,true)
   draw_circle(center,radius*0.46,Color(0.18,0.20,0.24,0.65))
