@@ -127,7 +127,11 @@ func _initialize_mount_items() -> void:
   {"id":"preview_fire_tiger_skin","name":"سكن المطية الأسطورية: النمر الناري","slot":"mount_skin","family":"mount_skin","type":"MountSkin","base_attack":0,"base_defense":0},
   {"id":"preview_wing","name":"جناح سماوي","slot":"wing","family":"wing","type":"Wing","base_attack":0,"base_defense":0},
   {"id":"preview_mount_whip","name":"سوط ركوب","slot":"mount_whip","family":"mount_whip","type":"MountWhip","base_attack":0,"base_defense":0},
-  {"id":"preview_garment","name":"زي الحارس","slot":"garment","family":"garment","type":"Garment","base_attack":0,"base_defense":0}
+  {"id":"preview_garment","name":"زي الحارس","slot":"garment","family":"garment","type":"Garment","base_attack":0,"base_defense":0,"max_hp_bonus":900,"defense_bonus":55},
+  {"id":"preview_weapon_accessory","name":"زخرفة السلاح","slot":"weapon_accessory","family":"weapon_accessory","type":"WeaponAccessory","base_attack":0,"base_defense":0,"attack_bonus":75,"critical":0.12},
+  {"id":"mount_skin_tiger","name":"سكن النمر الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"tiger","type":"MountSkin","base_attack":45,"base_defense":20},
+  {"id":"mount_skin_deer","name":"سكن الغزال الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"deer","type":"MountSkin","base_attack":18,"base_defense":28},
+  {"id":"mount_skin_wolf","name":"سكن الذئب الأسطوري","slot":"mount_skin","family":"mount_skin","mount_type":"wolf","type":"MountSkin","base_attack":38,"base_defense":25}
  ]
  for fixture in fixtures:
   var fixture_id := String(fixture.id)
