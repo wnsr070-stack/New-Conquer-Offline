@@ -20,6 +20,7 @@ SkillSystem="*res://autoloads/SkillSystem.gd"
 ForgingSystem="*res://autoloads/ForgingSystem.gd"
 AuraAndVFXManager="*res://autoloads/AuraAndVFXManager.gd"
 LootDropManager="*res://autoloads/LootDropManager.gd"
+GameSettings="*res://scripts/GameSettings.gd"
 [display]
 window/size/viewport_width=1600
 window/size/viewport_height=900
