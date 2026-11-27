@@ -202,10 +202,11 @@ func run_functional_test(test_hero: Node3D) -> bool:
  var old_inventory: Dictionary = state.inventory.duplicate(true)
  var old_gold := int(state.gold)
  var passed := true
- var steed: Dictionary = db.get_item("preview_steed_p12")
+ var steed: Dictionary = db.get_item("preview_steed_p0")
  if steed.is_empty(): passed = false
  if passed:
   gear.equip_item("steed",steed)
+  passed = upgrade_steed(12) and int(gear.get_equipped("steed").get("plus",0)) == 12
   gear.unequip_item("mount_skin")
   var garment: Dictionary = db.get_item("preview_garment")
   var accessory: Dictionary = db.get_item("preview_weapon_accessory")
@@ -224,6 +225,7 @@ func run_functional_test(test_hero: Node3D) -> bool:
    var sale: Dictionary = merchant.sell_item(0,1)
    passed = bool(sale.get("ok",false)) and state.inventory_slots.is_empty() and int(sale.get("gold_earned",0)) > 0
  for kind in ["steed","tiger","deer","wolf"]:
+  if not passed: break
   if kind == "steed":
    gear.unequip_item("mount_skin")
   else:
