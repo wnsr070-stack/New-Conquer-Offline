@@ -269,6 +269,21 @@ func _apply_mount_regalia(root: Node3D,kind: String) -> void:
  if kind == "deer" and gold_antler_surfaces == 0:
   push_warning("MOUNT_STAG_ANTLER_MATERIAL_SEMANTIC_NOT_FOUND: source_meshes_keep_pearl_pbr=true")
 
+func _make_mount_radial_glow_texture(tint: Color) -> GradientTexture2D:
+ var gradient := Gradient.new()
+ gradient.set_color(0,Color(tint.r,tint.g,tint.b,0.95))
+ gradient.set_color(1,Color(tint.r,tint.g,tint.b,0.0))
+ gradient.set_offset(0,0.0)
+ gradient.set_offset(1,1.0)
+ var texture := GradientTexture2D.new()
+ texture.gradient = gradient
+ texture.width = 128
+ texture.height = 128
+ texture.fill = GradientTexture2D.FILL_RADIAL
+ texture.fill_from = Vector2(0.5,0.5)
+ texture.fill_to = Vector2(1.0,0.5)
+ return texture
+
 func _add_mount_particle_systems(root: Node3D,kind: String,glow_color: Color) -> void:
  var particle_mesh := QuadMesh.new()
  particle_mesh.size = Vector2(0.11,0.11)
@@ -277,6 +292,7 @@ func _add_mount_particle_systems(root: Node3D,kind: String,glow_color: Color) ->
  particle_material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
  particle_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
  particle_material.albedo_color = Color(glow_color.r,glow_color.g,glow_color.b,0.86)
+ particle_material.albedo_texture = _make_mount_radial_glow_texture(glow_color)
  particle_material.emission_enabled = true
  particle_material.emission = glow_color
  particle_material.emission_energy_multiplier = 2.1
