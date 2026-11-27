@@ -82,7 +82,8 @@ func perform_attack(hero: Node3D,target: Node3D,force_critical: bool = false) ->
  var gear_stats: Dictionary = _gear_bonuses()
  var attack: int = int(player_data.get("attack",100))+int(gear_stats.get("attack",0))
  var defense := int(target.definition.get("defense",0))
- var critical := force_critical or (not bool(get_meta("disable_random_crit",false)) and _rng.randf() < CRITICAL_CHANCE)
+ var critical_chance := clampf(CRITICAL_CHANCE+float(gear_stats.get("critical",0.0)),0.0,0.75)
+ var critical := force_critical or (not bool(get_meta("disable_random_crit",false)) and _rng.randf() < critical_chance)
  var anima: Dictionary = state.get_anima_bonuses() if state != null else {"attack_multiplier":1.0}
  var multiplier := float(hero.get_meta("physical_damage_multiplier",1.0))*float(anima.get("attack_multiplier",1.0))
  var raw_damage := maxi(1,attack-defense)
