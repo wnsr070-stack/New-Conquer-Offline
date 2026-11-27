@@ -418,6 +418,7 @@ jobs:
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/validate_mobile_hud.gd --quit 2>&1 | tee artifacts/mobile_hud_parse_gate.log
           grep -q "PHASE5A_MOBILE_HUD_PARSE_OK" artifacts/mobile_hud_parse_gate.log
+          grep -q "PHASE5A_FUNCTIONAL_SETTINGS_SCRIPTS_PARSE_OK" artifacts/mobile_hud_parse_gate.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource" artifacts/mobile_hud_parse_gate.log
       - name: Build locked shared animation resource
         run: |
