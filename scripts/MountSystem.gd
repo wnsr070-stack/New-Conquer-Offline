@@ -143,15 +143,44 @@ func _refresh_visual() -> void:
   push_error("MOUNT_MODEL_INSTANCE_FAILED: "+path)
   return
  instance.name = "MountedModel_"+kind.capitalize()
+ instance.visible = true
+ var mesh_count := _count_mount_meshes(instance)
+ if mesh_count <= 0 and kind == "tiger":
+  push_warning("MOUNT_TIGER_SOURCE_HAS_NO_MESHES: retrying verified Wolf GLB with tiger regalia")
+  var fallback_path := String(MOUNT_MODELS.get("wolf",""))
+  var fallback_scene := load(fallback_path) as PackedScene if ResourceLoader.exists(fallback_path) else null
+  if fallback_scene != null:
+   instance.queue_free()
+   instance = fallback_scene.instantiate() as Node3D
+   if instance != null:
+    instance.name = "MountedModel_TigerFallback"
+    instance.visible = true
+    mesh_count = _count_mount_meshes(instance)
+ if instance == null or mesh_count <= 0:
+  push_error("MOUNT_MODEL_HAS_NO_RENDERABLE_MESHES: kind="+kind+" path="+path)
+  return
+ var stack: Array[Node] = [instance]
+ while not stack.is_empty():
+  var visual_node: Node = stack.pop_back()
+  if visual_node is Node3D:
+   (visual_node as Node3D).visible = true
+  if visual_node is MeshInstance3D:
+   var mesh_node := visual_node as MeshInstance3D
+   mesh_node.visible = mesh_node.mesh != null
+  for child in visual_node.get_children():
+   stack.append(child)
  var mount_root := Node3D.new()
  mount_root.name = "MountRoot_"+kind.capitalize()
  hero.add_child(mount_root)
  mount_root.add_child(instance)
  _fit_mount_model(instance,kind)
- mount_root.scale = Vector3(3.2,3.2,3.2)
- print("MOUNT_ROOT_HEROIC_SCALE_APPLIED: kind=",kind," scale=",mount_root.scale)
+ # _fit_mount_model already sets a 2.5m footprint and 1.4m back height.
+ # A second 3.2x parent scale made both the animal and saddle 3.2x too large.
+ mount_root.scale = Vector3.ONE
+ print("MOUNT_ROOT_NORMALIZED_SCALE: kind=",kind," scale=",mount_root.scale)
  _play_mount_animation(instance,kind)
  mount_visual = mount_root
+ print("MOUNT_MODEL_VISIBILITY_VERIFIED: kind=",kind," visible=",mount_visual.visible," mesh_count=",mesh_count)
  var gear := get_node_or_null("/root/GearSystem")
  var steed: Dictionary = gear.get_equipped("steed") if gear != null else {}
  var aura := get_node_or_null("/root/AuraAndVFXManager")
@@ -390,21 +419,25 @@ func _apply_rider_pose(on_mount: bool) -> void:
   if not is_instance_valid(mount_visual):
    push_error("MOUNT_SADDLE_ROOT_MISSING")
    return
-  var saddle_world := mount_visual.to_global(Vector3(0.0,1.4,0.0))
+  var saddle_world := mount_visual.to_global(Vector3(0.0,1.42,0.0))
   var hip_bone_index := rig.find_bone("Hips")
   if hip_bone_index < 0: hip_bone_index = rig.find_bone("Pelvis")
   if hip_bone_index < 0:
    push_error("MOUNT_SADDLE_HIP_BONE_MISSING: Ninja rig has no Hips/Pelvis bone")
    return
   var hip_world := rig.to_global(rig.get_bone_global_pose(hip_bone_index).origin)
-  var parent_3d := _hero_model.get_parent() as Node3D
-  if parent_3d == null:
-   push_error("MOUNT_RIDER_PARENT_NOT_NODE3D")
-   return
-  var world_delta := saddle_world + Vector3.UP*0.12 - hip_world
-  var local_delta := parent_3d.global_transform.basis.inverse() * world_delta
-  _hero_model.position += local_delta
-  print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",rig.get_bone_name(hip_bone_index)," hip_world=",hip_world," saddle_world=",saddle_world," delta_world=",world_delta," model_scale=",_hero_model.scale)
+  var world_delta := saddle_world + Vector3.UP*0.08 - hip_world
+  _hero_model.global_position += world_delta
+  _hero_model.force_update_transform()
+  rig.force_update_transform()
+  var aligned_hip_world := rig.to_global(rig.get_bone_global_pose(hip_bone_index).origin)
+  var alignment_error := aligned_hip_world.distance_to(saddle_world + Vector3.UP*0.08)
+  var model_scale := _hero_model.global_transform.basis.get_scale()
+  print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",rig.get_bone_name(hip_bone_index)," hip_world=",aligned_hip_world," saddle_world=",saddle_world," error=",alignment_error," model_scale=",model_scale)
+  if alignment_error > 0.08 or absf(saddle_world.y - 1.42) > 0.20:
+   push_error("MOUNT_SADDLE_ALIGNMENT_OUT_OF_TOLERANCE: error="+str(alignment_error)+" saddle_y="+str(saddle_world.y))
+  else:
+   print("MOUNT_SADDLE_ALIGNMENT_VERIFIED: hip_saddle_error=",alignment_error," saddle_y=",saddle_world.y)
  else:
   _hero_model.position.y = _hero_model_base_y
 
