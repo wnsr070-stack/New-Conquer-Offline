@@ -481,6 +481,10 @@ jobs:
               if version!=2 or total!=len(data) or kind!=0x4E4F534A or not doc.get("meshes"): raise SystemExit("Invalid GLB payload: "+str(path))
               print("PHASE5A_MOUNT_CACHE_OK:",path,"bytes=",len(data),"meshes=",len(doc["meshes"]))
           PY
+      - name: Import Godot project
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
       - name: Functional GameSettings integration test in Twin City scene
         env:
           SETTINGS_FUNCTIONAL_TEST: "1"
@@ -490,10 +494,6 @@ jobs:
           grep -q "PHASE5A_MOBILE_HUD_PARSE_OK" artifacts/settings_functional_test.log
           grep -q "SETTINGS_FUNCTIONAL_TEST_PASS=true" artifacts/settings_functional_test.log
           ! grep -E "SCRIPT ERROR|Parse Error|SETTINGS_TEST_FAILED|Failed to load script|Failed loading resource" artifacts/settings_functional_test.log
-      - name: Import Godot project
-        run: |
-          set -euo pipefail
-          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
       - name: Build locked shared animation resource
         run: |
           set -euo pipefail
