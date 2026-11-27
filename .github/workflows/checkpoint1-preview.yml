@@ -267,35 +267,23 @@ jobs:
           copy_verified(slot, "assets/ui/slots/ornate_slot.png")
           print("PHASE5A_ORNATE_FANTASY_FRAMES_READY: panel=", panel.relative_to(fantasy_root), "slot=", slot.relative_to(fantasy_root))
 
-          # Select distinct, real Kenney icons; prefer the dedicated board-game icon pack where available.
-          skill_aliases = {
-              "bow": {"bow", "archery", "longbow"},
-              "arrow": {"arrow", "arrows"},
-              "fire": {"fire", "flame", "flames", "campfire"},
-              "lightning": {"lightning", "thunder", "bolt", "electric"},
-              "speed": {"speed", "sprint", "running", "run", "haste", "wind"},
-              "shield": {"shield", "defence", "defense", "guard", "block"}
+          # Exact source files keep the six skill glyphs consistent and avoid tiny particle sprites.
+          skill_sources = {
+              "bow": "icons/Board Game Icons/Default (64px)/bow.png",
+              "arrow": "icons/Board Game Icons/Default (64px)/arrow_right.png",
+              "fire": "icons/Board Game Icons/Default (64px)/fire.png",
+              "lightning": "2d/Space Shooter Remastered/Power-ups/powerupRed_bolt.png",
+              "speed": "2d/Jumper Pack/Items/powerup_wings.png",
+              "shield": "icons/Board Game Icons/Default (64px)/shield.png"
           }
-          used = set()
-          for skill, aliases in skill_aliases.items():
-              candidates = []
-              for path in pngs:
-                  tokens = set(re.findall(r"[a-z0-9]+", (str(path.parent) + " " + path.stem).lower()))
-                  if tokens & aliases and path not in used:
-                      width, height = dimensions(path)
-                      if width >= 24 and height >= 24:
-                          candidates.append(path)
-              if not candidates:
-                  raise SystemExit(f"Missing real Kenney skill icon for {skill}; aliases={sorted(aliases)}")
-              candidates.sort(key=lambda p: (
-                  0 if "icons/Board Game Icons/Default (64px)" in p.as_posix() else
-                  1 if "icons/Board Game Icons" in p.as_posix() else
-                  2 if "2d/Space Shooter Remastered" in p.as_posix() else 3,
-                  len(str(p))
-              ))
-              selected = candidates[0]
-              copy_verified(selected, pathlib.Path("assets/ui/skills") / f"{skill}.png")
-              used.add(selected)
+          for skill, relative_path in skill_sources.items():
+              source = root / relative_path
+              if not source.is_file():
+                  raise SystemExit(f"Missing real Kenney skill icon: {relative_path}")
+              width, height = dimensions(source)
+              if width < 24 or height < 24:
+                  raise SystemExit(f"Kenney skill icon is too small: {relative_path} ({width}x{height})")
+              copy_verified(source, pathlib.Path("assets/ui/skills") / f"{skill}.png")
           print("PHASE5A_REAL_SKILL_ICONS_READY: bow arrow fire lightning speed shield")
 
           categories = {
