@@ -142,18 +142,35 @@ func _refresh_visual() -> void:
  if instance == null:
   push_error("MOUNT_MODEL_INSTANCE_FAILED: "+path)
   return
- instance.name = "Mounted_"+kind.capitalize()
- hero.add_child(instance)
+ instance.name = "MountedModel_"+kind.capitalize()
+ var mount_root := Node3D.new()
+ mount_root.name = "MountRoot_"+kind.capitalize()
+ hero.add_child(mount_root)
+ mount_root.add_child(instance)
  _fit_mount_model(instance,kind)
+ mount_root.scale = Vector3(3.2,3.2,3.2)
+ print("MOUNT_ROOT_HEROIC_SCALE_APPLIED: kind=",kind," scale=",mount_root.scale)
  _play_mount_animation(instance,kind)
- mount_visual = instance
+ mount_visual = mount_root
  var gear := get_node_or_null("/root/GearSystem")
  var steed: Dictionary = gear.get_equipped("steed") if gear != null else {}
  var aura := get_node_or_null("/root/AuraAndVFXManager")
  if aura != null and aura.has_method("attach_equipment_aura"):
-  aura.attach_equipment_aura(instance,int(steed.get("plus",0)),false)
+  aura.attach_equipment_aura(mount_root,int(steed.get("plus",0)),false)
  _apply_speed()
+ print("MOUNT_MODEL_RUNTIME_READY: kind=",kind," path=",path," meshes=",_count_mount_meshes(instance))
  print("MOUNT_VISUAL_SWAPPED: model=",kind," steed_plus=",int(steed.get("plus",0))," aura_inherited=true")
+
+func _count_mount_meshes(root: Node) -> int:
+ var count := 0
+ var stack: Array[Node] = [root]
+ while not stack.is_empty():
+  var current: Node = stack.pop_back()
+  if current is MeshInstance3D and (current as MeshInstance3D).mesh != null:
+   count += 1
+  for child in current.get_children():
+   stack.append(child)
+ return count
 
 func _fit_mount_model(root: Node3D,kind: String) -> void:
  var bounds := _measure_bounds(root)
@@ -309,7 +326,7 @@ func _apply_rider_pose(on_mount: bool) -> void:
    _rider_original_bone_rotations.clear()
    print("MOUNT_RIDER_BONE_POSE_RESTORED")
  if on_mount:
-  var saddle_height := 1.4
+  var saddle_height := 4.48
   var rider_vertical_offset := 0.12
   if not skeleton.is_empty():
    var rig := skeleton[0] as Skeleton3D
@@ -318,7 +335,7 @@ func _apply_rider_pose(on_mount: bool) -> void:
     if "hips" in bone_name or "pelvis" in bone_name:
      var hip_in_model := _hero_model.to_local(rig.to_global(rig.get_bone_global_pose(index).origin))
      rider_vertical_offset = saddle_height-hip_in_model.y
-     print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y=",saddle_height," offset=",rider_vertical_offset)
+     print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y=",saddle_height," mount_root_scale=3.2 offset=",rider_vertical_offset)
      break
   _hero_model.position.y = _hero_model_base_y+rider_vertical_offset
  else:
