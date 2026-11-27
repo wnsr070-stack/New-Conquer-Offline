@@ -684,6 +684,9 @@ func _clear_weapons() -> void:
 func _update_animation() -> void:
  if animation_player == null:
   return
+ var mount_system := get_node_or_null("/root/MountSystem")
+ if mount_system != null and bool(mount_system.get("mounted")):
+  return
  if is_jumping:
   _play_hero_animation("Jump")
   return
