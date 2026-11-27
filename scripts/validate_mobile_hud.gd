@@ -42,12 +42,32 @@ func _run_functional_tests() -> void:
         quit(1)
         return
 
+    # Wait for the actual scene HeroController; the loot test must not use a fake player.
+    var gameplay_hero: Node3D = null
+    for frame in range(600):
+        var candidate: Node = root.find_child("PlayableHero", true, false)
+        if candidate == null:
+            candidate = root.find_child("HeroController", true, false)
+        if candidate is Node3D and candidate.get_script() == HERO_CONTROLLER_SCRIPT:
+            gameplay_hero = candidate as Node3D
+            if gameplay_hero.get("camera_pivot") is Node3D:
+                break
+        await process_frame
+    _check(gameplay_hero != null and gameplay_hero.get("camera_pivot") is Node3D, "live TwinCity HeroController initialized")
+    if gameplay_hero == null:
+        quit(1)
+        return
+
     settings.set_process(false)
     var original_settings: Dictionary = settings._values.duplicate(true)
     var original_player_data: Dictionary = state.player_data.duplicate(true)
     var original_inventory_slots: Array = state.inventory_slots.duplicate(true)
     var original_inventory: Dictionary = state.inventory.duplicate(true)
-    # Isolate inventory probes so a full player inventory cannot make the test flaky.\n    state.inventory_slots.clear()\n    state.inventory.clear()\n    state.player_data["inventory_slots"] = []\n    state.player_data["inventory"] = {}
+    # Isolate inventory probes so a full player inventory cannot make the test flaky.
+    state.inventory_slots.clear()
+    state.inventory.clear()
+    state.player_data["inventory_slots"] = []
+    state.player_data["inventory"] = {}
     # AudioServer: assert both bus dB and mute state after real setting changes.
     settings.set_setting("music_volume", 30.0)
     settings.set_setting("music_muted", true)
@@ -100,14 +120,11 @@ func _run_functional_tests() -> void:
     _check(not hp_bar.visible, "HP bars hidden")
     _check(simulated.process_mode == Node.PROCESS_MODE_DISABLED and not simulated_mesh.visible, "simulated players hidden and processing disabled")
 
-    # Camera sensitivity is exercised through HeroController's real camera rotation method.
-
-    # Auto-loot is exercised through LootDropManager._process and a real test drop.
-    var test_hero := Node3D.new()
-    test_hero.name = "PlayableHero"
-    test_root.add_child(test_hero)
+    # Auto-loot uses the actual spawned HeroController and an actual drop at the exact same world position.
     var drop_node := Node3D.new()
+    drop_node.name = "SettingsFunctionalGroundDrop"
     test_root.add_child(drop_node)
+    drop_node.global_position = gameplay_hero.global_position
     var before_probe := int(state.get_item_count("HPPotion"))
     loot._drops["settings_functional_probe"] = {
         "node": drop_node,
@@ -118,9 +135,14 @@ func _run_functional_tests() -> void:
     loot._process(0.01)
     _check(int(state.get_item_count("HPPotion")) == before_probe and loot._drops.has("settings_functional_probe"), "auto-loot disabled prevents pickup")
     settings.set_setting("auto_loot", true)
+    for frame in range(8):
+        await physics_frame
+    # Run the same manager process path once after the physics-frame settling window.
     loot._process(0.01)
-    _check(int(state.get_item_count("HPPotion")) == before_probe + 1 and not loot._drops.has("settings_functional_probe"), "auto-loot enabled collects nearby drop")
-    state.remove_item("HPPotion", 1)
+    var probe_collected := int(state.get_item_count("HPPotion)) == before_probe + 1 and not loot._drops.has("settings_functional_probe")
+    _check(probe_collected, "auto-loot enabled collects exact-position ground drop after physics frames")
+    if probe_collected:
+        state.remove_item("HPPotion", 1)
     # Consume actual inventory items through GameState, verify HP and MP changes, then restore save data.
     state.player_data["max_hp"] = 100
     state.player_data["hp"] = 40
@@ -157,9 +179,7 @@ func _run_functional_tests() -> void:
     loot._drops.erase("settings_functional_probe")
     await process_frame
     if is_instance_valid(test_root):
-        test_root.remove_child(test_hero)
-        test_hero.free()
-        if is_instance_valid(drop_node):
+        if is_instance_valid(drop_node) and drop_node.get_parent() == test_root and not drop_node.is_queued_for_deletion():
             test_root.remove_child(drop_node)
             drop_node.free()
         for node in [world_environment, light, name_label, damage_label, hp_bar, simulated]:
@@ -173,20 +193,34 @@ func _run_functional_tests() -> void:
     _check(unstuck_ok and String(world_map.current_city) == "TwinCity" and not bool(world_map.transition_in_progress) and final_scene != null and String(final_scene.scene_file_path).ends_with("TwinCity.tscn"), "unstuck performs completed TwinCity scene transition")
 
     settings.set_setting("camera_sensitivity", 2.0)
-    var hero_controller = null
+    var hero_controller: Node = null
+    var active_camera: Camera3D = null
     for frame in range(600):
-        hero_controller = final_scene.find_child("TwinCityPlayableHero", true, false) if final_scene != null else null
-        if hero_controller != null and hero_controller.get("camera_pivot") is Node3D:
-            break
+        var candidate: Node = root.find_child("PlayableHero", true, false)
+        if candidate == null:
+            candidate = root.find_child("HeroController", true, false)
+        if candidate == null:
+            candidate = get_first_node_in_group("player")
+        if candidate != null and candidate.get_script() != HERO_CONTROLLER_SCRIPT:
+            var nested_hero := candidate.find_child("HeroController", true, false)
+            if nested_hero != null:
+                candidate = nested_hero
+        if candidate != null and candidate.get_script() == HERO_CONTROLLER_SCRIPT:
+            hero_controller = candidate
+            active_camera = hero_controller.get_viewport().get_camera_3d()
+            if active_camera != null and active_camera.current and hero_controller.get("camera_pivot") is Node3D:
+                break
         await process_frame
-    if hero_controller != null and hero_controller.get("camera_pivot") is Node3D and hero_controller.has_method("_rotate_camera"):
+    var camera_ready := hero_controller != null and active_camera != null and active_camera.current and active_camera == hero_controller.get("camera")
+    _check(camera_ready, "active Viewport Camera3D belongs to dynamically discovered HeroController")
+    if camera_ready and hero_controller.has_method("_rotate_camera"):
         var pivot: Node3D = hero_controller.get("camera_pivot")
         var original_yaw := pivot.rotation_degrees.y
-        hero_controller._rotate_camera(Vector2(10.0, 0.0))
+        hero_controller.call("_rotate_camera", Vector2(10.0, 0.0))
         _check(absf((pivot.rotation_degrees.y - original_yaw) + 3.2) < 0.05, "live HeroController camera rotation uses configured sensitivity")
         pivot.rotation_degrees.y = original_yaw
     else:
-        _check(false, "TwinCity HeroController camera became available after unstuck")
+        _check(false, "HeroController camera sensitivity method and active camera are available")
     settings.set_setting("camera_sensitivity", float(original_settings.get("camera_sensitivity", 1.0)))
 
     if failures.is_empty():
