@@ -115,7 +115,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m venv .venv
-          .venv/bin/python -m pip install --disable-pip-version-check --cache-dir "$PIP_CACHE_DIR" "huggingface_hub>=0.26,<1.0" hf_transfer requests
+          .venv/bin/python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub>=0.26,<1.0" hf_transfer requests
       - name: Fetch approved assets only on cache miss
         if: steps.assets.outputs.cache-hit != 'true'
         env:
