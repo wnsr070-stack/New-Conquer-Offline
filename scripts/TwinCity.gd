@@ -48,8 +48,10 @@ func _ready() -> void:
         print("PHASE5A_MOBILE_HUD_PREVIEW_SCENE_READY: TwinCity_only=true wilderness_skipped=true")
         return
     if OS.get_environment("MOUNT_SHOWCASE") == "1":
+        _camera()
+        _spawn_playable_hero()
         _capture_mount_showcase.call_deferred()
-        print("MOUNT_SHOWCASE_SCENE_READY: TwinCity_only=true wilderness_skipped=true")
+        print("MOUNT_SHOWCASE_SCENE_READY: TwinCity_only=true wilderness_skipped=true hero_spawned=true")
         return
     if not Wilderness.build(self):
         await _shutdown(1)
@@ -850,36 +852,68 @@ func _install_mobile_hud() -> void:
     layer.add_child(hud)
     print("PHASE5A_MOBILE_HUD_ATTACHED: platform_mobile=",OS.has_feature("mobile")," preview_arg=",OS.get_cmdline_user_args().has("--preview-mobile-hud"))
 
+func _find_mount_showcase_hero() -> CharacterBody3D:
+    var grouped := get_tree().get_first_node_in_group("player")
+    if grouped is CharacterBody3D:
+        return grouped as CharacterBody3D
+    var active_camera := get_viewport().get_camera_3d()
+    if active_camera != null:
+        var ancestor: Node = active_camera
+        while ancestor != null:
+            if ancestor is CharacterBody3D and ancestor.get_script() == load("res://scripts/HeroController.gd"):
+                return ancestor as CharacterBody3D
+            ancestor = ancestor.get_parent()
+    var stack: Array[Node] = [self]
+    while not stack.is_empty():
+        var current: Node = stack.pop_back()
+        if current is CharacterBody3D and current.get_script() == load("res://scripts/HeroController.gd"):
+            return current as CharacterBody3D
+        for child in current.get_children():
+            stack.append(child)
+    return null
+
 func _capture_mount_showcase() -> void:
     await get_tree().create_timer(1.5).timeout
-    var hero := get_node_or_null("PlayableHero") as CharacterBody3D
-    if hero == null:
-        hero = get_node_or_null("TwinCityPlayableHero") as CharacterBody3D
+    var hero := _find_mount_showcase_hero()
     var mounts := get_node_or_null("/root/MountSystem")
     var gear := get_node_or_null("/root/GearSystem")
     var db := get_node_or_null("/root/GearDatabase")
+    print("MOUNT_SHOWCASE_DEPENDENCY: Hero=", "FOUND" if hero != null else "MISSING")
+    print("MOUNT_SHOWCASE_DEPENDENCY: MountSystem=", "FOUND" if mounts != null else "MISSING")
+    print("MOUNT_SHOWCASE_DEPENDENCY: GearSystem=", "FOUND" if gear != null else "MISSING")
+    print("MOUNT_SHOWCASE_DEPENDENCY: GearDatabase=", "FOUND" if db != null else "MISSING")
+    if hero != null:
+        print("MOUNT_SHOWCASE_HERO_FOUND: name=", hero.name, " path=", hero.get_path())
     if hero == null or mounts == null or gear == null or db == null:
-        push_error("MOUNT_SHOWCASE_DEPENDENCY_MISSING")
+        push_error("MOUNT_SHOWCASE_DEPENDENCY_MISSING: Hero=" + str(hero != null) + " MountSystem=" + str(mounts != null) + " GearSystem=" + str(gear != null) + " GearDatabase=" + str(db != null))
         await _shutdown(1)
         return
+    mounts.bind_hero(hero)
+    print("MOUNT_SHOWCASE_HERO_BOUND: hero_path=", hero.get_path())
     if not mounts.run_functional_test(hero):
         push_error("MOUNT_AND_EQUIP_TEST_FAILED")
         await _shutdown(1)
         return
-    var steed: Dictionary = db.get_item("preview_steed_p12")
-    gear.equip_item("steed",steed)
+    var steed: Dictionary = db.get_item("preview_steed_p0")
+    if steed.is_empty():
+        push_error("MOUNT_SHOWCASE_STEED_FIXTURE_MISSING")
+        await _shutdown(1)
+        return
+    gear.equip_item("steed", steed)
+    if int(gear.get_equipped("steed").get("plus", 0)) < 12:
+        mounts.upgrade_steed(12)
     var camera := Camera3D.new()
     camera.name = "MountShowcaseCamera"
-    camera.position = hero.global_position + Vector3(5.5,4.8,7.5)
+    camera.position = hero.global_position + Vector3(5.5, 4.8, 7.5)
     camera.fov = 42.0
     add_child(camera)
-    camera.look_at(hero.global_position + Vector3(0,1.15,0),Vector3.UP)
+    camera.look_at(hero.global_position + Vector3(0, 1.15, 0), Vector3.UP)
     camera.current = true
     var showcase := [
-        {"type":"steed","file":"mount_showcase_steed.png"},
-        {"type":"tiger","file":"mount_showcase_tiger.png"},
-        {"type":"deer","file":"mount_showcase_deer.png"},
-        {"type":"wolf","file":"mount_showcase_wolf.png"}
+        {"type":"steed", "file":"mount_showcase_steed.png"},
+        {"type":"tiger", "file":"mount_showcase_tiger.png"},
+        {"type":"deer", "file":"mount_showcase_deer.png"},
+        {"type":"wolf", "file":"mount_showcase_wolf.png"}
     ]
     var directory := ProjectSettings.globalize_path("res://artifacts")
     DirAccess.make_dir_recursive_absolute(directory)
@@ -888,28 +922,33 @@ func _capture_mount_showcase() -> void:
         if kind == "steed":
             gear.unequip_item("mount_skin")
         else:
-            gear.equip_item("mount_skin",db.get_item("mount_skin_"+kind))
+            var skin: Dictionary = db.get_item("mount_skin_" + kind)
+            if skin.is_empty():
+                push_error("MOUNT_SHOWCASE_SKIN_FIXTURE_MISSING: " + kind)
+                await _shutdown(1)
+                return
+            gear.equip_item("mount_skin", skin)
         if not mounts.mount(hero):
-            push_error("MOUNT_SHOWCASE_MOUNT_FAILED: "+kind)
+            push_error("MOUNT_SHOWCASE_MOUNT_FAILED: " + kind)
             await _shutdown(1)
             return
-        camera.position = hero.global_position + Vector3(5.5,4.8,7.5)
-        camera.look_at(hero.global_position + Vector3(0,1.15,0),Vector3.UP)
+        camera.position = hero.global_position + Vector3(5.5, 4.8, 7.5)
+        camera.look_at(hero.global_position + Vector3(0, 1.15, 0), Vector3.UP)
         await get_tree().process_frame
         await get_tree().process_frame
         await RenderingServer.frame_post_draw
         var image := get_viewport().get_texture().get_image()
-        var path := directory.path_join(String(entry.file))
-        if image == null or image.is_empty() or image.save_png(path) != OK:
-            push_error("MOUNT_SHOWCASE_CAPTURE_FAILED: "+kind)
+        var image_path := directory.path_join(String(entry.file))
+        if image == null or image.is_empty() or image.save_png(image_path) != OK:
+            push_error("MOUNT_SHOWCASE_CAPTURE_FAILED: " + kind)
             await _shutdown(1)
             return
-        var bytes := FileAccess.get_file_as_bytes(path).size()
+        var bytes := FileAccess.get_file_as_bytes(image_path).size()
         if bytes < 15000:
-            push_error("MOUNT_SHOWCASE_CAPTURE_TOO_SMALL: "+kind+" bytes="+str(bytes))
+            push_error("MOUNT_SHOWCASE_CAPTURE_TOO_SMALL: " + kind + " bytes=" + str(bytes))
             await _shutdown(1)
             return
-        print("MOUNT_SHOWCASE_CAPTURE_OK: ",kind," file=",entry.file," bytes=",bytes)
+        print("MOUNT_SHOWCASE_CAPTURE_OK: ", kind, " file=", entry.file, " bytes=", bytes)
         mounts.dismount()
     print("MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE")
     await _shutdown(0)
