@@ -2,8 +2,6 @@ name: Twin City Checkpoint 1 Preview
 on:
   push:
     branches: ['test/**']
-    paths-ignore:
-      - '.github/workflows/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -717,21 +715,20 @@ jobs:
           done
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|MOUNT_AND_EQUIP_TEST_PASS=false|MOUNT_SHOWCASE_CAPTURE_FAILED|MOUNT_SHOWCASE_MOUNT_FAILED" artifacts/mount_showcase.log
 
-      - name: Upload mount showcase and mobile HUD preview PNGs
+      - name: Upload three mount showcase PNGs and test logs only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase5a-visual-previews-${{ github.run_number }}
+          name: mount-showcase-${{ github.run_number }}
           if-no-files-found: warn
           retention-days: 14
           path: |
             artifacts/mount_showcase_steed.png
-            artifacts/mount_showcase_deer.png
+                        artifacts/mount_showcase_deer.png
             artifacts/mount_showcase_wolf.png
             artifacts/mobile_hud_inventory_preview.png
             artifacts/mobile_hud_character_preview.png
             artifacts/mount_showcase.log
-            artifacts/mobile_hud_preview.log
             artifacts/syntax_gate.log
       - name: Verify all six captures and checkpoint markers
         if: always()
