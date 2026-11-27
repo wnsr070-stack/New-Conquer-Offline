@@ -200,27 +200,34 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets/ui/borders assets/ui/slots assets/ui/buttons assets/ui/skills assets/icons/rpg assets/fonts
-          rm -rf /tmp/kenney
-          trap 'rm -rf /tmp/kenney' EXIT
+          rm -rf /tmp/kenney /tmp/fantasy-ui
+          trap 'rm -rf /tmp/kenney /tmp/fantasy-ui' EXIT
           git clone --depth 1 https://github.com/shorepine/kenney.git /tmp/kenney
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/sebastiankarn/Ember.git /tmp/fantasy-ui
+          git -C /tmp/fantasy-ui sparse-checkout set "FantasyUI/Border" "FantasyUI2/Border"
           python3 - <<'PY'
-          import pathlib, re, shutil, struct
+          import pathlib, re, struct
 
           root = pathlib.Path("/tmp/kenney")
+          fantasy_root = pathlib.Path("/tmp/fantasy-ui")
           pngs = sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() == ".png")
 
           def copy_verified(source, destination):
               data = source.read_bytes()
-              if len(data) <= 100 or data[:8] != b"\x89PNG\r\n\x1a\n":
+              if len(data) <= 100 or data[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
                   raise SystemExit(f"Invalid PNG: {source} ({len(data)} bytes)")
               target = pathlib.Path(destination)
               target.parent.mkdir(parents=True, exist_ok=True)
               target.write_bytes(data)
-              print(f"KENNEY_SELECTED_PNG_OK: {target} bytes={len(data)} source={source.relative_to(root)}")
+              try:
+                  label = source.relative_to(root)
+              except ValueError:
+                  label = source.relative_to(fantasy_root)
+              print(f"KENNEY_SELECTED_PNG_OK: {target} bytes={len(data)} source={label}")
 
           def dimensions(path):
               data = path.read_bytes()
-              if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) < 24:
+              if data[:8] != b"\\x89PNG\\r\\n\\x1a\\n" or len(data) < 24:
                   return (0, 0)
               return struct.unpack(">II", data[16:24])
 
@@ -240,31 +247,31 @@ jobs:
                   raise SystemExit(f"Required Kenney file not found: {filename}")
               copy_verified(matches[0], destination)
 
-          # Prefer the requested Fantasy UI Borders folder and the real border-000..030 artwork.
-          border_candidates = [p for p in pngs if re.fullmatch(r"border-(?:0[0-2][0-9]|030)\.png", p.name, re.I)]
-          if not border_candidates:
-              raise SystemExit("Fantasy UI Borders: no border-000.png..border-030.png assets found")
-          def border_score(path, target_ratio):
+          # The ornate panel artwork is in the FantasyUI pack, not in Kenney's UI Adventure Pack.
+          fantasy_pngs = sorted(p for p in fantasy_root.rglob("*.png") if p.is_file())
+          border_candidates = [p for p in fantasy_pngs if re.fullmatch(r"panel-border-(?:0[0-2][0-9]|030)\\.png", p.name, re.I)]
+          panel_candidates = [p for p in border_candidates if "FantasyUI2/Border" in p.as_posix()]
+          slot_candidates = [p for p in border_candidates if "FantasyUI/Border" in p.as_posix()]
+          if not panel_candidates or not slot_candidates:
+              raise SystemExit(f"FantasyUI panel/slot borders missing: panel={len(panel_candidates)} slot={len(slot_candidates)}")
+          def frame_score(path, target_ratio):
               width, height = dimensions(path)
               if width < 32 or height < 32:
                   return -10000
               ratio = width / max(1, height)
-              folder_bonus = 500 if "fantasy ui borders" in str(path.parent).lower() else (250 if "fantasy" in str(path.parent).lower() else 0)
-              ratio_score = max(0, 180 - abs(ratio-target_ratio)*100)
-              return folder_bonus + ratio_score + min(width*height/10000, 100)
-          panel = max(border_candidates, key=lambda p: border_score(p, 1.65))
-          slot = max([p for p in border_candidates if p != panel], key=lambda p: border_score(p, 1.0), default=None)
-          if slot is None:
-              raise SystemExit("Could not find a second distinct ornate slot border")
+              folder_bonus = 20 if "FantasyUI2" in path.as_posix() else 10
+              return folder_bonus + max(0, 180 - abs(ratio-target_ratio)*100) + min(width*height/10000, 100)
+          panel = max(panel_candidates, key=lambda p: frame_score(p, 1.65))
+          slot = max(slot_candidates, key=lambda p: frame_score(p, 1.0))
           copy_verified(panel, "assets/ui/borders/ornate_panel.png")
           copy_verified(slot, "assets/ui/slots/ornate_slot.png")
-          print("PHASE5A_ORNATE_FANTASY_FRAMES_READY: panel=", panel.relative_to(root), "slot=", slot.relative_to(root))
+          print("PHASE5A_ORNATE_FANTASY_FRAMES_READY: panel=", panel.relative_to(fantasy_root), "slot=", slot.relative_to(fantasy_root))
 
-          # Match actual Kenney artwork by semantic filename/path; no generated placeholder icons.
+          # Select distinct, real Kenney icons; prefer the dedicated board-game icon pack where available.
           skill_aliases = {
               "bow": {"bow", "archery", "longbow"},
-              "arrow": {"arrow", "arrows", "archery"},
-              "fire": {"fire", "flame", "flames", "burning"},
+              "arrow": {"arrow", "arrows"},
+              "fire": {"fire", "flame", "flames", "campfire"},
               "lightning": {"lightning", "thunder", "bolt", "electric"},
               "speed": {"speed", "sprint", "running", "run", "haste", "wind"},
               "shield": {"shield", "defence", "defense", "guard", "block"}
@@ -280,7 +287,12 @@ jobs:
                           candidates.append(path)
               if not candidates:
                   raise SystemExit(f"Missing real Kenney skill icon for {skill}; aliases={sorted(aliases)}")
-              candidates.sort(key=lambda p: (0 if "game-icons" in str(p).lower() else 1, len(str(p))))
+              candidates.sort(key=lambda p: (
+                  0 if "icons/Board Game Icons/Default (64px)" in p.as_posix() else
+                  1 if "icons/Board Game Icons" in p.as_posix() else
+                  2 if "2d/Space Shooter Remastered" in p.as_posix() else 3,
+                  len(str(p))
+              ))
               selected = candidates[0]
               copy_verified(selected, pathlib.Path("assets/ui/skills") / f"{skill}.png")
               used.add(selected)
@@ -309,9 +321,10 @@ jobs:
               raise SystemExit(f"RPG icon count outside allowed range (8..30): {icon_count}")
           print(f"KENNEY_BASIC_RPG_ICONS_READY: {icon_count} files")
           PY
-          rm -rf /tmp/kenney
+          rm -rf /tmp/kenney /tmp/fantasy-ui
           trap - EXIT
           test ! -e /tmp/kenney
+          test ! -e /tmp/fantasy-ui
 
       - name: Verify Phase 5A ornate UI, skill icons and cache inputs
         run: |
