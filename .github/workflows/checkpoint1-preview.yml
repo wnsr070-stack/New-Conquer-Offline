@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5-mount-glb-v1-${{ hashFiles('scripts/MountSystem.gd') }}
+          key: phase5-mount-glb-v3-heroic-${{ hashFiles('scripts/MountSystem.gd') }}
       - name: Cache Hugging Face and external assets
         id: assets
         uses: actions/cache@v4
@@ -101,7 +101,7 @@ jobs:
             curl --fail --location --retry 4 --retry-all-errors "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Horse.glb" -o /tmp/phase5-mounts/Horse.glb
           fi
           prepare_model /tmp/phase5-mounts/Horse.glb steed_horse.glb
-          for pair in "Fox.glb mount_tiger.glb" "Stag.glb mount_deer.glb" "Wolf.glb mount_wolf.glb"; do
+          for pair in "Bull.glb mount_tiger.glb" "Stag.glb mount_deer.glb" "Wolf.glb mount_wolf.glb"; do
             read -r source_name target_name <<< "$pair"
             curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$base/$source_name" -o "/tmp/phase5-mounts/$source_name"
             prepare_model "/tmp/phase5-mounts/$source_name" "$target_name"
@@ -185,7 +185,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5-mount-glb-v1-${{ hashFiles('scripts/MountSystem.gd') }}
+          key: phase5-mount-glb-v3-heroic-${{ hashFiles('scripts/MountSystem.gd') }}
       - name: Restore approved asset cache
         uses: actions/cache@v4
         with:
@@ -643,6 +643,9 @@ jobs:
           xvfb-run -a -s "-screen 0 1280x720x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/mount_showcase.log
           grep -q "MOUNT_AND_EQUIP_TEST_PASS=true" artifacts/mount_showcase.log
           grep -q "MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE" artifacts/mount_showcase.log
+          for kind in steed tiger deer wolf; do
+            grep -Fq "MOUNT_MODEL_RUNTIME_READY: kind=$kind" artifacts/mount_showcase.log || { echo "::error::Mount runtime model did not load: $kind"; exit 1; }
+          done
           for image in mount_showcase_steed.png mount_showcase_tiger.png mount_showcase_deer.png mount_showcase_wolf.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
