@@ -33,10 +33,10 @@ func _run_functional_tests() -> void:
     for frame in range(4):
         await process_frame
 
-    var settings := root.get_node_or_null("GameSettings")
-    var state := root.get_node_or_null("GameState")
-    var world_map := root.get_node_or_null("WorldMapManager")
-    var loot := root.get_node_or_null("LootDropManager")
+    var settings = root.get_node_or_null("GameSettings")
+    var state = root.get_node_or_null("GameState")
+    var world_map = root.get_node_or_null("WorldMapManager")
+    var loot = root.get_node_or_null("LootDropManager")
     _check(settings != null and state != null and world_map != null and loot != null, "required autoloads available")
     if settings == null or state == null or world_map == null or loot == null:
         quit(1)
@@ -47,7 +47,7 @@ func _run_functional_tests() -> void:
     var original_player_data: Dictionary = state.player_data.duplicate(true)
     var original_inventory_slots: Array = state.inventory_slots.duplicate(true)
     var original_inventory: Dictionary = state.inventory.duplicate(true)
-
+    # Isolate inventory probes so a full player inventory cannot make the test flaky.\n    state.inventory_slots.clear()\n    state.inventory.clear()\n    state.player_data["inventory_slots"] = []\n    state.player_data["inventory"] = {}\n
     # AudioServer: assert both bus dB and mute state after real setting changes.
     settings.set_setting("music_volume", 30.0)
     settings.set_setting("music_muted", true)
