@@ -409,10 +409,6 @@ jobs:
           done < <(find assets/icons/rpg -type f -iname '*.png' | sort)
           echo "PHASE5A_RPG_ICON_PNG_COUNT: $icon_pngs"
 
-      - name: Import Godot project
-        run: |
-          set -euo pipefail
-          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
       - name: Fetch and cache verified CC0 mount models
         id: mounts
         uses: actions/cache@v4
@@ -439,7 +435,7 @@ jobs:
               exact = [p for p in candidates if p.stem.lower() == identity.lower()]
               source = sorted(exact or candidates)[0]
               destination = output / filename
-              subprocess.run(["gltfpack", "-i", str(source), "-o", str(destination), "-cc"], check=True)
+              subprocess.run(["gltfpack", "-i", str(source), "-o", str(destination)], check=True)
               print("QUATERNIUS_SOURCE:", identity, source.relative_to(root))
           tiger_url = "https://gobkit.com/freebies/animal012/SumatranTiger.glb"
           tiger_path = output / "mount_tiger.glb"
@@ -494,6 +490,10 @@ jobs:
           grep -q "PHASE5A_MOBILE_HUD_PARSE_OK" artifacts/settings_functional_test.log
           grep -q "SETTINGS_FUNCTIONAL_TEST_PASS=true" artifacts/settings_functional_test.log
           ! grep -E "SCRIPT ERROR|Parse Error|SETTINGS_TEST_FAILED|Failed to load script|Failed loading resource" artifacts/settings_functional_test.log
+      - name: Import Godot project
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
       - name: Build locked shared animation resource
         run: |
           set -euo pipefail
