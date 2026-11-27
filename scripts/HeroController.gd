@@ -61,9 +61,26 @@ func _ready() -> void:
  set_process_unhandled_input(true)
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
 
-func _normalize_hero_scale() -> void:
- if hero_model == null:
-  return
+func _measure_hero_local_aabb() -> AABB:
+ var bounds := AABB()
+ var found := false
+ for node in hero_model.find_children("*", "MeshInstance3D", true, false):
+  var mesh_instance := node as MeshInstance3D
+  if mesh_instance.mesh == null:
+   continue
+  var local_box := mesh_instance.get_aabb()
+  var relative_transform := hero_model.global_transform.affine_inverse() * mesh_instance.global_transform
+  for x in range(2):
+   for y in range(2):
+    for z in range(2):
+     var corner := local_box.position + Vector3(local_box.size.x * x, local_box.size.y * y, local_box.size.z * z)
+     var point := relative_transform * corner
+     var point_box := AABB(point, Vector3.ZERO)
+     bounds = point_box if not found else bounds.expand(point)
+     found = true
+ return bounds if found else AABB()
+
+func _measure_hero_global_aabb_height() -> float:
  var min_y := INF
  var max_y := -INF
  for node in hero_model.find_children("*", "MeshInstance3D", true, false):
@@ -71,23 +88,51 @@ func _normalize_hero_scale() -> void:
   if mesh_instance.mesh == null:
    continue
   var local_box := mesh_instance.get_aabb()
-  var to_model := hero_model.global_transform.affine_inverse() * mesh_instance.global_transform
+  var transform := mesh_instance.global_transform
   for x in range(2):
    for y in range(2):
     for z in range(2):
      var corner := local_box.position + Vector3(local_box.size.x * x, local_box.size.y * y, local_box.size.z * z)
-     var point := to_model * corner
-     min_y = minf(min_y, point.y)
-     max_y = maxf(max_y, point.y)
+     var world_point := transform * corner
+     min_y = minf(min_y, world_point.y)
+     max_y = maxf(max_y, world_point.y)
  if not is_finite(min_y) or max_y <= min_y:
-  push_error("HERO_AABB_HEIGHT_MEASUREMENT_FAILED")
+  return 0.0
+ return max_y - min_y
+
+func _normalize_hero_scale() -> void:
+ if hero_model == null:
   return
- measured_model_height = max_y - min_y
+ # GLB's scene root can carry a 100x unit-conversion scale. Remove that outer
+ # scale before measuring; retain authored child transforms and the skin rig.
+ hero_model.scale = Vector3.ONE
+ hero_model.force_update_transform()
+ await get_tree().process_frame
+ var local_bounds := _measure_hero_local_aabb()
+ if local_bounds.size.y <= 0.000001:
+  push_error("HERO_AABB_HEIGHT_MEASUREMENT_FAILED: bounds=" + str(local_bounds))
+  return
  var target_world_height := 1.75
- var factor := target_world_height / measured_model_height
+ var factor := target_world_height / local_bounds.size.y
  hero_model.scale = Vector3.ONE * factor
- hero_model.position.y = -min_y * factor
- print("HERO_AABB_SCALE_APPLIED: source_height=", measured_model_height, " target_world_height=1.75 scale=", factor, " bounds_y=", min_y, "..", max_y)
+ hero_model.force_update_transform()
+ await get_tree().process_frame
+ var measured_world_height := _measure_hero_global_aabb_height()
+ if measured_world_height <= 0.000001:
+  push_error("HERO_GLOBAL_AABB_HEIGHT_MEASUREMENT_FAILED")
+  return
+ # Correct against the actual global AABB, not the imported node's reported scale.
+ var correction := target_world_height / measured_world_height
+ hero_model.scale *= correction
+ hero_model.force_update_transform()
+ await get_tree().process_frame
+ measured_model_height = _measure_hero_global_aabb_height()
+ var global_scale := hero_model.global_transform.basis.get_scale()
+ print("HERO_AABB_SCALE_APPLIED: target_world_height=1.75 global_aabb_height=", measured_model_height, " root_scale=", hero_model.scale, " global_scale=", global_scale, " correction=", correction)
+ if absf(measured_model_height - target_world_height) > 0.015:
+  push_error("HERO_GLOBAL_AABB_NORMALIZATION_OUT_OF_TOLERANCE: height=" + str(measured_model_height))
+ else:
+  print("HERO_GLOBAL_AABB_NORMALIZED_OK: height=", measured_model_height, " target=1.75")
 
 func _load_assassin_hero() -> void:
  if not ResourceLoader.exists(ASSASSIN_HERO):
