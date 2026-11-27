@@ -24,6 +24,7 @@ var _character_preview_model: Node3D
 var _character_preview_container: SubViewportContainer
 var _character_preview_dragging := false
 var _selected_equipment_slot := "weapon"
+var _settings_feedback: Label
 
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -33,6 +34,9 @@ func _ready() -> void:
  _install_arabic_theme()
  _apply_arabic_rtl(self)
  _connect_systems()
+ var settings := _root_autoload("GameSettings")
+ if settings != null and settings.has_method("apply_world_settings"):
+  settings.apply_world_settings()
  _refresh_all()
  print("PHASE5A_MOBILE_HUD_READY: touch_ui=true inventory=40 warehouse=40 stack=100 character_slots=10 procedural_3d=false")
  if OS.get_cmdline_user_args().has("--preview-mobile-hud"):
@@ -486,7 +490,7 @@ func _open_artisan() -> void:
 func _open_window(window_name: String) -> void:
  _active_window = window_name
  for child in _window_layer.get_children(): child.queue_free()
- var window_size := Vector2(940,600) if window_name == "Character" else Vector2(650,560)
+ var window_size := Vector2(940,600) if window_name == "Character" else Vector2(860,720) if window_name == "System" else Vector2(650,560)
  var panel := _panel(_window_layer, Vector2.ZERO, window_size, false)
  panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
  panel.size = window_size
@@ -503,7 +507,7 @@ func _open_window(window_name: String) -> void:
  var header := HBoxContainer.new()
  layout.add_child(header)
  var heading := Label.new()
- heading.text = _arabic(window_name)
+ heading.text = "الإعدادات" if window_name == "System" else _arabic(window_name)
  heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  heading.add_theme_font_size_override("font_size",22)
  header.add_child(heading)
@@ -580,54 +584,178 @@ func _build_skill_window(layout: VBoxContainer) -> void:
  layout.add_child(_label("Weapon & Skill Proficiency"))
 
 func _build_system_window(layout: VBoxContainer) -> void:
- layout.add_child(_label("الصوت"))
- _add_setting_slider(layout,"موسيقى الخلفية",0.75,1.0)
- _add_setting_slider(layout,"المؤثرات الصوتية",0.85,1.0)
- layout.add_child(_button("كتم الكل",func(): AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),true)))
- layout.add_child(HSeparator.new())
- layout.add_child(_label("العرض"))
- layout.add_child(_setting_option("جودة الرسوم",["منخفضة","متوسطة","عالية"],1))
- _add_setting_check(layout,"إظهار الأسماء",true)
- _add_setting_check(layout,"إظهار الهالات",true)
- _add_setting_slider(layout,"بُعد الكاميرا",1.0,2.0)
- layout.add_child(HSeparator.new())
- layout.add_child(_label("القتال والصيد التلقائي"))
- layout.add_child(_setting_option("وضع القتال",["سلمي","فريق","دفاع","حر"],0))
- _add_setting_check(layout,"الالتقاط التلقائي",true)
- _add_setting_check(layout,"الجرعات التلقائية",true)
- layout.add_child(HSeparator.new())
- layout.add_child(_label("الحفظ"))
- layout.add_child(_button("حفظ اللعبة الآن",func():
-  var state:=_root_autoload("GameState")
-  if state!=null: state.save_game()
- ))
- layout.add_child(_button("العودة إلى المدينة",func():
-  var nav:=_root_autoload("WorldNavigationSystem")
-  if nav!=null and nav.has_method("navigate_to_target"): nav.navigate_to_target("CentralPlaza")
- ))
+ var scroll := ScrollContainer.new()
+ scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+ scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ scroll.custom_minimum_size = Vector2(0, 620)
+ layout.add_child(scroll)
+ var content := VBoxContainer.new()
+ content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ content.add_theme_constant_override("separation", 10)
+ scroll.add_child(content)
 
-func _add_setting_slider(parent: VBoxContainer,caption: String,initial: float,maximum: float) -> void:
- parent.add_child(_label(caption))
- var slider:=HSlider.new()
- slider.min_value=0.0
- slider.max_value=maximum
- slider.value=initial
- parent.add_child(slider)
+ var audio := _settings_group(content, "الصوتيات")
+ _add_settings_slider(audio, "مستوى صوت الموسيقى", "music_volume", 0.0, 100.0, 1.0, "%")
+ _add_settings_mute_button(audio, "كتم الموسيقى", "music_muted")
+ _add_settings_slider(audio, "مستوى المؤثرات الصوتية", "sfx_volume", 0.0, 100.0, 1.0, "%")
+ _add_settings_mute_button(audio, "كتم المؤثرات الصوتية", "sfx_muted")
 
-func _setting_option(caption: String,options: Array,selected: int) -> HBoxContainer:
- var row:=HBoxContainer.new()
- row.add_child(_label(caption))
- var picker:=OptionButton.new()
- for option in options: picker.add_item(String(option))
- picker.select(selected)
- row.add_child(picker)
- return row
+ var graphics := _settings_group(content, "العرض والأداء")
+ var quality_row := HBoxContainer.new()
+ quality_row.add_child(_label("جودة الرسوم"))
+ var quality_picker := OptionButton.new()
+ quality_picker.add_item("منخفض")
+ quality_picker.add_item("متوسط")
+ quality_picker.add_item("فائق")
+ var settings := _root_autoload("GameSettings")
+ quality_picker.select(int(settings.get_setting("graphics_quality", 1)) if settings != null else 1)
+ quality_picker.item_selected.connect(_on_graphics_quality_selected)
+ quality_row.add_child(quality_picker)
+ graphics.add_child(quality_row)
+ _add_settings_toggle(graphics, "إظهار أسماء الشخصيات والوحوش", "show_names")
+ _add_settings_toggle(graphics, "إظهار أرقام الضرر", "show_damage_numbers")
+ _add_settings_toggle(graphics, "إظهار أشرطة الحياة", "show_hp_bars")
+ _add_settings_toggle(graphics, "إخفاء اللاعبين الوهميين لتسريع الأداء", "hide_simulated_players")
 
-func _add_setting_check(parent: VBoxContainer,caption: String,enabled: bool) -> void:
- var check:=CheckBox.new()
- check.text=caption
- check.button_pressed=enabled
+ var gameplay := _settings_group(content, "التحكم واللعب الأوفلاين")
+ _add_settings_slider(gameplay, "حساسية دوران الكاميرا", "camera_sensitivity", 0.2, 3.0, 0.1, "×")
+ _add_settings_toggle(gameplay, "الالتقاط التلقائي للذهب والأغراض", "auto_loot")
+ _add_settings_toggle(gameplay, "الجرعة التلقائية عند انخفاض الحياة أو الطاقة عن 50٪", "auto_potion")
+
+ var system := _settings_group(content, "إجراءات النظام")
+ var return_button := _button("فك التعليق — العودة إلى مدينة التوأم", _return_to_twin_city)
+ return_button.custom_minimum_size = Vector2(0, 42)
+ system.add_child(return_button)
+ var save_button := _button("حفظ اللعبة الآن", _save_game_now)
+ save_button.custom_minimum_size = Vector2(0, 42)
+ system.add_child(save_button)
+ _settings_feedback = Label.new()
+ _settings_feedback.text = "تُحفَظ التغييرات تلقائيًا على هذا الجهاز"
+ _settings_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+ _settings_feedback.add_theme_color_override("font_color", Color(0.95, 0.79, 0.42))
+ system.add_child(_settings_feedback)
+
+func _settings_group(parent: VBoxContainer, caption: String) -> VBoxContainer:
+ var panel := PanelContainer.new()
+ panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ panel.add_theme_stylebox_override("panel", _flat_style(Color(0.035, 0.029, 0.027, 0.97), Color(0.83, 0.62, 0.25), 2))
+ parent.add_child(panel)
+ var margin := MarginContainer.new()
+ margin.add_theme_constant_override("margin_left", 14)
+ margin.add_theme_constant_override("margin_top", 10)
+ margin.add_theme_constant_override("margin_right", 14)
+ margin.add_theme_constant_override("margin_bottom", 10)
+ panel.add_child(margin)
+ var group := VBoxContainer.new()
+ group.add_theme_constant_override("separation", 7)
+ margin.add_child(group)
+ var heading := _label(caption)
+ heading.add_theme_color_override("font_color", Color(1.0, 0.82, 0.43))
+ heading.add_theme_font_size_override("font_size", 19)
+ group.add_child(heading)
+ return group
+
+func _add_settings_slider(parent: VBoxContainer, caption: String, key: String, minimum: float, maximum: float, step: float, suffix: String) -> void:
+ var settings := _root_autoload("GameSettings")
+ var row := VBoxContainer.new()
+ row.add_theme_constant_override("separation", 2)
+ var heading := HBoxContainer.new()
+ var title := _label(caption)
+ title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ heading.add_child(title)
+ var value_label := Label.new()
+ var current := float(settings.get_setting(key, minimum)) if settings != null else minimum
+ value_label.text = ("%.1f" % current) + suffix if suffix == "×" else str(roundi(current)) + suffix
+ value_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.48))
+ heading.add_child(value_label)
+ row.add_child(heading)
+ var slider := HSlider.new()
+ slider.min_value = minimum
+ slider.max_value = maximum
+ slider.step = step
+ slider.value = current
+ slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ slider.custom_minimum_size = Vector2(0, 24)
+ slider.value_changed.connect(_on_settings_slider_changed.bind(key, value_label, suffix))
+ row.add_child(slider)
+ parent.add_child(row)
+
+func _on_settings_slider_changed(value: float, key: String, value_label: Label, suffix: String) -> void:
+ var settings := _root_autoload("GameSettings")
+ if settings == null:
+  return
+ settings.set_setting(key, value)
+ value_label.text = ("%.1f" % value) + suffix if suffix == "×" else str(roundi(value)) + suffix
+
+func _add_settings_toggle(parent: VBoxContainer, caption: String, key: String) -> void:
+ var settings := _root_autoload("GameSettings")
+ var check := CheckBox.new()
+ check.text = caption
+ check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ check.button_pressed = bool(settings.get_setting(key, true)) if settings != null else true
+ check.toggled.connect(_on_settings_toggle.bind(key))
  parent.add_child(check)
+
+func _on_settings_toggle(enabled: bool, key: String) -> void:
+ var settings := _root_autoload("GameSettings")
+ if settings != null:
+  settings.set_setting(key, enabled)
+
+func _add_settings_mute_button(parent: VBoxContainer, caption: String, key: String) -> void:
+ var settings := _root_autoload("GameSettings")
+ var button := _button("", _toggle_audio_mute.bind(key))
+ var muted := bool(settings.get_setting(key, false)) if settings != null else false
+ button.text = "إلغاء الكتم" if muted else "كتم"
+ button.custom_minimum_size = Vector2(130, 32)
+ var row := HBoxContainer.new()
+ row.add_child(_label(caption))
+ row.add_spacer(false)
+ row.add_child(button)
+ parent.add_child(row)
+
+func _toggle_audio_mute(key: String) -> void:
+ var settings := _root_autoload("GameSettings")
+ if settings == null:
+  return
+ var muted := not bool(settings.get_setting(key, false))
+ settings.set_setting(key, muted)
+ if _active_window == "System":
+  call_deferred("_open_window", "System")
+
+func _on_graphics_quality_selected(index: int) -> void:
+ var settings := _root_autoload("GameSettings")
+ if settings != null:
+  settings.set_setting("graphics_quality", index)
+
+func _save_game_now() -> void:
+ var state := _root_autoload("GameState")
+ var settings := _root_autoload("GameSettings")
+ if state == null:
+  if _settings_feedback != null:
+   _settings_feedback.text = "تعذّر الحفظ: حالة اللعبة غير متاحة"
+  return
+ var hero := _find_hero()
+ var world := _root_autoload("WorldMapManager")
+ if hero != null:
+  state.player_data["world_position"] = hero.global_position
+ if world != null:
+  state.player_data["world_city"] = String(world.current_city)
+ var game_saved := bool(state.save_game())
+ var settings_saved := bool(settings.save_settings()) if settings != null else false
+ if _settings_feedback != null:
+  _settings_feedback.text = "تم حفظ اللعبة والإعدادات بنجاح" if game_saved and settings_saved else "تعذّر إكمال الحفظ — راجع سجل الأخطاء"
+ print("GAME_SETTINGS_MANUAL_SAVE: game=", game_saved, " settings=", settings_saved)
+
+func _return_to_twin_city() -> void:
+ var navigation := _root_autoload("WorldNavigationSystem")
+ if navigation == null:
+  if _settings_feedback != null:
+   _settings_feedback.text = "تعذّر الانتقال: نظام التنقل غير متاح"
+  return
+ var returned: bool = await navigation.instant_teleport("TwinCity", Vector3(0.0, 0.2, -49.0))
+ if _settings_feedback != null:
+  _settings_feedback.text = "تمت العودة إلى نقطة الأمان في المدينة التوأم" if returned else "تعذّر الانتقال الآن — حاول مرة أخرى"
+ print("GAME_SETTINGS_RETURN_TO_TWIN_CITY: success=", returned)
 
 func _build_guild_window(layout: VBoxContainer) -> void:
  layout.add_child(_label("النقابة"))
