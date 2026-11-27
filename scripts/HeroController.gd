@@ -40,6 +40,8 @@ var jump_destination := Vector3.ZERO
 var is_jumping := false
 var weapon_nodes: Array[Node] = []
 var measured_model_height := 0.0
+var _camera_drag_active := false
+var _player_nameplate: Label3D
 # PHASE4C_DIRECTOR_HAND_POSE: preserve bow's approved 210-degree orientation; palm alignment is derived from finger-root geometry.
 
 func _ready() -> void:
@@ -48,7 +50,9 @@ func _ready() -> void:
  _ensure_input_actions()
  print("INPUTMAP_MOVEMENT_ACTIONS_READY: move_forward,move_back,move_left,move_right")
  await _load_approved_ranger()
+ _restore_saved_world_position()
  _setup_camera()
+ _build_player_nameplate()
  _switch_class("archer")
  var equipment_manager := get_node_or_null("/root/EquipmentVisualManager")
  if equipment_manager != null: equipment_manager.bind_hero(self)
@@ -147,6 +151,43 @@ func _setup_camera() -> void:
  camera_pivot.add_child(camera)
  camera_pivot.position = Vector3.ZERO
 
+func _restore_saved_world_position() -> void:
+ var state := get_node_or_null("/root/GameState")
+ var world := get_node_or_null("/root/WorldMapManager")
+ if state == null or world == null:
+  return
+ var data: Dictionary = state.player_data
+ if String(data.get("world_city", "")) != String(world.current_city):
+  return
+ var saved_position: Variant = data.get("world_position", null)
+ if saved_position is Vector3:
+  global_position = saved_position
+  print("HERO_SAVED_POSITION_RESTORED: city=", world.current_city, " position=", global_position)
+
+func _build_player_nameplate() -> void:
+ _player_nameplate = Label3D.new()
+ _player_nameplate.name = "PlayerNameplate"
+ _player_nameplate.set_meta("game_settings_role", "name")
+ var state := get_node_or_null("/root/GameState")
+ var data: Dictionary = state.player_data if state != null else {}
+ _player_nameplate.text = String(data.get("name", "Ranger"))
+ _player_nameplate.font = ThemeDB.fallback_font
+ _player_nameplate.font_size = 48
+ _player_nameplate.pixel_size = 0.008
+ _player_nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+ _player_nameplate.no_depth_test = true
+ _player_nameplate.outline_size = 8
+ _player_nameplate.position = Vector3(0.0, 3.5, 0.0)
+ add_child(_player_nameplate)
+
+func _rotate_camera(relative: Vector2) -> void:
+ if not is_instance_valid(camera_pivot):
+  return
+ var settings := get_node_or_null("/root/GameSettings")
+ var sensitivity := float(settings.get_setting("camera_sensitivity", 1.0)) if settings != null else 1.0
+ camera_pivot.rotation_degrees.y -= relative.x * 0.16 * sensitivity
+ camera_pivot.rotation_degrees.x = clampf(camera_pivot.rotation_degrees.x - relative.y * 0.12 * sensitivity, -72.0, -25.0)
+
 func _process(delta: float) -> void:
  if is_instance_valid(camera_pivot):
   camera_pivot.global_position = camera_pivot.global_position.lerp(global_position + Vector3(0,1.0,0), clampf(delta*8.0,0.0,1.0))
@@ -209,8 +250,23 @@ func _unhandled_input(event: InputEvent) -> void:
       archer_dual_knives = not archer_dual_knives
       _switch_class("oriental_assassin" if archer_dual_knives else "archer")
    KEY_SPACE: _try_jump()
- if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-  _set_click_target(event.position)
+ if event is InputEventScreenTouch:
+  var touch := event as InputEventScreenTouch
+  if touch.pressed:
+   var viewport_size := get_viewport().get_visible_rect().size
+   _camera_drag_active = touch.position.x >= viewport_size.x * 0.42 and touch.position.y < viewport_size.y - 230.0
+  else:
+   _camera_drag_active = false
+ elif event is InputEventScreenDrag and _camera_drag_active:
+  _rotate_camera((event as InputEventScreenDrag).relative)
+ elif event is InputEventMouseButton:
+  var mouse_button := event as InputEventMouseButton
+  if mouse_button.button_index == MOUSE_BUTTON_RIGHT:
+   _camera_drag_active = mouse_button.pressed
+  elif mouse_button.pressed and mouse_button.button_index == MOUSE_BUTTON_LEFT:
+   _set_click_target(mouse_button.position)
+ elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+  _rotate_camera((event as InputEventMouseMotion).relative)
 
 func _set_click_target(screen_position: Vector2) -> void:
  if camera == null: return
