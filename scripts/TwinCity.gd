@@ -47,6 +47,10 @@ func _ready() -> void:
         _install_mobile_hud.call_deferred()
         print("PHASE5A_MOBILE_HUD_PREVIEW_SCENE_READY: TwinCity_only=true wilderness_skipped=true")
         return
+    if OS.get_environment("MOUNT_SHOWCASE") == "1":
+        _capture_mount_showcase.call_deferred()
+        print("MOUNT_SHOWCASE_SCENE_READY: TwinCity_only=true wilderness_skipped=true")
+        return
     if not Wilderness.build(self):
         await _shutdown(1)
         return
@@ -845,3 +849,67 @@ func _install_mobile_hud() -> void:
     hud.name = "MobileHUD"
     layer.add_child(hud)
     print("PHASE5A_MOBILE_HUD_ATTACHED: platform_mobile=",OS.has_feature("mobile")," preview_arg=",OS.get_cmdline_user_args().has("--preview-mobile-hud"))
+
+func _capture_mount_showcase() -> void:
+    await get_tree().create_timer(1.5).timeout
+    var hero := get_node_or_null("PlayableHero") as CharacterBody3D
+    if hero == null:
+        hero = get_node_or_null("TwinCityPlayableHero") as CharacterBody3D
+    var mounts := get_node_or_null("/root/MountSystem")
+    var gear := get_node_or_null("/root/GearSystem")
+    var db := get_node_or_null("/root/GearDatabase")
+    if hero == null or mounts == null or gear == null or db == null:
+        push_error("MOUNT_SHOWCASE_DEPENDENCY_MISSING")
+        await _shutdown(1)
+        return
+    if not mounts.run_functional_test(hero):
+        push_error("MOUNT_AND_EQUIP_TEST_FAILED")
+        await _shutdown(1)
+        return
+    var steed: Dictionary = db.get_item("preview_steed_p12")
+    gear.equip_item("steed",steed)
+    var camera := Camera3D.new()
+    camera.name = "MountShowcaseCamera"
+    camera.position = hero.global_position + Vector3(5.5,4.8,7.5)
+    camera.fov = 42.0
+    add_child(camera)
+    camera.look_at(hero.global_position + Vector3(0,1.15,0),Vector3.UP)
+    camera.current = true
+    var showcase := [
+        {"type":"steed","file":"mount_showcase_steed.png"},
+        {"type":"tiger","file":"mount_showcase_tiger.png"},
+        {"type":"deer","file":"mount_showcase_deer.png"},
+        {"type":"wolf","file":"mount_showcase_wolf.png"}
+    ]
+    var directory := ProjectSettings.globalize_path("res://artifacts")
+    DirAccess.make_dir_recursive_absolute(directory)
+    for entry in showcase:
+        var kind := String(entry.type)
+        if kind == "steed":
+            gear.unequip_item("mount_skin")
+        else:
+            gear.equip_item("mount_skin",db.get_item("mount_skin_"+kind))
+        if not mounts.mount(hero):
+            push_error("MOUNT_SHOWCASE_MOUNT_FAILED: "+kind)
+            await _shutdown(1)
+            return
+        camera.position = hero.global_position + Vector3(5.5,4.8,7.5)
+        camera.look_at(hero.global_position + Vector3(0,1.15,0),Vector3.UP)
+        await get_tree().process_frame
+        await get_tree().process_frame
+        await RenderingServer.frame_post_draw
+        var image := get_viewport().get_texture().get_image()
+        var path := directory.path_join(String(entry.file))
+        if image == null or image.is_empty() or image.save_png(path) != OK:
+            push_error("MOUNT_SHOWCASE_CAPTURE_FAILED: "+kind)
+            await _shutdown(1)
+            return
+        var bytes := FileAccess.get_file_as_bytes(path).size()
+        if bytes < 15000:
+            push_error("MOUNT_SHOWCASE_CAPTURE_TOO_SMALL: "+kind+" bytes="+str(bytes))
+            await _shutdown(1)
+            return
+        print("MOUNT_SHOWCASE_CAPTURE_OK: ",kind," file=",entry.file," bytes=",bytes)
+        mounts.dismount()
+    print("MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE")
+    await _shutdown(0)
