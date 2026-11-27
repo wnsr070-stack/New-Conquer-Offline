@@ -626,7 +626,10 @@ jobs:
             artifacts/mobile_hud_inventory_preview.png
             artifacts/mobile_hud_character_preview.png
             artifacts/mobile_hud_preview.log
-            artifacts/phase5a_kenney_asset_report.txt\n            artifacts/settings_functional_test.log\n            assets/mounts/*.glb\n            assets/mounts/PROVENANCE.md
+            artifacts/phase5a_kenney_asset_report.txt
+            artifacts/settings_functional_test.log
+            assets/mounts/*.glb
+            assets/mounts/PROVENANCE.md
       - name: Verify all six captures and checkpoint markers
         if: always()
         run: |
