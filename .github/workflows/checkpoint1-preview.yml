@@ -224,11 +224,11 @@ jobs:
           # index.tsv columns: path, description, WxH, bytes
           indexed = []
           with index_path.open("r", encoding="utf-8", newline="") as stream:
-              reader = csv.reader(stream, delimiter="\\t")
-              for row in reader:
-                  if len(row) < 2:
+              for line in stream:
+                  parts = line.rstrip("\r\n").split(chr(9))
+                  if len(parts) < 2:
                       continue
-                  rel, description = row[0].strip(), row[1].strip()
+                  rel, description = parts[0].strip(), parts[1].strip()
                   if not rel or rel.lower() == "path":
                       continue
                   tokens = set(split_words.split((rel + " " + description).lower()))
