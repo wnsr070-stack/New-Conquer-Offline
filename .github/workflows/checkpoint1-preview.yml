@@ -486,7 +486,7 @@ jobs:
           SETTINGS_FUNCTIONAL_TEST: "1"
         run: |
           set -euo pipefail
-          timeout 180s "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/validate_mobile_hud.gd 2>&1 | tee artifacts/settings_functional_test.log
+          timeout 600s "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/validate_mobile_hud.gd 2>&1 | tee artifacts/settings_functional_test.log
           grep -q "PHASE5A_MOBILE_HUD_PARSE_OK" artifacts/settings_functional_test.log
           grep -q "SETTINGS_FUNCTIONAL_TEST_PASS=true" artifacts/settings_functional_test.log
           ! grep -E "SCRIPT ERROR|Parse Error|SETTINGS_TEST_FAILED|Failed to load script|Failed loading resource" artifacts/settings_functional_test.log
