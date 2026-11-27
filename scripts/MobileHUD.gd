@@ -1,7 +1,7 @@
 extends Control
 ## Touch-first 2D HUD. All 3D presentation remains imported assets; this UI owns no 3D nodes.
 const ICON_SCRIPT = preload("res://scripts/ItemIconGenerator.gd")
-const SKILL_ICON_FILES := {"bow":"bow.png","arrow":"arrow.png","fire":"fire.png","lightning":"lightning.png","speed":"speed.png","shield":"shield.png"}
+const SKILL_ICON_FILES := {"bow":"bow.png","arrow":"arrow.png","fire":"fire.png","lightning":"lightning.png","speed":"speed.png","shield":"shield.png","sword":"sword.png","dagger":"dagger.png","heal":"heal.png","poison":"poison.png"}
 const WINDOW_NAMES := ["Inventory","Character","Quests","Daily Login","Map","Chat","Merchant","Warehouse","ArtisanMaster"]
 const FORGE_TABS := ["Plus +1…+12","Quality","Level","Sockets","Anima"]
 var _hero: Node3D
@@ -25,6 +25,7 @@ var _character_preview_container: SubViewportContainer
 var _character_preview_dragging := false
 var _selected_equipment_slot := "weapon"
 var _settings_feedback: Label
+var _auto_hunt_button: Button
 
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -136,7 +137,7 @@ func _build_hud() -> void:
  quick.set_anchors_preset(Control.PRESET_TOP_RIGHT)
  quick.position=Vector2(-224,210)
  root.add_child(quick)
- for p in [["⚙","الإعدادات","System","settings"],["🎒","الحقيبة","Inventory","bag"],["♟","الشخصية","Character","character"],["📜","المهام","Quests","quest"]]:
+ for p in [["🎒","الحقيبة","Inventory","bag"],["♟","الشخصية","Character","character"],["📜","المهام","Quests","quest"],["🛒","السوق","Merchant","merchant"]]:
   var entry:=VBoxContainer.new()
   entry.custom_minimum_size=Vector2(52,68)
   entry.add_theme_constant_override("separation",1)
@@ -154,14 +155,58 @@ func _build_hud() -> void:
   entry.add_child(caption)
   quick.add_child(entry)
 
+ var right_actions:=VBoxContainer.new()
+ right_actions.name="RightCenterActions"
+ right_actions.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+ right_actions.position=Vector2(-78,-112)
+ right_actions.custom_minimum_size=Vector2(66,224)
+ right_actions.add_theme_constant_override("separation",26)
+ right_actions.z_index=24
+ root.add_child(right_actions)
+ var settings_entry:=VBoxContainer.new()
+ settings_entry.custom_minimum_size=Vector2(64,72)
+ settings_entry.add_theme_constant_override("separation",2)
+ var settings_button:=_round_button("",_quick_action.bind("System"))
+ settings_button.custom_minimum_size=Vector2(54,54)
+ settings_button.size=Vector2(54,54)
+ settings_button.icon=load("res://assets/ui/menu/settings.png") as Texture2D
+ settings_button.expand_icon=true
+ settings_button.add_theme_constant_override("icon_max_width",34)
+ _apply_glass_round_style(settings_button,14)
+ settings_entry.add_child(settings_button)
+ var settings_caption:=_label("الإعدادات")
+ settings_caption.add_theme_font_size_override("font_size",10)
+ settings_caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ settings_entry.add_child(settings_caption)
+ right_actions.add_child(settings_entry)
+ var hunt_entry:=VBoxContainer.new()
+ hunt_entry.custom_minimum_size=Vector2(64,72)
+ hunt_entry.add_theme_constant_override("separation",2)
+ _auto_hunt_button=_round_button("",_quick_action.bind("Auto-Hunt"))
+ _auto_hunt_button.custom_minimum_size=Vector2(54,54)
+ _auto_hunt_button.size=Vector2(54,54)
+ _auto_hunt_button.icon=load("res://assets/ui/menu/hunt.png") as Texture2D
+ _auto_hunt_button.expand_icon=true
+ _auto_hunt_button.add_theme_constant_override("icon_max_width",34)
+ hunt_entry.add_child(_auto_hunt_button)
+ var hunt_caption:=_label("صيد تلقائي")
+ hunt_caption.add_theme_font_size_override("font_size",10)
+ hunt_caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ hunt_entry.add_child(hunt_caption)
+ right_actions.add_child(hunt_entry)
+ _refresh_auto_hunt_button()
+
  _window_menu=VBoxContainer.new()
  _window_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
  _window_menu.position=Vector2(-205,258)
  _window_menu.visible=false
  _window_menu.z_index=30
  root.add_child(_window_menu)
- for p in [["الحقيبة","Inventory"],["الشخصية","Character"],["المهارات","Skill"],["المهام","Quests"],["السوق","Merchant"],["النقابة","Guild"],["الإعدادات","System"]]:
+ for p in [["الحقيبة","Inventory","bag"],["الشخصية","Character","character"],["المهارات","Skill","skill"],["المهام","Quests","quest"],["السوق","Merchant","merchant"],["النقابة","Guild","character"],["الإعدادات","System","settings"]]:
   var b:=_round_button(String(p[0]),_open_window.bind(String(p[1])))
+  b.icon=load("res://assets/ui/menu/"+String(p[2])+".png") as Texture2D
+  b.expand_icon=true
+  b.add_theme_constant_override("icon_max_width",26)
   _window_menu.add_child(b)
 
  var chat:=_ornate_panel(root,Vector2(16,-390),Vector2(360,165))
@@ -236,11 +281,11 @@ func _build_hud() -> void:
  hot.custom_minimum_size=Vector2(hotbar_width,42)
  hot.size=Vector2(hotbar_width,42)
  for i in range(10):
-  var button:=_button("F%d"%(i+1),_use_skill_at.bind(i))
+  var button:=_button("",_use_skill_at.bind(i))
   button.custom_minimum_size=Vector2(40,40)
   button.size=Vector2(40,40)
   _apply_glass_round_style(button,10)
-  _set_skill_button_icon(button,["bow","arrow","fire","lightning","speed","shield","arrow","fire","lightning","shield"][i])
+  _set_skill_button_icon(button,["bow","arrow","fire","lightning","speed","shield","sword","dagger","heal","poison"][i],"F%d"%(i+1))
   hot.add_child(button)
  bottom.add_child(hot)
  var mp_orb:=CrystalOrb.new()
@@ -551,7 +596,7 @@ func _toggle_window_menu() -> void:
 func _round_button(caption: String,callback: Callable) -> Button:
  var button := _button(caption,callback)
  button.custom_minimum_size=Vector2(58,54)
- _apply_button_skin(button,true)
+ _apply_glass_round_style(button,10)
  return button
 func _quick_action(action: String) -> void:
  if action=="Auto-Hunt": _toggle_auto_combat()
@@ -1531,6 +1576,23 @@ func _toggle_auto_combat() -> void:
  combat.combat_active = not combat.combat_active
  if combat.combat_active: combat.current_target = combat.find_nearest_target(_hero)
 
+func _refresh_auto_hunt_button() -> void:
+ if not is_instance_valid(_auto_hunt_button): return
+ var combat:=_root_autoload("CombatSystem")
+ var active:=combat!=null and bool(combat.combat_active)
+ var normal:=_circular_style(Color(0.07,0.055,0.025,0.98) if active else Color(0.075,0.055,0.035,0.98),Color(0.78,1.0,0.42) if active else Color(0.98,0.77,0.30),3,14)
+ normal.shadow_color=Color(0.28,1.0,0.18,0.95) if active else Color(0.0,0.0,0.0,0.86)
+ normal.shadow_size=14 if active else 11
+ var hover:=_circular_style(Color(0.12,0.18,0.045,1.0) if active else Color(0.16,0.12,0.055,1.0),Color(0.86,1.0,0.52) if active else Color(1.0,0.91,0.55),3,14)
+ hover.shadow_color=Color(0.35,1.0,0.22,1.0) if active else Color(0.22,0.16,0.04,0.92)
+ hover.shadow_size=16 if active else 13
+ _auto_hunt_button.add_theme_stylebox_override("normal",normal)
+ _auto_hunt_button.add_theme_stylebox_override("hover",hover)
+ _auto_hunt_button.add_theme_stylebox_override("pressed",hover)
+ _auto_hunt_button.tooltip_text="صيد تلقائي: يعمل" if active else "صيد تلقائي: متوقف"
+
+ _refresh_auto_hunt_button()
+
 func _on_joystick_input(event: InputEvent) -> void:
  if event is InputEventScreenTouch:
   var touch := event as InputEventScreenTouch
@@ -1626,9 +1688,20 @@ func _circular_style(bg: Color,border: Color,width: int,radius: int) -> StyleBox
  return style
 
 func _apply_glass_round_style(button: Button,radius: int) -> void:
- button.add_theme_stylebox_override("normal",_circular_style(Color(0.035,0.045,0.065,0.88),Color(0.95,0.76,0.30),2,radius))
- button.add_theme_stylebox_override("hover",_circular_style(Color(0.12,0.10,0.07,0.96),Color(1.0,0.88,0.48),2,radius))
- button.add_theme_stylebox_override("pressed",_circular_style(Color(0.30,0.07,0.06,0.98),Color(1.0,0.55,0.18),2,radius))
+ var normal:=_circular_style(Color(0.075,0.055,0.035,0.98),Color(0.98,0.77,0.30),3,radius)
+ normal.shadow_color=Color(0.0,0.0,0.0,0.86)
+ normal.shadow_size=11
+ normal.border_color=Color(0.98,0.77,0.30)
+ var hover:=_circular_style(Color(0.16,0.12,0.055,1.0),Color(1.0,0.91,0.55),3,radius)
+ hover.shadow_color=Color(0.22,0.16,0.04,0.92)
+ hover.shadow_size=13
+ var pressed:=_circular_style(Color(0.22,0.12,0.035,1.0),Color(1.0,0.58,0.18),3,radius)
+ pressed.shadow_color=Color(0.0,0.0,0.0,0.92)
+ pressed.shadow_size=5
+ button.add_theme_stylebox_override("normal",normal)
+ button.add_theme_stylebox_override("hover",hover)
+ button.add_theme_stylebox_override("pressed",pressed)
+ button.add_theme_stylebox_override("focus",hover)
 
 func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
  var style:=StyleBoxFlat.new()
@@ -1641,22 +1714,37 @@ func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
   style.shadow_size = 8
  return style
 
-func _set_skill_button_icon(button: Button,kind: String) -> void:
+func _set_skill_button_icon(button: Button,kind: String,hotkey: String = "") -> void:
  var filename := String(SKILL_ICON_FILES.get(kind,"bow.png"))
  var texture := load("res://assets/ui/skills/" + filename) as Texture2D
  if texture != null:
   var icon_rect := TextureRect.new()
   icon_rect.name = "SkillTextureIcon"
   icon_rect.texture = texture
-  icon_rect.custom_minimum_size = Vector2(32,32)
+  icon_rect.custom_minimum_size = Vector2(30,30)
   icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
   icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
   icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-  icon_rect.position = (button.size-Vector2(32,32))*0.5
-  icon_rect.size = Vector2(32,32)
+  icon_rect.position = (button.size-Vector2(30,30))*0.5 + Vector2(0,2)
+  icon_rect.size = Vector2(30,30)
+  icon_rect.z_index = 1
   button.add_child(icon_rect)
  else:
-  push_warning("PHASE5A_SKILL_ICON_MISSING: " + filename)
+  push_error("PHASE5A_SKILL_ICON_MISSING: " + filename)
+ if not hotkey.is_empty():
+  var badge:=Label.new()
+  badge.name="SkillHotkeyBadge"
+  badge.text=hotkey
+  badge.position=Vector2(1,0)
+  badge.size=Vector2(15,12)
+  badge.add_theme_font_size_override("font_size",8)
+  badge.add_theme_color_override("font_color",Color(1.0,0.91,0.65))
+  badge.add_theme_stylebox_override("normal",_flat_style(Color(0.035,0.025,0.015,0.96),Color(0.92,0.68,0.22),1))
+  badge.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+  badge.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+  badge.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  badge.z_index=4
+  button.add_child(badge)
 
 func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false) -> Panel:
  var panel:=Panel.new()
