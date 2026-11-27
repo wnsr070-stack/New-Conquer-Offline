@@ -1,0 +1,107 @@
+name: Phase 5A Mobile HUD Quick Preview
+
+on:
+  push:
+    branches: ['test/phase5-mobile-ui-audio-apk']
+    paths:
+      - '.github/workflows/phase5a-mobile-hud-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5a-mobile-hud-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3"
+  GODOT_BIN: ".cache/godot/Godot_v4.3-stable_linux.x86_64"
+  LIBGL_ALWAYS_SOFTWARE: "1"
+
+jobs:
+  mobile-hud-preview:
+    name: Render inventory and character UI previews only
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install rendering runtime dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl unzip xvfb xauth libgl1 libglx-mesa0 libegl1 libx11-6 libxcursor1 libxinerama1 libxrandr2 libxi6 libasound2 libpulse0 libfontconfig1 libxkbcommon0
+          sudo rm -rf /var/lib/apt/lists/*
+          mkdir -p .cache/godot artifacts
+
+      - name: Restore Godot 4.3 cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/godot
+          key: godot-4.3-linux-x64-v1
+
+      - name: Install Godot 4.3 if cache is empty
+        run: |
+          set -euo pipefail
+          if [ ! -x "$GODOT_BIN" ]; then
+            curl --fail --location --retry 4 --retry-all-errors "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o .cache/godot/godot.zip
+            unzip -o .cache/godot/godot.zip -d .cache/godot
+            chmod +x "$GODOT_BIN"
+          fi
+          "$GODOT_BIN" --version
+
+      - name: Restore approved Phase 5A mobile UI artwork and Arabic font
+        id: mobile_ui
+        uses: actions/cache@v4
+        with:
+          path: |
+            assets/ui
+            assets/icons
+            assets/fonts
+          key: phase5a-mobile-ui-assets-v9-real-equipment-icons
+
+      - name: Restore Godot imported resources
+        uses: actions/cache@v4
+        with:
+          path: .godot/imported
+          key: godot43-imported-v2-${{ hashFiles('project.godot', 'scenes/**/*.tscn', 'scripts/**/*.gd') }}
+          restore-keys: |
+            godot43-imported-v2-
+
+      - name: Verify cached UI assets and import project
+        run: |
+          set -euo pipefail
+          test -s assets/ui/borders/ornate_panel.png
+          test -s assets/icons/rpg/helmet.png
+          test -s assets/fonts/NotoSansArabic-Bold.ttf
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/mobile_hud_import.log
+
+      - name: Render MobileHUD inventory and character previews only
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 1600x900x24" timeout 600s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1600x900 -- --preview-mobile-hud 2>&1 | tee artifacts/mobile_hud_preview.log
+          test -s artifacts/mobile_hud_inventory_preview.png
+          test -s artifacts/mobile_hud_character_preview.png
+          for image in mobile_hud_inventory_preview.png mobile_hud_character_preview.png; do
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 1024 ] || { echo "::error::Mobile HUD preview $image is too small: $size bytes"; exit 1; }
+            file "artifacts/$image"
+          done
+          grep -q "PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true" artifacts/mobile_hud_preview.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE5A_MOBILE_HUD_PREVIEW_FAILED" artifacts/mobile_hud_preview.log
+
+      - name: Upload both mobile HUD preview PNGs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-hud-previews-${{ github.run_number }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            artifacts/mobile_hud_inventory_preview.png
+            artifacts/mobile_hud_character_preview.png
+            artifacts/mobile_hud_preview.log
+            artifacts/mobile_hud_import.log
