@@ -174,96 +174,85 @@ func _count_mount_meshes(root: Node) -> int:
 
 func _fit_mount_model(root: Node3D,kind: String) -> void:
  var bounds := _measure_bounds(root)
- if bounds.size.y <= 0.001 or maxf(bounds.size.x,bounds.size.z) <= 0.001:
+ if bounds.size.y <= 0.001 or maxf(bounds.size.x,maxf(bounds.size.y,bounds.size.z)) <= 0.001:
   push_error("MOUNT_AABB_INVALID: kind="+kind+" bounds="+str(bounds))
   return
- # Fit the animal's measured body to a 2.5m horizontal length and 1.4m back height.
- var horizontal_extent := maxf(bounds.size.x,bounds.size.z)
- var horizontal_factor := 2.5/horizontal_extent
- var vertical_factor := 1.4/bounds.size.y
- root.rotation.y = PI
- root.scale = Vector3(horizontal_factor,vertical_factor,horizontal_factor)
- root.position = Vector3(bounds.get_center().x*horizontal_factor,-bounds.position.y*vertical_factor,bounds.get_center().z*horizontal_factor)
- print("MOUNT_AABB_FIT_OK: kind=",kind," source=",bounds.size," target_length=2.5 target_back_height=1.4 scale=",root.scale)
+ if kind == "deer":
+  var maximum_dimension := maxf(bounds.size.x,maxf(bounds.size.y,bounds.size.z))
+  var factor := 2.5/maximum_dimension
+  root.rotation.y = PI
+  root.scale = Vector3.ONE*factor
+  root.position = Vector3(bounds.get_center().x*factor,-bounds.position.y*factor,bounds.get_center().z*factor)
+  print("MOUNT_STAG_AABB_NORMALIZED_OK: maximum_dimension=2.5 source=",bounds.size," scale=",root.scale)
+ else:
+  var horizontal_extent := maxf(bounds.size.x,bounds.size.z)
+  var horizontal_factor := 2.5/horizontal_extent
+  var vertical_factor := 1.4/bounds.size.y
+  root.rotation.y = PI
+  root.scale = Vector3(horizontal_factor,vertical_factor,horizontal_factor)
+  root.position = Vector3(bounds.get_center().x*horizontal_factor,-bounds.position.y*vertical_factor,bounds.get_center().z*horizontal_factor)
+  print("MOUNT_AABB_FIT_OK: kind=",kind," source=",bounds.size," target_length=2.5 target_back_height=1.4 scale=",root.scale)
  _apply_mount_regalia(root,kind)
 
 func _apply_mount_regalia(root: Node3D,kind: String) -> void:
- var aura_color := Color("#f5c451")
- var tint := Color("#e4bd72")
+ var aura_color := Color("#ffd45a")
+ var body_tint := Color("#9b3e26")
+ var emission_energy := 0.42
  match kind:
   "tiger":
-   aura_color = Color("#ff762b")
-   tint = Color("#d98a38")
+   aura_color = Color("#ff5b16")
+   body_tint = Color("#d9a52b")
+   emission_energy = 0.78
   "deer":
-   aura_color = Color("#37e6a0")
-   tint = Color("#a9d9a9")
+   aura_color = Color("#36e6a0")
+   body_tint = Color("#f2f0e8")
+   emission_energy = 0.5
   "wolf":
-   aura_color = Color("#9c8cff")
-   tint = Color("#a9b6e8")
+   aura_color = Color("#64bfff")
+   body_tint = Color("#b9c9d8")
+   emission_energy = 0.62
   _:
    aura_color = Color("#ffd45a")
-   tint = Color("#e5c57b")
+   body_tint = Color("#9b3e26")
+   emission_energy = 0.42
  var stack: Array[Node] = [root]
  var tinted_surfaces := 0
+ var gold_antler_surfaces := 0
  while not stack.is_empty():
   var current: Node = stack.pop_back()
   if current is MeshInstance3D:
    var mesh_instance := current as MeshInstance3D
    if mesh_instance.mesh != null:
     for surface in range(mesh_instance.mesh.get_surface_count()):
-     var source_material := mesh_instance.get_active_material(surface) as StandardMaterial3D
-     if source_material == null:
-      continue
-     if kind == "tiger":
-      var shader := Shader.new()
-      shader.code = """
-shader_type spatial;
-uniform sampler2D base_texture : source_color, filter_linear_mipmap;
-uniform bool has_base_texture = false;
-uniform vec4 base_color : source_color = vec4(1.0);
-uniform vec3 emission_tint = vec3(1.0, 0.38, 0.06);
-void fragment() {
- vec3 source_color = base_color.rgb;
- if (has_base_texture) {
-  source_color *= texture(base_texture, UV).rgb;
- }
- float wave = sin(UV.x * 18.0 + sin(UV.y * 8.0) * 1.4);
- float stripe_wave = abs(sin(UV.y * 42.0 + wave * 1.7));
- float stripe = 1.0 - smoothstep(0.02, 0.22, stripe_wave);
- vec3 royal_gold = vec3(1.0, 0.58, 0.14);
- vec3 deep_amber = vec3(0.16, 0.055, 0.012);
- vec3 coat = mix(royal_gold, deep_amber, stripe * 0.78);
- ALBEDO = source_color * coat;
- METALLIC = 0.52;
- ROUGHNESS = 0.42;
- EMISSION = emission_tint * 0.22;
-}
-"""
-      var tiger_material := ShaderMaterial.new()
-      tiger_material.shader = shader
-      tiger_material.set_shader_parameter("base_color",source_material.albedo_color)
-      tiger_material.set_shader_parameter("has_base_texture",source_material.albedo_texture != null)
-      if source_material.albedo_texture != null:
-       tiger_material.set_shader_parameter("base_texture",source_material.albedo_texture)
-      tiger_material.set_shader_parameter("emission_tint",Vector3(aura_color.r,aura_color.g,aura_color.b))
-      mesh_instance.set_surface_override_material(surface,tiger_material)
-     else:
-      var material := source_material.duplicate() as StandardMaterial3D
-      material.albedo_color = material.albedo_color.lerp(tint,0.18)
-      material.metallic = maxf(material.metallic,0.42)
-      material.roughness = minf(material.roughness,0.48)
-      material.emission_enabled = true
-      material.emission = aura_color
-      material.emission_energy_multiplier = 0.32
-      mesh_instance.set_surface_override_material(surface,material)
+     var source := mesh_instance.get_active_material(surface)
+     var material := source.duplicate() as StandardMaterial3D if source is StandardMaterial3D else StandardMaterial3D.new()
+     if source is BaseMaterial3D and not source is StandardMaterial3D:
+      material.albedo_color = (source as BaseMaterial3D).albedo_color
+     var semantic := (String(mesh_instance.name)+" "+String(mesh_instance.mesh.get_name())+" "+String(mesh_instance.mesh.surface_get_name(surface)))
+     if source != null:
+      semantic += " "+String(source.resource_name)
+     semantic = semantic.to_lower()
+     var is_gold_antler := kind == "deer" and ("antler" in semantic or "horn" in semantic or "branch" in semantic)
+     material.albedo_color = material.albedo_color.lerp(Color("#e2b34d") if is_gold_antler else body_tint,0.48 if is_gold_antler else 0.34)
+     material.metallic = 0.85
+     material.roughness = 0.22
+     material.clearcoat_enabled = true
+     material.clearcoat = 1.0
+     material.clearcoat_roughness = 0.12
+     material.emission_enabled = true
+     material.emission = Color("#ffcc45") if is_gold_antler else aura_color
+     material.emission_energy_multiplier = 0.92 if is_gold_antler else emission_energy
+     mesh_instance.set_surface_override_material(surface,material)
      tinted_surfaces += 1
+     if is_gold_antler:
+      gold_antler_surfaces += 1
   for child in current.get_children():
    stack.append(child)
- # Lights provide a soft ground/side glow without creating substitute mesh geometry.
+ _add_mount_particle_systems(root,kind,aura_color)
  var ground_glow := OmniLight3D.new()
  ground_glow.name = "MountGroundAura"
  ground_glow.light_color = aura_color
- ground_glow.light_energy = 1.8
+ ground_glow.light_energy = 1.25
  ground_glow.omni_range = 4.2
  ground_glow.shadow_enabled = false
  ground_glow.position = Vector3(0,0.28,0)
@@ -271,12 +260,56 @@ void fragment() {
  var body_glow := OmniLight3D.new()
  body_glow.name = "MountBodyGlow"
  body_glow.light_color = aura_color
- body_glow.light_energy = 0.65
- body_glow.omni_range = 2.8
+ body_glow.light_energy = 0.55
+ body_glow.omni_range = 3.0
  body_glow.shadow_enabled = false
- body_glow.position = Vector3(0,0.95,0)
+ body_glow.position = Vector3(0,1.0,0)
  root.add_child(body_glow)
- print("MOUNT_REGALIA_AURA_READY: kind=",kind," color=",aura_color," tinted_surfaces=",tinted_surfaces," glow=ground+body")
+ print("MOUNT_CLEARCOAT_PBR_READY: kind=",kind," metallic=0.85 roughness=0.22 clearcoat=1.0 surfaces=",tinted_surfaces," gold_antlers=",gold_antler_surfaces)
+ if kind == "deer" and gold_antler_surfaces == 0:
+  push_warning("MOUNT_STAG_ANTLER_MATERIAL_SEMANTIC_NOT_FOUND: source_meshes_keep_pearl_pbr=true")
+
+func _add_mount_particle_systems(root: Node3D,kind: String,glow_color: Color) -> void:
+ var particle_mesh := QuadMesh.new()
+ particle_mesh.size = Vector2(0.11,0.11)
+ var particle_material := StandardMaterial3D.new()
+ particle_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+ particle_material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+ particle_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+ particle_material.albedo_color = Color(glow_color.r,glow_color.g,glow_color.b,0.86)
+ particle_material.emission_enabled = true
+ particle_material.emission = glow_color
+ particle_material.emission_energy_multiplier = 2.1
+ particle_mesh.material = particle_material
+ var placements := [
+  {"name":"NeckHeadGlow","position":Vector3(0,1.12,0.72),"amount":18},
+  {"name":"TailGlow","position":Vector3(0,0.9,-0.92),"amount":14},
+  {"name":"HoofSparks","position":Vector3(0,0.14,0.0),"amount":22}
+ ]
+ for placement in placements:
+  var process := ParticleProcessMaterial.new()
+  process.direction = Vector3(0,1,0)
+  process.spread = 38.0
+  process.initial_velocity_min = 0.18 if kind == "deer" else 0.42
+  process.initial_velocity_max = 0.62 if kind == "deer" else 1.15
+  process.gravity = Vector3(0,0.18,0)
+  process.scale_min = 0.42
+  process.scale_max = 1.05
+  process.color = glow_color
+  var particles := GPUParticles3D.new()
+  particles.name = "MountParticles_"+String(placement.name)
+  particles.amount = int(placement.amount)
+  particles.lifetime = 1.15 if kind == "tiger" else 1.45
+  particles.preprocess = 0.8
+  particles.emitting = true
+  particles.local_coords = true
+  particles.position = placement.position
+  particles.visibility_aabb = AABB(Vector3(-2,-1,-2),Vector3(4,5,4))
+  particles.process_material = process
+  particles.draw_pass_1 = particle_mesh
+  root.add_child(particles)
+ print("MOUNT_GPU_PARTICLES_READY: kind=",kind," emitters=neck_head+tail+hooves color=",glow_color)
+
 
 func _measure_bounds(root: Node3D) -> AABB:
  var bounds := AABB()
@@ -299,13 +332,16 @@ func _measure_bounds(root: Node3D) -> AABB:
 
 func _apply_rider_pose(on_mount: bool) -> void:
  if _hero_model == null or not is_instance_valid(_hero_model): return
- var skeleton := _hero_model.find_children("*","Skeleton3D",true,false)
- if not skeleton.is_empty():
-  var rig := skeleton[0] as Skeleton3D
+ var skeleton_nodes := _hero_model.find_children("*","Skeleton3D",true,false)
+ if not skeleton_nodes.is_empty():
+  var rig := skeleton_nodes[0] as Skeleton3D
   if on_mount:
    _rider_original_bone_rotations.clear()
+   var seated_bones: Array[String] = []
    for index in range(rig.get_bone_count()):
-    var bone_name := rig.get_bone_name(index).to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
+    var actual_name := rig.get_bone_name(index)
+    var bone_name := actual_name.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","").replace(".","")
+    var is_left := bone_name.contains("left") or bone_name.ends_with("l")
     var is_thigh := "thigh" in bone_name or "upleg" in bone_name or "upperleg" in bone_name
     var is_knee := "knee" in bone_name or "lowerleg" in bone_name or "calf" in bone_name or "leglo" in bone_name
     if not is_thigh and not is_knee:
@@ -313,12 +349,13 @@ func _apply_rider_pose(on_mount: bool) -> void:
     var original := rig.get_bone_pose_rotation(index)
     _rider_original_bone_rotations[index] = original
     if is_thigh:
-     var side_sign := -1.0 if ("left" in bone_name or bone_name.ends_with("l")) else 1.0
-     var seated := original * Quaternion(Vector3.RIGHT,deg_to_rad(-58.0)) * Quaternion(Vector3.FORWARD,deg_to_rad(side_sign*13.0))
+     var side_sign := -1.0 if is_left else 1.0
+     var seated := original * Quaternion(Vector3.RIGHT,deg_to_rad(-58.0)) * Quaternion(Vector3.FORWARD,deg_to_rad(side_sign*18.0))
      rig.set_bone_pose_rotation(index,seated.normalized())
     else:
-     rig.set_bone_pose_rotation(index,(original*Quaternion(Vector3.RIGHT,deg_to_rad(72.0))).normalized())
-   print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=",_rider_original_bone_rotations.size()," legs_spread=true knees_bent=true")
+     rig.set_bone_pose_rotation(index,(original*Quaternion(Vector3.RIGHT,deg_to_rad(78.0))).normalized())
+    seated_bones.append(actual_name)
+   print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=",_rider_original_bone_rotations.size()," names=",seated_bones," legs_spread=true knees_bent=true")
   else:
    for bone_index in _rider_original_bone_rotations:
     if bone_index >= 0 and bone_index < rig.get_bone_count():
@@ -326,20 +363,23 @@ func _apply_rider_pose(on_mount: bool) -> void:
    _rider_original_bone_rotations.clear()
    print("MOUNT_RIDER_BONE_POSE_RESTORED")
  if on_mount:
-  var saddle_height := 4.48
+  var saddle_height_world := 4.48
   var rider_vertical_offset := 0.12
-  if not skeleton.is_empty():
-   var rig := skeleton[0] as Skeleton3D
+  if not skeleton_nodes.is_empty():
+   var rig := skeleton_nodes[0] as Skeleton3D
    for index in range(rig.get_bone_count()):
     var bone_name := rig.get_bone_name(index).to_lower()
     if "hips" in bone_name or "pelvis" in bone_name:
      var hip_in_model := _hero_model.to_local(rig.to_global(rig.get_bone_global_pose(index).origin))
-     rider_vertical_offset = saddle_height-hip_in_model.y
-     print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y=",saddle_height," mount_root_scale=3.2 offset=",rider_vertical_offset)
+     var model_scale_y := maxf(0.001,absf(_hero_model.scale.y))
+     var saddle_height_local := saddle_height_world/model_scale_y
+     rider_vertical_offset = saddle_height_local-hip_in_model.y
+     print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y_world=",saddle_height_world," hero_scale_y=",model_scale_y," offset=",rider_vertical_offset)
      break
   _hero_model.position.y = _hero_model_base_y+rider_vertical_offset
  else:
   _hero_model.position.y = _hero_model_base_y
+
 
 func _play_mount_animation(root: Node,kind: String) -> void:
  var stack: Array[Node] = [root]
