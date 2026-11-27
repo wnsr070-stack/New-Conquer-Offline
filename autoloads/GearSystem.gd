@@ -63,6 +63,9 @@ func can_equip(item_id: String,class_id: String,level: int) -> bool:
 func get_combat_bonuses() -> Dictionary:
  var attack := 0
  var defense := 0
+ var max_hp := 0
+ var critical := 0.0
+ var movement_speed := 0.0
  var magic_attack := 0
  var damage_reduction := 0.0
  var exp_bonus := 0.0
@@ -75,6 +78,9 @@ func get_combat_bonuses() -> Dictionary:
  for item in equipped.values():
   attack += int(item.get("attack_bonus",0))
   defense += int(item.get("defense_bonus",0))
+  max_hp += int(item.get("max_hp_bonus",0))
+  critical += float(item.get("critical",0.0))
+  movement_speed += float(item.get("movement_speed_bonus",0.0))
   var gems: Dictionary = item.get("gem_bonuses",{})
   magic_attack += int(gems.get("magic_attack",0))
   attack += int(gems.get("attack",0))
@@ -88,7 +94,7 @@ func get_combat_bonuses() -> Dictionary:
   weapon_exp_bonus += float(gems.get("weapon_exp_bonus",0.0))
   magic_exp_bonus += float(gems.get("magic_exp_bonus",0.0))
   durability_bonus += float(gems.get("durability_bonus",0.0))
- return {"attack":attack,"defense":defense,"magic_attack":magic_attack,"attack_pct":attack_pct,"magic_attack_pct":magic_attack_pct,"damage_reduction":damage_reduction,"exp_bonus":exp_bonus,"hit_accuracy_pct":hit_accuracy_pct,"weapon_exp_bonus":weapon_exp_bonus,"magic_exp_bonus":magic_exp_bonus,"durability_bonus":durability_bonus}
+ return {"attack":attack,"defense":defense,"max_hp":max_hp,"critical":critical,"movement_speed":movement_speed,"magic_attack":magic_attack,"attack_pct":attack_pct,"magic_attack_pct":magic_attack_pct,"damage_reduction":damage_reduction,"exp_bonus":exp_bonus,"hit_accuracy_pct":hit_accuracy_pct,"weapon_exp_bonus":weapon_exp_bonus,"magic_exp_bonus":magic_exp_bonus,"durability_bonus":durability_bonus}
 func _persist_equipment() -> void:
  var state := get_node_or_null("/root/GameState")
  if state != null:
