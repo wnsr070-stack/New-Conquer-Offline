@@ -439,8 +439,21 @@ jobs:
               print("QUATERNIUS_SOURCE:", identity, source.relative_to(root))
           tiger_url = "https://gobkit.com/freebies/animal012/SumatranTiger.glb"
           tiger_path = output / "mount_tiger.glb"
-          urllib.request.urlretrieve(tiger_url, tiger_path)
-          print("GOBKIT_SOURCE: SumatranTiger.glb", tiger_url)
+          request = urllib.request.Request(
+              tiger_url,
+              headers={
+                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                  "Referer": "https://gobkit.com/freebies/animal012/",
+                  "Accept": "model/gltf-binary,application/octet-stream,*/*",
+                  "Accept-Language": "en-US,en;q=0.9"
+              }
+          )
+          with urllib.request.urlopen(request, timeout=120) as response:
+              if response.status != 200:
+                  raise SystemExit("Gobkit tiger download HTTP status: " + str(response.status))
+              tiger_bytes = response.read()
+          tiger_path.write_bytes(tiger_bytes)
+          print("GOBKIT_SOURCE: SumatranTiger.glb", tiger_url, "bytes=", len(tiger_bytes))
           def verify(path):
               data = path.read_bytes()
               if len(data) <= 5000 or data[:4] != b"glTF":
