@@ -141,11 +141,11 @@ func _run_functional_tests() -> void:
     state.player_data["hp"] = 40
     state.player_data["max_mana"] = 100
     state.player_data["mana"] = 35
-    var hp_added := state.add_item("HPPotion", 1)
+    var hp_added: bool = bool(state.add_item("HPPotion", 1))
     var hp_before := int(state.get_item_count("HPPotion"))
     settings._try_auto_potion()
     _check(hp_added and int(state.player_data.get("hp", 0)) == 100 and int(state.get_item_count("HPPotion")) == hp_before - 1, "auto-potion consumes HP potion and restores HP")
-    var mp_added := state.add_item("MPPotion", 1)
+    var mp_added: bool = bool(state.add_item("MPPotion", 1))
     var mp_before := int(state.get_item_count("MPPotion"))
     settings._try_auto_potion()
     _check(mp_added and int(state.player_data.get("mana", 0)) == 100 and int(state.get_item_count("MPPotion")) == mp_before - 1, "auto-potion consumes MP potion and restores MP")
