@@ -26,6 +26,7 @@ var _character_preview_dragging := false
 var _selected_equipment_slot := "weapon"
 var _settings_feedback: Label
 var _auto_hunt_button: Button
+var _mount_button: Button
 
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -44,6 +45,7 @@ func _ready() -> void:
   call_deferred("_run_mobile_hud_preview")
 
 func _process(delta: float) -> void:
+ _refresh_mount_button()
  _refresh_status()
  _refresh_minimap()
  if is_instance_valid(_character_preview_model) and not _character_preview_dragging:
@@ -155,7 +157,7 @@ func _build_hud() -> void:
  right_actions.name="RightCenterActions"
  right_actions.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
  right_actions.position=Vector2(-78,-112)
- right_actions.custom_minimum_size=Vector2(66,224)
+ right_actions.custom_minimum_size=Vector2(66,310)
  right_actions.add_theme_constant_override("separation",26)
  right_actions.z_index=24
  root.add_child(right_actions)
@@ -190,6 +192,20 @@ func _build_hud() -> void:
  hunt_caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
  hunt_entry.add_child(hunt_caption)
  right_actions.add_child(hunt_entry)
+ var mount_entry:=VBoxContainer.new()
+ mount_entry.custom_minimum_size=Vector2(64,72)
+ mount_entry.add_theme_constant_override("separation",2)
+ _mount_button=_round_button("ركوب",_toggle_mount)
+ _mount_button.custom_minimum_size=Vector2(58,54)
+ _mount_button.size=Vector2(58,54)
+ _mount_button.add_theme_font_size_override("font_size",12)
+ mount_entry.add_child(_mount_button)
+ var mount_caption:=_label("الخيل والمطايا")
+ mount_caption.add_theme_font_size_override("font_size",10)
+ mount_caption.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ mount_entry.add_child(mount_caption)
+ right_actions.add_child(mount_entry)
+ _refresh_mount_button()
  _refresh_auto_hunt_button()
 
  _window_menu=VBoxContainer.new()
@@ -990,8 +1006,8 @@ func _build_character(layout: VBoxContainer) -> void:
  right_column.custom_minimum_size = Vector2(170,0)
  right_column.add_theme_constant_override("separation",4)
  right_margin.add_child(right_column)
- var left_slots: Array = [["fan","فانة"],["tower","تاور"],["wing","جناح"],["mount_whip","سوط ركوب"],["steed","خيل"],["mount_skin","سكن مطية"],["garment","زي/لبسة"]]
- var right_slots: Array = [["helmet","خوذة"],["necklace","قلادة"],["armor","درع"],["weapon","سلاح يمين"],["weapon_left","سلاح يسار"],["ring","خاتم"],["boots","حذاء"]]
+ var left_slots: Array = [["fan","فانة"],["tower","تاور"],["wing","جناح"],["mount_whip","سوط ركوب"],["steed","خيل"],["mount_skin","سكن مطية"],["garment","زيّ الجسم"]]
+ var right_slots: Array = [["helmet","خوذة"],["necklace","قلادة"],["armor","درع"],["weapon","سلاح يمين"],["weapon_accessory","زيّ السلاح"],["ring","خاتم"],["boots","حذاء"]]
  for entry in left_slots:
   _add_character_equipment_slot(left_column,String(entry[0]),String(entry[1]),false,equipped)
  for entry in right_slots:
@@ -1094,6 +1110,8 @@ func _build_character(layout: VBoxContainer) -> void:
  detail_text.add_child(_label("الهجوم %d  •  الدفاع %d  •  المستوى %d" % [int(selected.get("attack_bonus",selected.get("base_attack",0))),int(selected.get("defense_bonus",selected.get("base_defense",0))),int(selected.get("level",1))]))
  if not selected.is_empty():
   detail_row.add_child(_button("خلع القطعة",_unequip_character_slot.bind(_selected_equipment_slot)))
+ if _selected_equipment_slot in ["steed","mount_skin"]:
+  detail_row.add_child(_button("ركوب / نزول",_toggle_mount))
  var stats: Dictionary = gear.get_combat_bonuses() if gear != null else {}
  var player: Dictionary = state.player_data if state != null else {}
  var bp := int(player.get("battle_power",int(stats.get("attack",0))+int(stats.get("defense",0))))
@@ -1162,6 +1180,21 @@ func _play_character_idle_animation(root: Node) -> bool:
     return true
  push_warning("PHASE5A_CHARACTER_IDLE_ANIMATION_NOT_FOUND: Ranger model has no Idle AnimationPlayer clip")
  return false
+
+func _toggle_mount() -> void:
+ var mounts := _root_autoload("MountSystem")
+ _hero = _find_hero()
+ if mounts == null: return
+ if mounts.mounted: mounts.dismount()
+ else: mounts.mount(_hero)
+ _refresh_mount_button()
+ if _active_window == "Character": _open_window("Character")
+
+func _refresh_mount_button() -> void:
+ if not is_instance_valid(_mount_button): return
+ var mounts := _root_autoload("MountSystem")
+ _mount_button.text = "نزول" if mounts != null and mounts.mounted else "ركوب"
+ _mount_button.disabled = mounts == null or (not mounts.mounted and mounts.get_equipped_mount_type().is_empty())
 
 func _select_character_slot(slot: String) -> void:
  _selected_equipment_slot = slot
