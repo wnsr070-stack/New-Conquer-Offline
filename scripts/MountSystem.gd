@@ -376,8 +376,8 @@ func _apply_rider_pose(on_mount: bool) -> void:
     if "hips" in bone_name or "pelvis" in bone_name:
      var hip_in_model := _hero_model.to_local(rig.to_global(rig.get_bone_global_pose(index).origin))
      var model_scale_y := maxf(0.001,absf(_hero_model.scale.y))
-     var saddle_height_local := saddle_height_world/model_scale_y
-     rider_vertical_offset = saddle_height_local-hip_in_model.y
+     var hip_height_world := model_scale_y*hip_in_model.y
+     rider_vertical_offset = saddle_height_world-_hero_model_base_y-hip_height_world
      print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y_world=",saddle_height_world," hero_scale_y=",model_scale_y," offset=",rider_vertical_offset)
      hip_found = true
      break
