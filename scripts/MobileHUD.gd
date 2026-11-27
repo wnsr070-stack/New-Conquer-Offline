@@ -138,9 +138,9 @@ func _build_hud() -> void:
   entry.add_theme_constant_override("separation",1)
   var icon_button:=_round_button("",_quick_action.bind(String(p[2])))
   icon_button.custom_minimum_size=Vector2(48,48)
- icon_button.size=Vector2(48,48)
- _apply_glass_round_style(icon_button,24)
- icon_button.add_theme_constant_override("icon_max_width",32)
+  icon_button.size=Vector2(48,48)
+  _apply_glass_round_style(icon_button,24)
+  icon_button.add_theme_constant_override("icon_max_width",32)
   icon_button.icon=load("res://assets/ui/menu/"+String(p[3]+".png")) as Texture2D
   icon_button.expand_icon=true
   entry.add_child(icon_button)
