@@ -28,7 +28,7 @@ var _selected_equipment_slot := "weapon"
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  layout_direction = Control.LAYOUT_DIRECTION_LTR
- mouse_filter = Control.MOUSE_FILTER_PASS
+ mouse_filter = Control.MOUSE_FILTER_IGNORE
  _build_hud()
  _install_arabic_theme()
  _apply_arabic_rtl(self)
@@ -170,65 +170,87 @@ func _build_hud() -> void:
  send.custom_minimum_size=Vector2(58,30)
  chat.add_child(send)
 
- var joy:=_ornate_panel(root,Vector2(18,-154),Vector2(152,152))
+ var joy:=JoystickTouchArea.new()
+ joy.name="VirtualJoystick"
  joy.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- joy.z_index=45
+ joy.position=Vector2(16,-148)
+ joy.size=Vector2(132,132)
+ joy.custom_minimum_size=Vector2(132,132)
+ joy.z_index=50
  joy.visible=true
+ joy.mouse_filter=Control.MOUSE_FILTER_STOP
  joy.gui_input.connect(_on_joystick_input)
+ var joy_base:=Panel.new()
+ joy_base.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ joy_base.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ joy_base.add_theme_stylebox_override("panel",_circular_style(Color(0.055,0.045,0.035,0.78),Color(0.95,0.76,0.30),5,66))
+ joy.add_child(joy_base)
  var joyart:=JoystickVisual.new()
- joyart.position=Vector2(8,8)
- joyart.size=Vector2(136,136)
+ joyart.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  joyart.mouse_filter=Control.MOUSE_FILTER_IGNORE
  joy.add_child(joyart)
+ root.add_child(joy)
 
  var bottom:=Control.new()
  bottom.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  bottom.z_index=10
+ bottom.mouse_filter=Control.MOUSE_FILTER_IGNORE
  root.add_child(bottom)
- var orb:=SplitOrb.new()
- orb.name="SplitHPMPOrb"
- orb.size=Vector2(132,132)
- orb.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- var bottom_group_width := 132.0 + 10.0 + 10.0 * 34.0 + 9.0 * 4.0
- orb.position=Vector2(maxf(12.0,(get_viewport_rect().size.x-bottom_group_width)*0.5),-150)
- orb.add_to_group("hud_orbs")
- bottom.add_child(orb)
- var exp:=HBoxContainer.new()
- exp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- exp.position=Vector2(orb.position.x+142.0,-105)
- for i in range(10):
-  var c:=ColorRect.new()
-  c.custom_minimum_size=Vector2(23,12)
-  c.color=Color(0.83,0.61,0.17)
-  exp.add_child(c)
- bottom.add_child(exp)
  var hot:=HBoxContainer.new()
+ hot.name="F1F10Hotbar"
  hot.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- hot.position=Vector2(orb.position.x+142.0,-72)
+ hot.add_theme_constant_override("separation",5)
+ var hotbar_width:=445.0
+ var orb_size:=76.0
+ var total_width:=orb_size*2.0+16.0+hotbar_width
+ var start_x:=maxf(8.0,(get_viewport_rect().size.x-total_width)*0.5)
+ var hp_orb:=CrystalOrb.new()
+ hp_orb.name="CrystalHPOrb"
+ hp_orb.kind="HP"
+ hp_orb.size=Vector2(orb_size,orb_size)
+ hp_orb.position=Vector2(start_x,-112)
+ hp_orb.add_to_group("hud_orbs")
+ bottom.add_child(hp_orb)
+ hot.position=Vector2(start_x+orb_size+8.0,-80)
+ hot.custom_minimum_size=Vector2(hotbar_width,42)
+ hot.size=Vector2(hotbar_width,42)
  for i in range(10):
-  var b:=_button("F%d"%(i+1),_use_skill_at.bind(i))
-  b.custom_minimum_size=Vector2(34,34)
-  _set_skill_button_icon(b,["bow","arrow","fire","lightning","speed","shield","arrow","fire","lightning","shield"][i])
-  hot.add_child(b)
+  var button:=_button("F%d"%(i+1),_use_skill_at.bind(i))
+  button.custom_minimum_size=Vector2(40,40)
+  button.size=Vector2(40,40)
+  _apply_glass_round_style(button,10)
+  _set_skill_button_icon(button,["bow","arrow","fire","lightning","speed","shield","arrow","fire","lightning","shield"][i])
+  hot.add_child(button)
  bottom.add_child(hot)
+ var mp_orb:=CrystalOrb.new()
+ mp_orb.name="CrystalMPOrb"
+ mp_orb.kind="MP"
+ mp_orb.size=Vector2(orb_size,orb_size)
+ mp_orb.position=Vector2(start_x+orb_size+8.0+hotbar_width+8.0,-112)
+ mp_orb.add_to_group("hud_orbs")
+ bottom.add_child(mp_orb)
 
  var combat:=Control.new()
  combat.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
- combat.position=Vector2(-260,-270)
- combat.size=Vector2(250,250)
+ combat.position=Vector2(-270,-250)
+ combat.size=Vector2(254,238)
  combat.z_index=20
+ combat.mouse_filter=Control.MOUSE_FILTER_IGNORE
  root.add_child(combat)
- var attack:=_round_button("هجوم",_attack)
- attack.position=Vector2(138,138)
- attack.size=Vector2(104,104)
+ var attack:=_round_button("",_attack)
+ attack.position=Vector2(154,132)
+ attack.size=Vector2(88,88)
+ _apply_glass_round_style(attack,44)
+ _set_skill_button_icon(attack,"bow")
  combat.add_child(attack)
- var arc_buttons: Array =[["قفزة",_jump,Vector2(100,78)],["تشتت",_use_primary_skill,Vector2(48,38)],["طيران",_jump,Vector2(4,78)],["مطر",_use_secondary_skill,Vector2(48,118)],["سريع",_use_primary_skill,Vector2(100,4)],["هدف",_cycle_target,Vector2(4,158)]]
+ var arc_buttons: Array = [["قفزة",_jump,Vector2(166,48)],["تشتت",_use_primary_skill,Vector2(92,18)],["طيران",_jump,Vector2(18,66)],["مطر",_use_secondary_skill,Vector2(92,178)],["سريع",_use_primary_skill,Vector2(166,0)],["هدف",_cycle_target,Vector2(18,154)]]
  for item in arc_buttons:
   var b:=_round_button(String(item[0]),item[1])
   var arc_icon: String = String({"قفزة":"speed","تشتت":"arrow","طيران":"speed","مطر":"fire","سريع":"lightning","هدف":"bow"}.get(String(item[0]),"bow"))
-  _set_skill_button_icon(b,String(arc_icon))
   b.position=item[2]
-  b.size=Vector2(68,58)
+  b.size=Vector2(56,56)
+  _apply_glass_round_style(b,28)
+  _set_skill_button_icon(b,String(arc_icon))
   combat.add_child(b)
 
  _window_layer=Control.new()
@@ -236,6 +258,41 @@ func _build_hud() -> void:
  _window_layer.mouse_filter=Control.MOUSE_FILTER_STOP
  _window_layer.z_index=30
  add_child(_window_layer)
+
+class JoystickTouchArea extends Control:
+func _has_point(point: Vector2)->bool:
+ return point.distance_to(size*0.5)<=size.x*0.5
+
+class RoyalOrnament extends Control:
+func _draw()->void:
+ var gold:=Color(0.95,0.76,0.30,0.98)
+ var ruby:=Color(0.82,0.035,0.09,1.0)
+ var w:=size.x
+ var h:=size.y
+ for p in [Vector2(13,13),Vector2(w-13,13),Vector2(13,h-13),Vector2(w-13,h-13)]:
+  var sx:=1.0 if p.x<w*0.5 else -1.0
+  var sy:=1.0 if p.y<h*0.5 else -1.0
+  draw_polyline(PackedVector2Array([p,p+Vector2(14*sx,0),p+Vector2(25*sx,8*sy),p+Vector2(17*sx,14*sy),p+Vector2(8*sx,10*sy),p]),gold,2.5,true)
+ var cx:=w*0.5
+ for y in [8.0,h-8.0]:
+  var d:=1.0 if y<h*0.5 else -1.0
+  var crown:=PackedVector2Array([Vector2(cx-20,y+5*d),Vector2(cx-14,y-5*d),Vector2(cx-5,y+2*d),Vector2(cx,y-10*d),Vector2(cx+5,y+2*d),Vector2(cx+14,y-5*d),Vector2(cx+20,y+5*d)])
+  draw_polyline(crown,gold,2.8,true)
+  draw_colored_polygon(PackedVector2Array([Vector2(cx,y-5*d),Vector2(cx+5,y),Vector2(cx,y+6*d),Vector2(cx-5,y)]),ruby)
+
+class CrystalOrb extends Control:
+var kind:="HP"
+func _draw()->void:
+ var c:=size*0.5
+ var r:=size.x*0.43
+ var red:=kind=="HP"
+ draw_circle(c,r+5.0,Color(0.95,0.76,0.30,0.95))
+ draw_circle(c,r+2.0,Color(0.18,0.12,0.06,1.0))
+ draw_circle(c,r,Color(0.72,0.035,0.10,0.96) if red else Color(0.025,0.24,0.82,0.96))
+ draw_circle(c,r*0.68,Color(1.0,0.18,0.22,0.62) if red else Color(0.16,0.52,1.0,0.62))
+ draw_circle(c+Vector2(-r*0.28,-r*0.30),r*0.18,Color(1.0,1.0,1.0,0.55))
+ draw_arc(c,r+4.0,0.0,TAU,72,Color(1.0,0.88,0.55,1.0),3.0,true)
+ draw_string(ThemeDB.fallback_font,c+Vector2(-r*0.55,5),kind,HORIZONTAL_ALIGNMENT_CENTER,40,12,Color.WHITE)
 
 class SplitOrb extends Control:
  var hp_ratio:=1.0
@@ -402,7 +459,7 @@ func _open_artisan() -> void:
 func _open_window(window_name: String) -> void:
  _active_window = window_name
  for child in _window_layer.get_children(): child.queue_free()
- var window_size := Vector2(860,560) if window_name == "Character" else Vector2(650,560)
+ var window_size := Vector2(940,600) if window_name == "Character" else Vector2(650,560)
  var panel := _panel(_window_layer, Vector2.ZERO, window_size, false)
  panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
  panel.size = window_size
@@ -410,6 +467,10 @@ func _open_window(window_name: String) -> void:
  panel.z_index = 50
  var layout := VBoxContainer.new()
  layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ layout.offset_left=22
+ layout.offset_top=18
+ layout.offset_right=-22
+ layout.offset_bottom=-18
  layout.add_theme_constant_override("separation",8)
  panel.add_child(layout)
  var header := HBoxContainer.new()
@@ -671,10 +732,14 @@ func _build_character(layout: VBoxContainer) -> void:
  var state := _root_autoload("GameState")
  var gear := _root_autoload("GearSystem")
  var equipped: Dictionary = gear.equipped if gear != null else {}
+ var body_margin:=MarginContainer.new()
+ body_margin.add_theme_constant_override("margin_left",24)
+ body_margin.add_theme_constant_override("margin_right",24)
+ layout.add_child(body_margin)
  var body := HBoxContainer.new()
- body.custom_minimum_size = Vector2(820,420)
+ body.custom_minimum_size = Vector2(844,420)
  body.add_theme_constant_override("separation",0)
- layout.add_child(body)
+ body_margin.add_child(body)
  var left_column := VBoxContainer.new()
  left_column.custom_minimum_size = Vector2(170,0)
  left_column.add_theme_constant_override("separation",4)
@@ -685,6 +750,7 @@ func _build_character(layout: VBoxContainer) -> void:
  body.add_child(center_column)
  var right_margin := MarginContainer.new()
  right_margin.custom_minimum_size = Vector2(194,0)
+ right_margin.add_theme_constant_override("margin_left",24)
  right_margin.add_theme_constant_override("margin_right",24)
  body.add_child(right_margin)
  var right_column := VBoxContainer.new()
@@ -1312,10 +1378,14 @@ func _toggle_auto_combat() -> void:
 
 func _on_joystick_input(event: InputEvent) -> void:
  if event is InputEventScreenTouch:
-  _dragging_joystick = event.pressed
-  if not event.pressed: _joystick_vector = Vector2.ZERO
+  var touch := event as InputEventScreenTouch
+  if touch.pressed:
+   _dragging_joystick = touch.position.distance_to(Vector2(66,66)) <= 66.0
+  else:
+   _dragging_joystick = false
+   _joystick_vector = Vector2.ZERO
  elif event is InputEventScreenDrag and _dragging_joystick:
-  var local: Vector2 = (event as InputEventScreenDrag).position - Vector2(95,95)
+  var local: Vector2 = ((event as InputEventScreenDrag).position - Vector2(66,66)) / 54.0
   _joystick_vector = local.limit_length(1.0)
   _hero = _find_hero()
   if _hero is CharacterBody3D:
@@ -1393,6 +1463,18 @@ func _arabic(caption: String) -> String:
  if dictionary.has(caption): return String(dictionary[caption])
  return caption
 
+func _circular_style(bg: Color,border: Color,width: int,radius: int) -> StyleBoxFlat:
+ var style:=_flat_style(bg,border,width)
+ style.set_corner_radius_all(radius)
+ style.shadow_color=Color(0.0,0.0,0.0,0.72)
+ style.shadow_size=8
+ return style
+
+func _apply_glass_round_style(button: Button,radius: int) -> void:
+ button.add_theme_stylebox_override("normal",_circular_style(Color(0.035,0.045,0.065,0.88),Color(0.95,0.76,0.30),2,radius))
+ button.add_theme_stylebox_override("hover",_circular_style(Color(0.12,0.10,0.07,0.96),Color(1.0,0.88,0.48),2,radius))
+ button.add_theme_stylebox_override("pressed",_circular_style(Color(0.30,0.07,0.06,0.98),Color(1.0,0.55,0.18),2,radius))
+
 func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
  var style:=StyleBoxFlat.new()
  style.bg_color=bg
@@ -1427,13 +1509,26 @@ func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right
  panel.size=panel_size
  panel.position=offset
  if top_right: panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- panel.add_theme_stylebox_override("panel",_flat_style(Color(0.06,0.05,0.05,0.96),Color(0.86,0.66,0.26),3))
- var inner_frame := Panel.new()
- inner_frame.position = Vector2(7,7)
- inner_frame.size = panel_size - Vector2(14,14)
- inner_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
- inner_frame.add_theme_stylebox_override("panel",_flat_style(Color(0.06,0.05,0.05,0.0),Color(0.30,0.23,0.13),1))
+ panel.add_theme_stylebox_override("panel",_flat_style(Color(0.05,0.04,0.04,0.96),Color(0.95,0.76,0.30),2))
+ var inner_frame:=Panel.new()
+ inner_frame.position=Vector2(8,8)
+ inner_frame.size=panel_size-Vector2(16,16)
+ inner_frame.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ inner_frame.add_theme_stylebox_override("panel",_flat_style(Color(0.05,0.04,0.04,0.0),Color(0.46,0.34,0.15),1))
  panel.add_child(inner_frame)
+ var frame_texture:=TextureRect.new()
+ frame_texture.name="OrnateFantasyFrame"
+ frame_texture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ frame_texture.texture=load("res://assets/ui/borders/ornate_panel.png") as Texture2D
+ frame_texture.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+ frame_texture.stretch_mode=TextureRect.STRETCH_SCALE
+ frame_texture.modulate=Color(0.95,0.76,0.30,0.96)
+ frame_texture.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ if frame_texture.texture!=null: panel.add_child(frame_texture)
+ var trim:=RoyalOrnament.new()
+ trim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ trim.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ panel.add_child(trim)
  parent.add_child(panel)
  return panel
 
