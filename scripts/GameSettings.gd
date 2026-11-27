@@ -145,12 +145,13 @@ func _apply_node_settings(node: Node) -> void:
     if not is_instance_valid(node):
         return
     var quality := int(get_setting("graphics_quality", 1))
+    var is_ci_capture := OS.get_environment("CI_CAPTURE") == "1"
     if node is WorldEnvironment:
         var world_environment := node as WorldEnvironment
         if world_environment.environment != null:
-            world_environment.environment.glow_enabled = quality >= 2
+            world_environment.environment.glow_enabled = quality >= 2 and not is_ci_capture
     elif node is DirectionalLight3D:
-        (node as DirectionalLight3D).shadow_enabled = quality >= 1
+        (node as DirectionalLight3D).shadow_enabled = quality >= 1 and not is_ci_capture
 
     if node is Label3D:
         var label := node as Label3D
