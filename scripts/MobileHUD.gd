@@ -493,55 +493,148 @@ func _build_guild_window(layout: VBoxContainer) -> void:
  layout.add_child(_label("نظام النقابة المحلي"))
 
 
+func _rank_color_for_plus(plus: int) -> Color:
+ if plus >= 12: return Color(0.70,0.36,1.0)
+ if plus >= 10: return Color(1.0,0.78,0.20)
+ if plus >= 8: return Color(0.95,0.20,0.24)
+ if plus >= 5: return Color(0.16,0.38,1.0)
+ if plus >= 3: return Color(0.12,0.88,0.95)
+ if plus >= 1: return Color(0.20,0.86,0.35)
+ return Color.WHITE
+
+func _select_inventory_item(index: int) -> void:
+ var state := _root_autoload("GameState")
+ if state == null or index < 0 or index >= state.inventory_slots.size(): return
+ _selected_inventory_slot = index
+ _open_window("Inventory")
+
+func _equip_inventory_item(index: int) -> void:
+ var state := _root_autoload("GameState")
+ var gear := _root_autoload("GearSystem")
+ if state == null or gear == null or index < 0 or index >= state.inventory_slots.size(): return
+ var entry: Dictionary = state.inventory_slots[index]
+ var item_id := String(entry.get("item_id",""))
+ var item := _get_item_data(item_id)
+ item["plus"] = int(entry.get("instance_data",{}).get("plus",item.get("plus",0)))
+ var slot := String(item.get("slot",item.get("equipment_slot",""))).to_lower()
+ if slot == "headgear": slot = "helmet"
+ var ok := false
+ if slot == "weapon": ok = gear.equip_weapon(item_id,String(state.player_data.get("class","archer")))
+ elif not slot.is_empty(): ok = gear.equip_item(slot,item)
+ if ok: state.remove_item_from_slot(index,1)
+ _open_window("Inventory")
+
+func _use_inventory_item(index: int) -> void:
+ var state := _root_autoload("GameState")
+ if state == null or index < 0 or index >= state.inventory_slots.size(): return
+ var item_id := String(state.inventory_slots[index].get("item_id",""))
+ var item_type := String(_get_item_data(item_id).get("type","")).to_lower()
+ if item_type.contains("potion") or item_id.to_lower().contains("potion"): _use_potion(item_id)
+ _open_window("Inventory")
+
+func _sell_inventory_item(index: int) -> void:
+ var merchant := _root_autoload("NPCMerchantSystem")
+ if merchant != null and merchant.has_method("sell_item"): merchant.sell_item(index,1)
+ _selected_inventory_slot = -1
+ _open_window("Inventory")
+
+func _deposit_inventory_item(index: int) -> void:
+ var state := _root_autoload("GameState")
+ if state != null: state.deposit_to_warehouse(index,1)
+ _selected_inventory_slot = -1
+ _open_window("Inventory")
+
 func _build_inventory(layout: VBoxContainer) -> void:
  var state := _root_autoload("GameState")
  var slots: Array = state.inventory_slots if state != null else []
+ var margin := MarginContainer.new()
+ margin.add_theme_constant_override("margin_left",20)
+ margin.add_theme_constant_override("margin_right",20)
+ layout.add_child(margin)
  var grid := GridContainer.new()
  grid.columns = 8
- grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
- layout.add_child(grid)
+ grid.add_theme_constant_override("h_separation",4)
+ grid.add_theme_constant_override("v_separation",4)
+ margin.add_child(grid)
  for index in range(40):
   var item: Dictionary = slots[index] if index < slots.size() else {}
   var cell := Button.new()
-  cell.custom_minimum_size = Vector2(68,66)
-  cell.text = "فارغ"
+  cell.custom_minimum_size = Vector2(52,52)
+  cell.clip_contents = true
+  cell.text = ""
+  _apply_button_skin(cell,true)
+  cell.add_theme_stylebox_override("normal",_slot_style())
   if not item.is_empty():
-   var id := String(item.get("item_id",""))
-   var data := _get_item_data(id)
-   cell.text = "%s\nx%d" % [String(data.get("name",id)),int(item.get("count",1))]
-   var icon: Control = ICON_SCRIPT.new()
-   icon.custom_minimum_size = Vector2(42,42)
-   icon.configure(data,int(item.get("instance_data",{}).get("plus",data.get("plus",0))))
+   var item_id := String(item.get("item_id",""))
+   var data := _get_item_data(item_id)
+   var plus := int(item.get("instance_data",{}).get("plus",data.get("plus",0)))
+   var icon := _make_item_icon(data,plus,Vector2(34,34))
+   icon.position = Vector2(9,9)
    cell.add_child(icon)
-   icon.position = Vector2(8,2)
+   if plus > 0:
+    var plus_label := Label.new()
+    plus_label.text = "+"+str(plus)
+    plus_label.position = Vector2(1,0)
+    plus_label.add_theme_font_size_override("font_size",10)
+    plus_label.add_theme_color_override("font_color",_rank_color_for_plus(plus))
+    cell.add_child(plus_label)
+   var quantity := Label.new()
+   quantity.text = "x%d" % int(item.get("count",1))
+   quantity.position = Vector2(25,35)
+   quantity.add_theme_font_size_override("font_size",10)
+   cell.add_child(quantity)
+   cell.pressed.connect(_select_inventory_item.bind(index))
   grid.add_child(cell)
- var footer := Label.new()
- footer.text = "الحقيبة: %d / 40   |   الحد الأقصى للتكديس: ×100" % slots.size()
- layout.add_child(footer)
-
+ layout.add_child(_label("الحقيبة: %d / 40   |   الحد الأقصى للتكديس: ×100" % slots.size()))
+ var details := VBoxContainer.new()
+ details.name = "InventoryItemDetails"
+ details.custom_minimum_size = Vector2(0,110)
+ layout.add_child(details)
+ if _selected_inventory_slot >= 0 and _selected_inventory_slot < slots.size():
+  var item_id := String(slots[_selected_inventory_slot].get("item_id",""))
+  var data := _get_item_data(item_id)
+  var item_title := _label(_item_display_name(item_id))
+  item_title.add_theme_color_override("font_color",_rank_color_for_plus(int(slots[_selected_inventory_slot].get("instance_data",{}).get("plus",0))))
+  details.add_child(item_title)
+  details.add_child(_label(String(data.get("description","لا يوجد وصف متاح."))))
+  var actions := HBoxContainer.new()
+  actions.add_child(_button("لبس",_equip_inventory_item.bind(_selected_inventory_slot)))
+  actions.add_child(_button("استخدام",_use_inventory_item.bind(_selected_inventory_slot)))
+  actions.add_child(_button("بيع 50%",_sell_inventory_item.bind(_selected_inventory_slot)))
+  actions.add_child(_button("نقل للخزنة",_deposit_inventory_item.bind(_selected_inventory_slot)))
+  details.add_child(actions)
+ else:
+  details.add_child(_label("اختَر قطعة لعرض تفاصيلها"))
 func _build_character(layout: VBoxContainer) -> void:
  var state := _root_autoload("GameState")
  var gear := _root_autoload("GearSystem")
  var equipped: Dictionary = gear.equipped if gear != null else {}
  var grid := GridContainer.new()
- grid.columns = 5
+ grid.columns = 3
+ grid.add_theme_constant_override("h_separation",8)
+ grid.add_theme_constant_override("v_separation",6)
  layout.add_child(grid)
- for slot in ["helmet","necklace","armor","weapon","ring","boots","fan","tower","garment","mount"]:
+ for slot in ["helmet","necklace","armor","weapon","ring","boots","fan","tower","garment"]:
   var item: Dictionary = equipped.get(slot,{})
   var cell := Button.new()
-  cell.custom_minimum_size = Vector2(112,66)
-  cell.text = "%s\n%s" % [slot.capitalize(),String(item.get("name",item.get("id","Empty")))]
-  var icon := ICON_SCRIPT.new()
-  icon.custom_minimum_size = Vector2(38,38)
-  icon.configure(item,int(item.get("plus",0)))
+  cell.custom_minimum_size = Vector2(54,54)
+  cell.clip_contents = true
+  cell.text = ""
+  _apply_button_skin(cell,true)
+  cell.add_theme_stylebox_override("normal",_slot_style())
+  var icon := _make_item_icon(item,int(item.get("plus",0)),Vector2(38,38))
+  icon.position = Vector2(8,8)
   cell.add_child(icon)
-  icon.position = Vector2(2,4)
+  var slot_label := Label.new()
+  slot_label.text = _arabic(slot.capitalize())
+  slot_label.position = Vector2(1,1)
+  slot_label.add_theme_font_size_override("font_size",8)
+  cell.add_child(slot_label)
   grid.add_child(cell)
  var stats: Dictionary = gear.get_combat_bonuses() if gear != null else {}
  var player: Dictionary = state.player_data if state != null else {}
  var bp := int(player.get("battle_power",int(stats.get("attack",0))+int(stats.get("defense",0))))
- layout.add_child(_label("Battle Power: %d   ATK: %d   DEF: %d   M.ATK: %d" % [bp,int(stats.get("attack",0)),int(stats.get("defense",0)),int(stats.get("magic_attack",0))]))
-
+ layout.add_child(_label("قوة المعركة: %d   الهجوم: %d   الدفاع: %d   الهجوم السحري: %d" % [bp,int(stats.get("attack",0)),int(stats.get("defense",0)),int(stats.get("magic_attack",0))]))
 func _build_quest_book(layout: VBoxContainer) -> void:
  var quests := _root_autoload("QuestSystem")
  if quests == null: return
@@ -669,7 +762,7 @@ func _build_warehouse(layout: VBoxContainer) -> void:
  content.add_child(_label("WAREHOUSE 40 SLOTS  |  STACK LIMIT x100"))
  content.add_child(_label("Bag — select a slot to deposit"))
  var bag_grid := GridContainer.new()
- bag_grid.columns = 10
+ bag_grid.columns = 8
  bag_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  content.add_child(bag_grid)
  for index in range(40):
@@ -688,7 +781,7 @@ func _build_warehouse(layout: VBoxContainer) -> void:
  content.add_child(_label("Selected bag slot: " + selected_bag))
  content.add_child(_label("Warehouse — select a slot to withdraw"))
  var warehouse_grid := GridContainer.new()
- warehouse_grid.columns = 10
+ warehouse_grid.columns = 8
  warehouse_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  content.add_child(warehouse_grid)
  for index in range(40):
@@ -708,15 +801,21 @@ func _build_warehouse(layout: VBoxContainer) -> void:
 
 func _warehouse_cell(item: Dictionary,index: int,selected: bool) -> Button:
  var cell := Button.new()
- cell.custom_minimum_size = Vector2(58,52)
- cell.text = "Empty" if item.is_empty() else "#%02d\nx%d" % [index+1,int(item.get("count",1))]
- if selected: cell.text = "▶ " + cell.text
+ cell.custom_minimum_size = Vector2(52,52)
+ cell.clip_contents = true
+ cell.text = ""
+ _apply_button_skin(cell,true)
+ cell.add_theme_stylebox_override("normal",_slot_style() if not selected else _texture_style("res://assets/ui/slots/slot_beige.png"))
  if not item.is_empty():
-  var icon := _make_item_icon(_get_item_data(String(item.item_id)),int(item.get("instance_data",{}).get("plus",0)),Vector2(27,27))
+  var icon := _make_item_icon(_get_item_data(String(item.item_id)),int(item.get("instance_data",{}).get("plus",0)),Vector2(34,34))
+  icon.position = Vector2(9,9)
   cell.add_child(icon)
-  icon.position = Vector2(2,1)
+  var quantity := Label.new()
+  quantity.text = "x%d" % int(item.get("count",1))
+  quantity.position = Vector2(25,35)
+  quantity.add_theme_font_size_override("font_size",10)
+  cell.add_child(quantity)
  return cell
-
 func _select_inventory_warehouse_slot(index: int) -> void:
  _selected_inventory_slot = index
  _open_window("Warehouse")
