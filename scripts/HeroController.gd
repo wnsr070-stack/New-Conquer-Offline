@@ -56,6 +56,8 @@ func _ready() -> void:
  _switch_class("archer")
  var equipment_manager := get_node_or_null("/root/EquipmentVisualManager")
  if equipment_manager != null: equipment_manager.bind_hero(self)
+ var mount_system := get_node_or_null("/root/MountSystem")
+ if mount_system != null: mount_system.bind_hero(self)
  set_process_unhandled_input(true)
  print("HERO_CONTROLLER_READY: classes=Archer,Trojan,Warrior,Taoist stamina=100")
 
