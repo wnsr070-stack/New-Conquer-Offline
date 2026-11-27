@@ -58,11 +58,13 @@ func _build_hud() -> void:
  portrait.custom_minimum_size=Vector2(68,68)
  head.add_child(portrait)
  var info:=VBoxContainer.new()
- info.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ info.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
+ info.custom_minimum_size=Vector2(230,0)
  head.add_child(info)
  _status_label=Label.new()
  _status_label.add_theme_font_size_override("font_size",15)
- _status_label.custom_maximum_size = Vector2(230,0)
+ _status_label.custom_minimum_size = Vector2(230,0)
+ _status_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
  _status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
  info.add_child(_status_label)
  var rank:=Label.new()
@@ -313,7 +315,7 @@ func _refresh_status() -> void:
  var level:=int(player.get("level",1))
  var cps:=int(player.get("cps",player.get("conquer_points",0)))
  var bp:=int(player.get("battle_power",0))
- _status_label.text="البطل: %s  •  المستوى %d\\nالحياة %d/%d  •  الطاقة %d/%d\\nالذهب %d  •  نقاط CP %d  •  قوة BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
+ _status_label.text="البطل: %s  •  المستوى %d\nالحياة %d/%d  •  الطاقة %d/%d\nالذهب %d  •  نقاط CP %d  •  قوة BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
  var anima := int(state.anima_phase) if state != null else 0
  _status_label.add_theme_color_override("font_color",_hero_rank_color(level,anima))
  if is_inside_tree():
@@ -727,7 +729,7 @@ func _build_character(layout: VBoxContainer) -> void:
   push_error("PHASE5A_CHARACTER_PREVIEW_MODEL_MISSING: Ranger Hood real 3D model")
  else:
   _character_preview_model.rotation.y = deg_to_rad(22.0)
-  var idle_started := _play_character_idle_animation(controller)
+  var idle_started := _play_character_idle_animation(_character_preview_model)
   print("PHASE5A_CHARACTER_PREVIEW_MODEL_READY: source=Male_Ranger.glb viewport=480x270 touch_drag=true mouse_drag=true idle=",idle_started)
  var selected: Dictionary = equipped.get(_selected_equipment_slot,{})
  var details := PanelContainer.new()
