@@ -32,6 +32,9 @@ var _model: Node3D
 var _animation_player: AnimationPlayer
 var _respawn_timer: Timer
 var _nameplate: Label3D
+var _health_bar_viewport: SubViewport
+var _health_bar: ProgressBar
+var _health_bar_sprite: Sprite3D
 var _rng := RandomNumberGenerator.new()
 var _procedural_clock := 0.0
 var _model_rest_position := Vector3.ZERO
@@ -94,6 +97,7 @@ func configure(data: Dictionary, model_path: String, king: bool, boss: bool, cen
 			_animation_player.stop()
 
 	_build_nameplate()
+	_build_health_bar()
 	_respawn_timer = Timer.new()
 	_respawn_timer.name = "AutoRespawn"
 	_respawn_timer.one_shot = true
@@ -148,6 +152,8 @@ func has_idle_walk() -> bool:
 
 func _build_nameplate() -> void:
 	_nameplate = Label3D.new()
+	_nameplate.name = "MonsterNameplate"
+	_nameplate.set_meta("game_settings_role", "name")
 	var level := int(definition.get("level", 1))
 	var display_name := String(definition.get("id", "Monster"))
 	if is_king:
@@ -173,10 +179,47 @@ func _build_nameplate() -> void:
 	print("MONSTER_NAMEPLATE_VISIBILITY_ASSERT_OK: id=", display_name, " y=", _nameplate.position.y, " pixel_size=", _nameplate.pixel_size, " billboard=true")
 	add_child(_nameplate)
 
+func _build_health_bar() -> void:
+	_health_bar_viewport = SubViewport.new()
+	_health_bar_viewport.name = "MonsterHPBarViewport"
+	_health_bar_viewport.size = Vector2i(160, 16)
+	_health_bar_viewport.transparent_bg = true
+	_health_bar_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_health_bar = ProgressBar.new()
+	_health_bar.name = "MonsterHPBarControl"
+	_health_bar.min_value = 0
+	_health_bar.max_value = maxf(1.0, float(max_hp))
+	_health_bar.value = current_hp
+	_health_bar.show_percentage = false
+	_health_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_health_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var background := StyleBoxFlat.new()
+	background.bg_color = Color(0.08, 0.025, 0.025, 0.96)
+	background.set_corner_radius_all(4)
+	_health_bar.add_theme_stylebox_override("background", background)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color(0.78, 0.08, 0.10, 1.0)
+	fill.set_corner_radius_all(4)
+	_health_bar.add_theme_stylebox_override("fill", fill)
+	_health_bar_viewport.add_child(_health_bar)
+	add_child(_health_bar_viewport)
+	_health_bar_sprite = Sprite3D.new()
+	_health_bar_sprite.name = "MonsterHPBarSprite"
+	_health_bar_sprite.set_meta("game_settings_role", "hp_bar")
+	_health_bar_sprite.texture = _health_bar_viewport.get_texture()
+	_health_bar_sprite.pixel_size = 0.008
+	_health_bar_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_health_bar_sprite.no_depth_test = true
+	_health_bar_sprite.position = Vector3(0.0, _model_height * 1.12 + 0.48, 0.0)
+	add_child(_health_bar_sprite)
+
+
 func _process(delta: float) -> void:
 	if _dead or _model == null:
 		return
 	_procedural_clock += delta
+	if _health_bar != null:
+		_health_bar.value = current_hp
 	var offset := Vector3(_target.x - global_position.x, 0.0, _target.z - global_position.z)
 	if offset.length() > 0.18:
 		var step := minf(move_speed * delta, offset.length())
@@ -236,6 +279,8 @@ func die() -> void:
 	current_hp = 0
 	if _nameplate != null:
 		_nameplate.visible = false
+	if _health_bar_sprite != null:
+		_health_bar_sprite.visible = false
 	if _animation_player != null and not embedded_death_clip.is_empty():
 		_animation_player.play(embedded_death_clip)
 		var death_length := _animation_player.get_animation(embedded_death_clip).length
@@ -263,6 +308,8 @@ func _on_respawn_timeout() -> void:
 		_model.scale = _model_rest_scale
 	if _nameplate != null:
 		_nameplate.visible = true
+	if _health_bar_sprite != null:
+		_health_bar_sprite.visible = true
 	_play_idle()
 	respawned.emit(self)
 
