@@ -214,7 +214,7 @@ func _build_hud() -> void:
  var arc_buttons: Array =[["قفزة",_jump,Vector2(100,78)],["تشتت",_use_primary_skill,Vector2(48,38)],["طيران",_jump,Vector2(4,78)],["مطر",_use_secondary_skill,Vector2(48,118)],["سريع",_use_primary_skill,Vector2(100,4)],["هدف",_cycle_target,Vector2(4,158)]]
  for item in arc_buttons:
   var b:=_round_button(String(item[0]),item[1])
-  var arc_icon := {"قفزة":"speed","تشتت":"arrow","طيران":"speed","مطر":"fire","سريع":"lightning","هدف":"bow"}.get(String(item[0]),"bow")
+  var arc_icon: String = String({"قفزة":"speed","تشتت":"arrow","طيران":"speed","مطر":"fire","سريع":"lightning","هدف":"bow"}.get(String(item[0]),"bow"))
   _set_skill_button_icon(b,String(arc_icon))
   b.position=item[2]
   b.size=Vector2(68,58)
