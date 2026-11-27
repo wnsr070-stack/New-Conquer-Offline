@@ -240,6 +240,16 @@ func run_functional_test(test_hero: Node3D) -> bool:
   if not dismount():
    passed = false
   if not passed: break
+ if passed:
+  gear.unequip_item("mount_skin")
+  if mount(test_hero):
+   gear.equip_item("mount_skin",db.get_item("mount_skin_tiger"))
+   passed = active_mount_type == "tiger" and int(gear.get_equipped("steed").get("plus",0)) == 12
+   gear.equip_item("mount_skin",db.get_item("mount_skin_deer"))
+   passed = passed and active_mount_type == "deer" and int(gear.get_equipped("steed").get("plus",0)) == 12
+   dismount()
+  else:
+   passed = false
  gear.equipped = old_equipped.duplicate(true)
  gear._persist_equipment()
  state.inventory_slots = old_slots.duplicate(true)
