@@ -78,7 +78,7 @@ func _build_hud() -> void:
   mb.custom_minimum_size=Vector2(78,26)
   modes.add_child(mb)
  hero.add_child(modes)
- var qcard:=_ornate_panel(root,Vector2(-390,450),Vector2(365,190))
+ var qcard:=_ornate_panel(root,Vector2(-390,640),Vector2(365,190))
  qcard.set_anchors_preset(Control.PRESET_TOP_RIGHT)
  _quest_panel=VBoxContainer.new()
  _quest_panel.position=Vector2(12,8)
@@ -302,6 +302,13 @@ func _refresh_status() -> void:
  var anima := int(state.anima_phase) if state != null else 0
  _status_label.add_theme_color_override("font_color",_hero_rank_color(level,anima)
  )
+ if is_inside_tree():
+  var player_hero := _find_hero()
+  if player_hero != null:
+   for name_node in player_hero.find_children("*","Label3D",true,false):
+    var overhead := name_node as Label3D
+    if overhead != null and (overhead.name.to_lower().contains("name") or overhead.text == name):
+     overhead.modulate = _hero_rank_color(level,anima)
  for orb in get_tree().get_nodes_in_group("hud_orbs"):
   if orb is SplitOrb:
    orb.hp_ratio=float(hp)/float(max_hp)
