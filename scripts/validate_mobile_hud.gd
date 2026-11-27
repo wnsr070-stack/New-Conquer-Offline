@@ -102,13 +102,20 @@ func _run_functional_tests() -> void:
 
     # Camera sensitivity is exercised through HeroController's real camera rotation method.
     settings.set_setting("camera_sensitivity", 2.0)
-    var hero_controller = HERO_CONTROLLER_SCRIPT.new()
-    var pivot := Node3D.new()
-    hero_controller.camera_pivot = pivot
-    hero_controller._rotate_camera(Vector2(10.0, 0.0))
-    _check(absf(pivot.rotation_degrees.y + 3.2) < 0.05, "camera rotation uses configured sensitivity")
-    hero_controller.free()
-    pivot.free()
+    var hero_controller = null
+    for frame in range(900):
+        hero_controller = test_root.find_child("TwinCityPlayableHero", true, false)
+        if hero_controller != null and hero_controller.get("camera_pivot") is Node3D:
+            break
+        await process_frame
+    if hero_controller != null and hero_controller.get("camera_pivot") is Node3D and hero_controller.has_method("_rotate_camera"):
+        var pivot: Node3D = hero_controller.get("camera_pivot")
+        var original_yaw := pivot.rotation_degrees.y
+        hero_controller._rotate_camera(Vector2(10.0, 0.0))
+        _check(absf((pivot.rotation_degrees.y - original_yaw) + 3.2) < 0.05, "live HeroController camera rotation uses configured sensitivity")
+        pivot.rotation_degrees.y = original_yaw
+    else:
+        _check(false, "TwinCity HeroController camera became available for sensitivity test")
 
     # Auto-loot is exercised through LootDropManager._process and a real test drop.
     var test_hero := Node3D.new()
