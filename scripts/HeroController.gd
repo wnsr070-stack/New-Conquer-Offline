@@ -1,6 +1,7 @@
 extends CharacterBody3D
 class_name HeroController
 
+const ASSASSIN_HERO := "res://assets/mounts/hero_assassin.glb"
 const RANGER_MALE := "res://assets/phase3b/characters/Male_Ranger.glb"
 const ANIMS := "res://assets/phase4/animations/conquer_hero_anims.res"
 const WEAPON_ROOT := "res://assets/phase3b/weapons/"
@@ -49,7 +50,7 @@ func _ready() -> void:
  floor_snap_length = 0.35
  _ensure_input_actions()
  print("INPUTMAP_MOVEMENT_ACTIONS_READY: move_forward,move_back,move_left,move_right")
- await _load_approved_ranger()
+ await _load_assassin_hero()
  _restore_saved_world_position()
  _setup_camera()
  _build_player_nameplate()
@@ -89,55 +90,148 @@ func _normalize_hero_scale() -> void:
  hero_model.position.y = -min_y * factor
  print("HERO_AABB_SCALE_APPLIED: source_height=", measured_model_height, " target_world_height=2.8 scale=", factor, " bounds_y=", min_y, "..", max_y)
 
-func _load_approved_ranger() -> void:
- if not ResourceLoader.exists(RANGER_MALE):
-  push_error("HERO_APPROVED_RANGER_MISSING")
+func _load_assassin_hero() -> void:
+ if not ResourceLoader.exists(ASSASSIN_HERO):
+  push_error("HERO_ASSASSIN_GLB_MISSING: "+ASSASSIN_HERO)
   return
- var has_animation_library := ResourceLoader.exists(ANIMS)
- if not has_animation_library and OS.get_environment("PHASE4A_CAPTURE") != "1":
-  push_error("HERO_ANIMATION_LIBRARY_MISSING")
-  return
- var packed := load(RANGER_MALE) as PackedScene
+ var packed := load(ASSASSIN_HERO) as PackedScene
  hero_model = packed.instantiate() as Node3D if packed else null
  if hero_model == null:
-  push_error("HERO_RANGER_INSTANCE_FAILED")
+  push_error("HERO_ASSASSIN_INSTANCE_FAILED")
   return
- hero_model.name = "ApprovedRanger"
- # Male_Ranger source faces +Z while Godot look_at() aims the parent -Z.
- # Rotate only the visual rig; preserve gameplay/root heading.
+ hero_model.name = "OrientalAssassin"
  hero_model.rotation.y = PI
+ hero_model.set_meta("hero_assassin_rig",true)
  add_child(hero_model)
  await get_tree().process_frame
  _normalize_hero_scale()
  var found := hero_model.find_children("*","Skeleton3D",true,false)
  if found.is_empty():
-  push_error("HERO_RANGER_SKELETON_MISSING")
+  push_error("HERO_ASSASSIN_SKELETON_MISSING")
   return
  skeleton = found[0] as Skeleton3D
- if has_animation_library:
-  animation_player = AnimationPlayer.new()
-  animation_player.name = "AnimationPlayer"
-  hero_model.add_child(animation_player)
-  animation_player.root_node = NodePath("..")
-  var library := load(ANIMS) as AnimationLibrary
-  if library == null or animation_player.add_animation_library("",library) != OK:
-   push_error("HERO_ANIMATION_LIBRARY_ATTACH_FAILED")
-   return
-  animation_player.play("Idle")
-  await get_tree().process_frame
-  var approved_clips := ["Idle", "Run", "Jump", "Attack_Bow", "Attack_Assassin", "Attack_Trojan", "Attack_SwordShield", "Attack_Staff", "Hit", "Death"]
-  var missing_clips: Array[String] = []
-  for clip_name in approved_clips:
-   if not animation_player.has_animation(clip_name):
-    missing_clips.append(clip_name)
-  if not missing_clips.is_empty() or animation_player.current_animation != "Idle":
-   push_error("HERO_APPROVED_ANIMATION_LIBRARY_INCOMPLETE: missing=" + str(missing_clips) + " current=" + animation_player.current_animation)
-   return
-  print("HERO_ANIMATION_LIBRARY_LOADED: clips=", library.get_animation_list())
-  print("HERO_ANIMATION_IDLE_PLAYING: current=", animation_player.current_animation, " root_node=", animation_player.root_node, " skeleton_path=", animation_player.get_path_to(skeleton))
-  print("PHASE4A_ANIMATION_RESOURCE_PRESERVED: approved_builder_invoked_unchanged=true all_10_clips_loaded=true idle_playing=true resource_runtime_read_only=true")
- else:
-  print("PHASE4A_ANIMATION_RESOURCE_PRESERVED: generated .res not rebuilt, loaded or modified")
+ var bone_names: Array[String] = []
+ for index in range(skeleton.get_bone_count()):
+  bone_names.append(skeleton.get_bone_name(index))
+ print("HERO_ASSASSIN_SKELETON_BONES: count=",bone_names.size()," names=",bone_names)
+ var players := hero_model.find_children("*","AnimationPlayer",true,false)
+ if players.is_empty():
+  push_error("HERO_ASSASSIN_ANIMATION_PLAYER_MISSING")
+  return
+ animation_player = players[0] as AnimationPlayer
+ var imported_clips := animation_player.get_animation_list()
+ var run_clip := _find_animation_name("run")
+ var walk_clip := _find_animation_name("walk")
+ if run_clip.is_empty() or walk_clip.is_empty():
+  push_error("HERO_ASSASSIN_WALK_RUN_CLIPS_MISSING: clips="+str(imported_clips))
+  return
+ print("HERO_ASSASSIN_RIGGED_GL B_READY: path=",ASSASSIN_HERO," walk=",walk_clip," run=",run_clip," clips=",imported_clips)
+ _attach_retargeted_conquer_animations()
+ animation_player.play(walk_clip)
+ await get_tree().process_frame
+ print("HERO_ASSASSIN_ANIMATION_RUNTIME_READY: walk_run=true combat_library=retargeted")
+ print("HERO_ASSASSIN_PRIMARY_MODEL_READY: npc_model_preserved=Male_Ranger.glb")
+
+func _normalize_bone_name(value: String) -> String:
+ return value.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","").replace(".","").replace("|","")
+
+func _find_animation_name(token: String) -> String:
+ if animation_player == null:
+  return ""
+ for animation_name in animation_player.get_animation_list():
+  var normalized := _normalize_bone_name(String(animation_name))
+  if normalized.ends_with(token.to_lower()) or normalized.contains("/"+token.to_lower()):
+   return String(animation_name)
+ return ""
+
+func _resolve_assassin_bone(source_name: String) -> String:
+ var aliases := {
+  "pelvis":["pelvis","hips"],
+  "spine_01":["spine_01","spine1","spine"],
+  "spine_02":["spine_02","spine2","chest"],
+  "spine_03":["spine_03","spine3","upperchest"],
+  "neck_01":["neck_01","neck1","neck"],
+  "head":["head"],
+  "clavicle_l":["clavicle_l","claviclel","leftshoulder","shoulderl"],
+  "clavicle_r":["clavicle_r","clavicler","rightshoulder","shoulderr"],
+  "upperarm_l":["upperarm_l","upperarml","leftupperarm","upperarml","leftarm","upperarml"],
+  "upperarm_r":["upperarm_r","upperarmr","rightupperarm","upperarmr","rightarm"],
+  "lowerarm_l":["lowerarm_l","lowerarml","leftforearm","forearml","lowerarml"],
+  "lowerarm_r":["lowerarm_r","lowerarmr","rightforearm","forearmr","lowerarmr"],
+  "hand_l":["hand_l","handl","lefthand"],
+  "hand_r":["hand_r","handr","righthand"],
+  "thigh_l":["thigh_l","thighl","leftupleg","upperlegl","leftthigh"],
+  "thigh_r":["thigh_r","thighr","rightupleg","upperlegr","rightthigh"],
+  "calf_l":["calf_l","calfl","leftleg","lowerlegl","leftcalf"],
+  "calf_r":["calf_r","calfr","rightleg","lowerlegr","rightcalf"],
+  "foot_l":["foot_l","footl","leftfoot"],
+  "foot_r":["foot_r","footr","rightfoot"]
+ }
+ var key := _normalize_bone_name(source_name)
+ var candidates: Array = aliases.get(key,[source_name])
+ for index in range(skeleton.get_bone_count()):
+  var actual := skeleton.get_bone_name(index)
+  var normalized := _normalize_bone_name(actual)
+  for alias in candidates:
+   if normalized == _normalize_bone_name(String(alias)):
+    return actual
+ return ""
+
+func _attach_retargeted_conquer_animations() -> void:
+ if not ResourceLoader.exists(ANIMS):
+  push_error("HERO_CONQUER_ANIMATION_LIBRARY_MISSING")
+  return
+ var source_library := load(ANIMS) as AnimationLibrary
+ if source_library == null:
+  push_error("HERO_CONQUER_ANIMATION_LIBRARY_INVALID")
+  return
+ var remapped_library := AnimationLibrary.new()
+ var mapped_tracks := 0
+ var dropped_tracks := 0
+ var skeleton_path := str(hero_model.get_path_to(skeleton))
+ for clip_name in source_library.get_animation_list():
+  var source_animation := source_library.get_animation(clip_name)
+  var animation := source_animation.duplicate(true) as Animation
+  for track_index in range(animation.get_track_count()-1,-1,-1):
+   var track_path := String(animation.track_get_path(track_index))
+   var separator := track_path.rfind(":")
+   if separator < 0:
+    continue
+   var old_bone := track_path.substr(separator+1)
+   var new_bone := _resolve_assassin_bone(old_bone)
+   if new_bone.is_empty():
+    animation.remove_track(track_index)
+    dropped_tracks += 1
+   else:
+    animation.track_set_path(track_index,NodePath(skeleton_path+":"+new_bone))
+    mapped_tracks += 1
+  if animation.get_track_count() > 0:
+   var add_error := remapped_library.add_animation(clip_name,animation)
+   if add_error != OK:
+    push_error("HERO_ASSASSIN_COMBAT_CLIP_ATTACH_FAILED: "+String(clip_name))
+    return
+ if remapped_library.get_animation_list().is_empty():
+  push_error("HERO_ASSASSIN_COMBAT_RETARGET_EMPTY")
+  return
+ var library_error := animation_player.add_animation_library("conquer",remapped_library)
+ if library_error != OK:
+  push_error("HERO_ASSASSIN_COMBAT_LIBRARY_ATTACH_FAILED: "+str(library_error))
+  return
+ print("HERO_ASSASSIN_COMBAT_ANIMATION_RETARGET_OK: clips=",remapped_library.get_animation_list()," mapped_tracks=",mapped_tracks," dropped_tracks=",dropped_tracks)
+
+func _play_hero_animation(token: String) -> bool:
+ if animation_player == null:
+  return false
+ var clip := _find_animation_name(token)
+ if clip.is_empty():
+  for animation_name in animation_player.get_animation_list():
+   if _normalize_bone_name(String(animation_name)).contains("conquer"+token.to_lower()):
+    clip = String(animation_name)
+    break
+ if clip.is_empty():
+  return false
+ animation_player.play(clip)
+ return true
 
 func _setup_camera() -> void:
  camera_pivot = Node3D.new()
@@ -291,8 +385,7 @@ func _try_jump() -> void:
  jump_destination.y = 0
  jump_elapsed = 0.0
  is_jumping = true
- if animation_player and animation_player.has_animation("Jump"):
-  animation_player.play("Jump")
+ _play_hero_animation("Jump")
  print("HERO_CONQUER_JUMP: stamina=",stamina)
 
 func _switch_class(class_id: String) -> void:
@@ -301,8 +394,8 @@ func _switch_class(class_id: String) -> void:
   return
  if not CLASS_CLIPS.has(class_id): return
  active_class = class_id
- if is_instance_valid(animation_player):
-  animation_player.play("Idle")
+ if is_instance_valid(animation_player) and not _play_hero_animation("Idle"):
+  animation_player.stop()
  _clear_weapons()
  _apply_approved_palette()
  _attach_class_weapons()
@@ -311,23 +404,13 @@ func _switch_class(class_id: String) -> void:
  print("HERO_CLASS_SWITCHED: ",active_class," weapon_mode=",("dual_knives" if active_class=="oriental_assassin" else "bow" if active_class=="archer" else active_class))
 
 func _apply_approved_palette() -> void:
- if hero_model == null: return
- var colors: Array = PALETTES[active_class]
- var part_index := 0
- for node in hero_model.find_children("*","MeshInstance3D",true,false):
-  var mi := node as MeshInstance3D
-  if mi.mesh == null: continue
-  for surface in range(mi.mesh.get_surface_count()):
-   var material := StandardMaterial3D.new()
-   if active_class in ["archer","oriental_assassin"]:
-    var part := mi.name.to_lower()
-    material.albedo_color = colors[0] if ("arms" in part or "sleeve" in part) else colors[1]
-   else:
-    material.albedo_color = colors[part_index % colors.size()]
-   material.roughness = 0.72
-   material.metallic = 0.04
-   mi.set_surface_override_material(surface,material)
-   part_index += 1
+ if hero_model == null:
+  return
+ # The assassin GLB carries authored PBR textures. Keep its source materials intact;
+ # class changes still drive weapon/equipment systems without flattening the rig.
+ if bool(hero_model.get_meta("hero_assassin_rig",false)):
+  print("HERO_ASSASSIN_PBR_MATERIALS_PRESERVED: class=",active_class)
+  return
 
 func _attach_class_weapons() -> void:
  match active_class:
@@ -347,10 +430,11 @@ func _resolve_hand_bone(side: String) -> int:
  if skeleton == null:
   return -1
  var required_side := "right" if side == "r" else "left"
+ var suffix := "r" if side == "r" else "l"
  for i in range(skeleton.get_bone_count()):
   var actual := skeleton.get_bone_name(i)
-  var normalized := actual.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
-  var matches_side := normalized.contains(required_side + "hand") or normalized.ends_with("hand" + ("r" if side == "r" else "l"))
+  var normalized := _normalize_bone_name(actual)
+  var matches_side := normalized.contains(required_side) or normalized.ends_with("hand"+suffix) or normalized == "hand"+suffix
   if normalized.contains("hand") and matches_side:
    print("HERO_HAND_BONE_NAME_MATCH: side=", side, " index=", i, " name=", actual)
    return i
@@ -598,16 +682,24 @@ func _clear_weapons() -> void:
  weapon_nodes.clear()
 
 func _update_animation() -> void:
- if animation_player == null: return
+ if animation_player == null:
+  return
  if is_jumping:
-  if animation_player.current_animation != "Jump" and animation_player.has_animation("Jump"):
-   animation_player.play("Jump")
+  _play_hero_animation("Jump")
   return
  if velocity.length_squared() > 0.25:
-  if animation_player.current_animation != "Run" and animation_player.has_animation("Run"):
-   animation_player.play("Run")
- elif animation_player.current_animation != "Idle" and animation_player.has_animation("Idle"):
-  animation_player.play("Idle")
+  var run_clip := _find_animation_name("run")
+  if run_clip.is_empty():
+   run_clip = _find_animation_name("walk")
+  if not run_clip.is_empty() and animation_player.current_animation != run_clip:
+   animation_player.play(run_clip)
+ else:
+  var idle_clip := _find_animation_name("idle")
+  if not idle_clip.is_empty():
+   if animation_player.current_animation != idle_clip:
+    animation_player.play(idle_clip)
+  elif animation_player.is_playing():
+   animation_player.stop()
 
 func _ensure_input_actions() -> void:
  var bindings := {
