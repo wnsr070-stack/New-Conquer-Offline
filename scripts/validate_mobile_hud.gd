@@ -26,6 +26,7 @@ func _run_functional_tests() -> void:
     if not failures.is_empty():
         quit(1)
         return
+    print("PHASE5A_MOBILE_HUD_PARSE_OK")
 
     var scene_error := change_scene_to_file("res://scenes/TwinCity.tscn")
     _check(scene_error == OK, "load TwinCity test scene")
@@ -58,7 +59,7 @@ func _run_functional_tests() -> void:
     _check(sfx_bus >= 0 and AudioServer.is_bus_mute(sfx_bus) and absf(AudioServer.get_bus_volume_db(sfx_bus) - linear_to_db(0.6)) < 0.2, "SFX AudioServer volume and mute")
 
     # Add real Godot nodes so the settings system applies to their live properties.
-    var test_root := get_current_scene()
+    var test_root := current_scene
     var world_environment := WorldEnvironment.new()
     world_environment.name = "SettingsFunctionalWorldEnvironment"
     world_environment.environment = Environment.new()
@@ -175,7 +176,7 @@ func _run_functional_tests() -> void:
 
     # The method must await the actual scene transition, not just set current_city.
     var unstuck_ok: bool = await settings.unstuck_to_twin_city()
-    var final_scene := get_current_scene()
+    var final_scene := current_scene
     _check(unstuck_ok and String(world_map.current_city) == "TwinCity" and not bool(world_map.transition_in_progress) and final_scene != null and String(final_scene.scene_file_path).ends_with("TwinCity.tscn"), "unstuck performs completed TwinCity scene transition")
 
     if failures.is_empty():
