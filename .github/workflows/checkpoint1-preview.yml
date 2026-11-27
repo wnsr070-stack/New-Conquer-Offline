@@ -211,7 +211,7 @@ jobs:
 
           def copy_verified(source, destination):
               data = source.read_bytes()
-              if len(data) <= 100 or data[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+              if len(data) <= 100 or data[:8] != b"\x89PNG\\r\n\\x1a\n":
                   raise SystemExit(f"Invalid PNG: {source} ({len(data)} bytes)")
               target = pathlib.Path(destination)
               target.parent.mkdir(parents=True, exist_ok=True)
@@ -220,7 +220,7 @@ jobs:
 
           def dimensions(path):
               data = path.read_bytes()
-              if data[:8] != b"\\x89PNG\\r\\n\\x1a\\n" or len(data) < 24:
+              if data[:8] != b"\x89PNG\\r\n\\x1a\n" or len(data) < 24:
                   return (0, 0)
               return struct.unpack(">II", data[16:24])
 
@@ -241,7 +241,7 @@ jobs:
               copy_verified(matches[0], destination)
 
           # Prefer the requested Fantasy UI Borders folder and the real border-000..030 artwork.
-          border_candidates = [p for p in pngs if re.fullmatch(r"border-(?:0[0-2][0-9]|030)\\.png", p.name, re.I)]
+          border_candidates = [p for p in pngs if re.fullmatch(r"border-(?:0[0-2][0-9]|030)\.png", p.name, re.I)]
           if not border_candidates:
               raise SystemExit("Fantasy UI Borders: no border-000.png..border-030.png assets found")
           def border_score(path, target_ratio):
@@ -316,29 +316,12 @@ jobs:
       - name: Verify Phase 5A ornate UI, skill icons and cache inputs
         run: |
           set -euo pipefail
-          for file in \\
-            assets/ui/borders/panel_brown.png \\
-            assets/ui/borders/panel_beige.png \\
-            assets/ui/borders/ornate_panel.png \\
-            assets/ui/slots/slot_brown.png \\
-            assets/ui/slots/slot_beige.png \\
-            assets/ui/slots/ornate_slot.png \\
-            assets/ui/buttons/btn_brown.png \\
-            assets/ui/buttons/btn_brown_pressed.png \\
-            assets/ui/buttons/btn_sq_brown.png \\
-            assets/ui/buttons/btn_sq_brown_pressed.png \\
-            assets/ui/skills/bow.png \\
-            assets/ui/skills/arrow.png \\
-            assets/ui/skills/fire.png \\
-            assets/ui/skills/lightning.png \\
-            assets/ui/skills/speed.png \\
-            assets/ui/skills/shield.png \\
-            assets/fonts/NotoSansArabic-Bold.ttf; do
+          for file in assets/ui/borders/panel_brown.png assets/ui/borders/panel_beige.png assets/ui/borders/ornate_panel.png assets/ui/slots/slot_brown.png assets/ui/slots/slot_beige.png assets/ui/slots/ornate_slot.png assets/ui/buttons/btn_brown.png assets/ui/buttons/btn_brown_pressed.png assets/ui/buttons/btn_sq_brown.png assets/ui/buttons/btn_sq_brown_pressed.png assets/ui/skills/bow.png assets/ui/skills/arrow.png assets/ui/skills/fire.png assets/ui/skills/lightning.png assets/ui/skills/speed.png assets/ui/skills/shield.png assets/fonts/NotoSansArabic-Bold.ttf; do
             test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
             bytes=$(stat -c%s "$file")
             [ "$bytes" -gt 100 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
             if [[ "$file" == *.png ]]; then
-              signature=$(od -An -tx1 -N8 "$file" | tr -d ' \\n')
+              signature=$(od -An -tx1 -N8 "$file" | tr -d ' \n')
               [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid PNG signature: $file"; exit 1; }
             fi
             echo "PHASE5A_ASSET_OK: $file bytes=$bytes"
