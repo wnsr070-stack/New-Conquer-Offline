@@ -1,9 +1,9 @@
 extends Control
 ## 2D vector item artwork. Draws only CanvasItem primitives; never creates 3D geometry.
 var item_data: Dictionary = {}
-var enhancement_level := 0
-var _aura_color := Color(0.0, 0.0, 0.0, 0.0)
-var _aura_intensity := 0.0
+var enhancement_level: int = 0
+var _aura_color: Color = Color(0.0, 0.0, 0.0, 0.0)
+var _aura_intensity: float = 0.0
 var _kenney_texture: Texture2D
 
 func _ready() -> void:
@@ -13,27 +13,27 @@ func _ready() -> void:
 
 func _refresh_aura() -> void:
  if not is_inside_tree(): return
- var scene_root := get_tree().root
+ var scene_root: Window = get_tree().root
  if scene_root == null: return
- var aura := scene_root.get_node_or_null("AuraAndVFXManager")
+ var aura: Node = scene_root.get_node_or_null("AuraAndVFXManager")
  if aura != null and aura.has_method("get_slot_enhancement_aura"):
   var presentation: Dictionary = aura.get_slot_enhancement_aura(enhancement_level)
   _aura_color = presentation.get("color",Color.TRANSPARENT)
   _aura_intensity = float(presentation.get("intensity",0.0))
 
 func _find_kenney_texture(kind: String) -> Texture2D:
- var directory := DirAccess.open("res://assets/icons/rpg")
+ var directory: DirAccess = DirAccess.open("res://assets/icons/rpg")
  if directory == null: return null
- var files := directory.get_files()
+ var files: PackedStringArray = directory.get_files()
  files.sort()
- var prefixes := [kind]
+ var prefixes: Array[String] = [kind]
  if kind == "blade": prefixes = ["sword"]
  elif kind == "armor": prefixes = ["shield"]
- for prefix_kind in prefixes:
-  var prefix := prefix_kind + "__"
+ for prefix_kind: String in prefixes:
+  var prefix: String = prefix_kind + "__"
   for file_name in files:
    if file_name.to_lower().begins_with(prefix) and file_name.to_lower().ends_with(".png"):
-    var texture := load("res://assets/icons/rpg/" + file_name) as Texture2D
+    var texture: Texture2D = load("res://assets/icons/rpg/" + file_name) as Texture2D
     if texture != null: return texture
  return null
 
@@ -44,19 +44,19 @@ func configure(data: Dictionary,plus_level: int = -1) -> void:
  _kenney_texture = _find_kenney_texture(_item_kind(item_data))
  queue_redraw()
 func _draw() -> void:
- var bounds := Rect2(Vector2.ZERO,size)
- var center := size*0.5
- var side := minf(size.x,size.y)
- var rank := _rank_color(enhancement_level)
+ var bounds: Rect2 = Rect2(Vector2.ZERO,size)
+ var center: Vector2 = size*0.5
+ var side: float = minf(size.x,size.y)
+ var rank: Color = _rank_color(enhancement_level)
  draw_rect(bounds,Color(0.055,0.075,0.12,0.98),true)
  draw_rect(bounds,rank,false,2.0)
  if enhancement_level > 0:
-  var glow := _aura_color if _aura_color.a > 0.0 else rank
+  var glow: Color = _aura_color if _aura_color.a > 0.0 else rank
   draw_rect(bounds.grow(-3.0),Color(glow.r,glow.g,glow.b,clampf(0.30+_aura_intensity*0.18,0.35,0.9)),false,2.0+_aura_intensity)
  if _kenney_texture == null:
   _draw_fallback_icon(center,side)
  else:
-  var icon_side := side*0.78
+  var icon_side: float = side*0.78
   draw_texture_rect(_kenney_texture,Rect2(center-Vector2.ONE*icon_side*0.5,Vector2.ONE*icon_side),false)
  if enhancement_level > 0:
   draw_string(ThemeDB.fallback_font,Vector2(3.0,size.y-4.0),"+"+str(enhancement_level),HORIZONTAL_ALIGNMENT_LEFT,-1,10,rank)
@@ -71,10 +71,10 @@ func _rank_color(plus: int) -> Color:
  return Color.WHITE
 
 func _draw_fallback_icon(center: Vector2,side: float) -> void:
- var kind := _item_kind(item_data)
- var metal := Color(0.78,0.86,0.96)
- var gold := Color(1.0,0.72,0.18)
- var accent := Color(0.22,0.78,1.0)
+ var kind: String = _item_kind(item_data)
+ var metal: Color = Color(0.78,0.86,0.96)
+ var gold: Color = Color(1.0,0.72,0.18)
+ var accent: Color = Color(0.22,0.78,1.0)
  match kind:
   "bow":
    draw_arc(center+Vector2(-side*0.08,0),side*0.34,-1.35,1.35,24,gold,4.0,true)
@@ -98,7 +98,7 @@ func _draw_fallback_icon(center: Vector2,side: float) -> void:
   _:
    draw_circle(center,side*.25,accent)
 func _item_kind(data: Dictionary) -> String:
- var text := " ".join([String(data.get("type","")), String(data.get("slot","")), String(data.get("family","")), String(data.get("id","")), String(data.get("name",""))]).to_lower()
+ var text: String = " ".join([String(data.get("type","")), String(data.get("slot","")), String(data.get("family","")), String(data.get("id","")), String(data.get("name",""))]).to_lower()
  if text.contains("bow"): return "bow"
  if text.contains("sword") or text.contains("dagger") or text.contains("blade") or text.contains("knife"): return "blade"
  if text.contains("armor") or text.contains("shield") or text.contains("body"): return "armor"
