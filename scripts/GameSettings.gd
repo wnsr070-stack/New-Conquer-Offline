@@ -186,19 +186,19 @@ func _set_visual_visibility(node: Node, enabled: bool) -> void:
 
 func _try_auto_potion() -> void:
     var state := get_node_or_null("/root/GameState")
-    if state == null or not state.player_data is Dictionary:
+    if state == null:
         return
     var data: Dictionary = state.player_data
     var hp := int(data.get("hp", data.get("max_hp", 100)))
     var max_hp := maxi(1, int(data.get("max_hp", 100)))
-    if float(hp) / float(max_hp) < 0.5 and _consume_first_potion(state, ["HPPotion", "HealthPotion"]):
+    if float(hp) / float(max_hp) < 0.5 and _consume_first_potion(state, ["HPPotion", "HealthPotion", "Panacea"]):
         data["hp"] = mini(max_hp, hp + 250)
         state.save_game()
         print("GAME_SETTINGS_AUTO_HP_POTION_USED: hp=", data["hp"], "/", max_hp)
         return
     var mp := int(data.get("mana", data.get("max_mana", 100)))
     var max_mp := maxi(1, int(data.get("max_mana", 100)))
-    if float(mp) / float(max_mp) < 0.5 and _consume_first_potion(state, ["MPPotion", "ManaPotion", "MPPOTION"]):
+    if float(mp) / float(max_mp) < 0.5 and _consume_first_potion(state, ["MPPotion", "ManaPotion", "MPPOTION", "Panacea"]):
         data["mana"] = mini(max_mp, mp + 250)
         state.save_game()
         print("GAME_SETTINGS_AUTO_MP_POTION_USED: mana=", data["mana"], "/", max_mp)
