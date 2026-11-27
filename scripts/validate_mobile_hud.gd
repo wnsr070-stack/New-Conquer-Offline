@@ -47,7 +47,7 @@ func _run_functional_tests() -> void:
     var original_player_data: Dictionary = state.player_data.duplicate(true)
     var original_inventory_slots: Array = state.inventory_slots.duplicate(true)
     var original_inventory: Dictionary = state.inventory.duplicate(true)
-    # Isolate inventory probes so a full player inventory cannot make the test flaky.\n    state.inventory_slots.clear()\n    state.inventory.clear()\n    state.player_data["inventory_slots"] = []\n    state.player_data["inventory"] = {}\n
+    # Isolate inventory probes so a full player inventory cannot make the test flaky.\n    state.inventory_slots.clear()\n    state.inventory.clear()\n    state.player_data["inventory_slots"] = []\n    state.player_data["inventory"] = {}
     # AudioServer: assert both bus dB and mute state after real setting changes.
     settings.set_setting("music_volume", 30.0)
     settings.set_setting("music_muted", true)
