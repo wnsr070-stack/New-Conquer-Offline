@@ -26,11 +26,15 @@ func _find_kenney_texture(kind: String) -> Texture2D:
  if directory == null: return null
  var files := directory.get_files()
  files.sort()
- var prefix := kind + "__"
- for file_name in files:
-  if file_name.to_lower().begins_with(prefix) and file_name.to_lower().ends_with(".png"):
-   var texture := load("res://assets/icons/rpg/" + file_name) as Texture2D
-   if texture != null: return texture
+ var prefixes := [kind]
+ if kind == "blade": prefixes = ["sword"]
+ elif kind == "armor": prefixes = ["shield"]
+ for prefix_kind in prefixes:
+  var prefix := prefix_kind + "__"
+  for file_name in files:
+   if file_name.to_lower().begins_with(prefix) and file_name.to_lower().ends_with(".png"):
+    var texture := load("res://assets/icons/rpg/" + file_name) as Texture2D
+    if texture != null: return texture
  return null
 
 func configure(data: Dictionary,plus_level: int = -1) -> void:
