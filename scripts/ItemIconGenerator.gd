@@ -75,14 +75,32 @@ func _rank_color(plus: int) -> Color:
  return Color.WHITE
 
 func _item_kind(data: Dictionary) -> String:
- var text: String = " ".join([String(data.get("type","")),String(data.get("slot","")),String(data.get("family","")),String(data.get("id","")),String(data.get("name",""))]).to_lower()
+ var text: String = " ".join([String(data.get("type","")),String(data.get("slot","")),String(data.get("equipment_slot","")),String(data.get("family","")),String(data.get("id","")),String(data.get("name",""))]).to_lower()
+ var slot := String(data.get("slot",data.get("equipment_slot",""))).to_lower()
+ match slot:
+  "helmet", "headgear": return "helmet"
+  "necklace": return "necklace"
+  "armor": return "armor"
+  "ring": return "ring"
+  "boots": return "boots"
+  "fan": return "fan"
+  "tower": return "tower"
+  "wing": return "wing"
+  "mount_whip": return "mount_whip"
+  "steed": return "steed"
+  "mount_skin": return "mount_skin"
+  "garment": return "garment"
+  "weapon_accessory": return "weapon_accessory"
  if text.contains("bow"): return "bow"
  if text.contains("steed") or text.contains("horse") or text.contains("mount"): return "steed"
  if text.contains("fan"): return "fan"
  if text.contains("tower"): return "tower"
  if text.contains("wing"): return "wing"
- if text.contains("dagger") or text.contains("knife"): return "blade"
- if text.contains("sword") or text.contains("blade"): return "blade"
+ if text.contains("whip"): return "mount_whip"
+ if text.contains("garment") or text.contains("robe") or text.contains("clothing"): return "garment"
+ if text.contains("accessory") and text.contains("weapon"): return "weapon_accessory"
+ if text.contains("dagger") or text.contains("knife"): return "dagger"
+ if text.contains("sword") or text.contains("blade"): return "sword"
  if text.contains("armor") or text.contains("shield") or text.contains("body"): return "armor"
  if text.contains("helmet") or text.contains("headgear") or text.contains("hood"): return "helmet"
  if text.contains("ring"): return "ring"
@@ -91,5 +109,5 @@ func _item_kind(data: Dictionary) -> String:
  if text.contains("potion") or text.contains("vial") or text.contains("flask"): return "potion"
  if text.contains("meteor") or text.contains("dragonball") or text.contains("dragon_ball") or text.contains("anima"): return "gem"
  if text.contains("gem") or text.contains("jewel") or text.contains("stone"): return "gem"
- if text.contains("quest") or text.contains("scroll"): return "scroll"
+ if text.contains("quest") or text.contains("scroll"): return "skill"
  return "gem"
