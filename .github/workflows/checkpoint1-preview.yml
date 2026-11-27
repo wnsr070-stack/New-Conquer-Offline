@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5-mount-glb-v4-assassin-${{ hashFiles('scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
+          key: phase5-mount-glb-v5-saddle-assassin-${{ hashFiles('scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
       - name: Cache Hugging Face and external assets
         id: assets
         uses: actions/cache@v4
@@ -122,7 +122,7 @@ jobs:
               raise SystemExit("Ninja GLB must contain Walk and Run clips: "+repr(clips))
           print("HERO_ASSASSIN_RIGGED_GLB_VERIFIED: bytes=",len(data),"skins=",len(doc["skins"]),"animations=",clips)
           PY
-          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb hero_assassin.glb; do
+          for file in steed_horse.glb mount_deer.glb mount_wolf.glb saddle.glb hero_assassin.glb; do
             test -s "assets/mounts/$file"
             echo "PHASE5A_MODEL_ASSET_OK: $file bytes=$(stat -c%s "assets/mounts/$file")"
           done
@@ -197,7 +197,7 @@ jobs:
         with:
           path: .cache/tools
           key: twin-city-tools-linux-v1
-      - name: Restore four mount GLB models
+      - name: Restore three mount GLB models
         uses: actions/cache@v4
         with:
           path: assets/mounts
@@ -510,8 +510,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5a-cc0-mounts-v2-assassin-${{ hashFiles('.github/workflows/checkpoint1-preview.yml', 'scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
-      - name: Download Quaternius horse, deer and wolf plus Gobkit tiger
+          key: phase5a-cc0-mounts-v3-saddle-${{ hashFiles('.github/workflows/checkpoint1-preview.yml', 'scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
+      - name: Download Quaternius horse, deer and wolf plus CC0 saddle pad
         if: steps.mounts.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
@@ -533,23 +533,18 @@ jobs:
               destination = output / filename
               subprocess.run([".cache/tools/bin/gltfpack", "-noq", "-i", str(source), "-o", str(destination)], check=True)
               print("QUATERNIUS_SOURCE:", identity, source.relative_to(root))
-          tiger_url = "https://gobkit.com/freebies/animal012/SumatranTiger.glb"
-          tiger_path = output / "mount_tiger.glb"
-          request = urllib.request.Request(
-              tiger_url,
-              headers={
-                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-                  "Referer": "https://gobkit.com/freebies/animal012/",
-                  "Accept": "model/gltf-binary,application/octet-stream,*/*",
-                  "Accept-Language": "en-US,en;q=0.9"
-              }
-          )
+          saddle_url = "https://cdn.3dassets.dev/assets/24014/v1/model.glb"
+          saddle_source = output / "saddle_source.glb"
+          request = urllib.request.Request(saddle_url, headers={"User-Agent":"Mozilla/5.0","Accept":"model/gltf-binary,application/octet-stream,*/*"})
           with urllib.request.urlopen(request, timeout=120) as response:
-              if response.status != 200:
-                  raise SystemExit("Gobkit tiger download HTTP status: " + str(response.status))
-              tiger_bytes = response.read()
-          tiger_path.write_bytes(tiger_bytes)
-          print("GOBKIT_SOURCE: SumatranTiger.glb", tiger_url, "bytes=", len(tiger_bytes))
+              if response.status != 200: raise SystemExit("CC0 saddle pad HTTP status: " + str(response.status))
+              saddle_bytes = response.read()
+          if len(saddle_bytes) < 20000 or saddle_bytes[:4] != b"glTF":
+              raise SystemExit("CC0 saddle pad source invalid or unexpectedly small: " + str(len(saddle_bytes)))
+          saddle_source.write_bytes(saddle_bytes)
+          subprocess.run([".cache/tools/bin/gltfpack","-noq","-i",str(saddle_source),"-o",str(output / "saddle.glb")],check=True)
+          saddle_source.unlink()
+          print("CC0_SADDLE_PAD_SOURCE_OK: bytes=",len(saddle_bytes)," license=CC0")
           def verify(path):
               data = path.read_bytes()
               if len(data) <= 5000 or data[:4] != b"glTF":
@@ -571,7 +566,7 @@ jobs:
               print("PHASE5A_MOUNT_GLB_VERIFIED:", path, "bytes=", len(data), "meshes=", len(doc["meshes"]))
           for path in sorted(output.glob("*.glb")):
               verify(path)
-          expected = {"steed_horse.glb", "mount_deer.glb", "mount_wolf.glb", "mount_tiger.glb", "hero_assassin.glb"}
+          expected = {"steed_horse.glb", "mount_deer.glb", "mount_wolf.glb", "saddle.glb", "hero_assassin.glb"}
           actual = {p.name for p in output.glob("*.glb")}
           if actual != expected:
               raise SystemExit("Mount set mismatch: " + repr(actual))
@@ -583,7 +578,7 @@ jobs:
           python3 - <<'PY'
           import pathlib, struct, json
           root=pathlib.Path("assets/mounts")
-          expected={"steed_horse.glb","mount_deer.glb","mount_wolf.glb","mount_tiger.glb","hero_assassin.glb"}
+          expected={"steed_horse.glb","mount_deer.glb","mount_wolf.glb","saddle.glb","hero_assassin.glb"}
           actual={p.name for p in root.glob("*.glb")}
           if actual != expected: raise SystemExit("Mount cache incomplete: "+repr(actual))
           for path in sorted(root.glob("*.glb")):
@@ -654,7 +649,7 @@ jobs:
           grep -q "PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true" artifacts/mobile_hud_preview.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE5A_MOBILE_HUD_PREVIEW_FAILED" artifacts/mobile_hud_preview.log
 
-      - name: Test mount, equipment and capture four mounted animals in Twin City
+      - name: Test mount, equipment and capture three mounted animals in Twin City
         env:
           MOUNT_SHOWCASE: "1"
           CI_CAPTURE: "1"
@@ -669,20 +664,20 @@ jobs:
           grep -q "MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=" artifacts/mount_showcase.log
           grep -q "MOUNT_SADDLE_HIP_ALIGNMENT:" artifacts/mount_showcase.log
           grep -q "MOUNT_STAG_AABB_NORMALIZED_OK: maximum_dimension=2.5" artifacts/mount_showcase.log
-          grep -q "MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE" artifacts/mount_showcase.log
-          for kind in steed tiger deer wolf; do
+          grep -q "MOUNT_SHOWCASE_ALL_THREE_CAPTURES_COMPLETE" artifacts/mount_showcase.log
+          for kind in steed deer wolf; do
             grep -Fq "MOUNT_MODEL_RUNTIME_READY: kind=$kind" artifacts/mount_showcase.log || { echo "::error::Mount runtime model did not load: $kind"; exit 1; }
             grep -Fq "MOUNT_CLEARCOAT_PBR_READY: kind=$kind metallic=0.85 roughness=0.22 clearcoat=1.0" artifacts/mount_showcase.log || { echo "::error::Mount PBR regalia missing: $kind"; exit 1; }
             grep -Fq "MOUNT_GPU_PARTICLES_READY: kind=$kind" artifacts/mount_showcase.log || { echo "::error::Mount GPU particles missing: $kind"; exit 1; }
           done
-          for image in mount_showcase_steed.png mount_showcase_tiger.png mount_showcase_deer.png mount_showcase_wolf.png; do
+          for image in mount_showcase_steed.png mount_showcase_deer.png mount_showcase_wolf.png; do
             test -s "artifacts/$image"
             size=$(stat -c%s "artifacts/$image")
             [ "$size" -gt 15000 ] || { echo "::error::Mount preview too small: $image ($size bytes)"; exit 1; }
           done
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|MOUNT_AND_EQUIP_TEST_PASS=false|MOUNT_SHOWCASE_CAPTURE_FAILED|MOUNT_SHOWCASE_MOUNT_FAILED" artifacts/mount_showcase.log
 
-      - name: Upload four mount showcase PNGs and test logs only
+      - name: Upload three mount showcase PNGs and test logs only
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -691,8 +686,7 @@ jobs:
           retention-days: 14
           path: |
             artifacts/mount_showcase_steed.png
-            artifacts/mount_showcase_tiger.png
-            artifacts/mount_showcase_deer.png
+                        artifacts/mount_showcase_deer.png
             artifacts/mount_showcase_wolf.png
             artifacts/mount_showcase.log
             artifacts/syntax_gate.log
