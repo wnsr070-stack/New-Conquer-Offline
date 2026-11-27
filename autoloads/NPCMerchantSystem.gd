@@ -177,7 +177,7 @@ func spawn_city_npcs(city_root: Node3D) -> void:
 
 func _play_npc_idle_animation(character_root: Node, npc_id: String) -> void:
  var animation_players: Array[Node] = character_root.find_children("*","AnimationPlayer",true,false)
- var animation_player := animation_players[0] as AnimationPlayer if not animation_players.is_empty() else null
+ var animation_player: AnimationPlayer = animation_players[0] as AnimationPlayer if not animation_players.is_empty() else null
  var selected_animation := ""
  if animation_player != null:
   var animation_names := animation_player.get_animation_list()
