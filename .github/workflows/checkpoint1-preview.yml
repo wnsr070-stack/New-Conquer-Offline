@@ -70,7 +70,7 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
           command -v gltfpack
           echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
-      - name: Fetch and validate four CC0 mounts plus rigged Ninja hero GLB
+      - name: Fetch and validate three approved mounts, CC0 saddle and rigged Ninja hero GLB
         if: steps.mount_models.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
@@ -101,11 +101,20 @@ jobs:
             curl --fail --location --retry 4 --retry-all-errors "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Horse.glb" -o /tmp/phase5-mounts/Horse.glb
           fi
           prepare_model /tmp/phase5-mounts/Horse.glb steed_horse.glb
-          for pair in "Bull.glb mount_tiger.glb" "Stag.glb mount_deer.glb" "Wolf.glb mount_wolf.glb"; do
+          for pair in "Stag.glb mount_deer.glb" "Wolf.glb mount_wolf.glb"; do
             read -r source_name target_name <<< "$pair"
             curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$base/$source_name" -o "/tmp/phase5-mounts/$source_name"
             prepare_model "/tmp/phase5-mounts/$source_name" "$target_name"
           done
+          saddle_url="https://cdn.3dassets.dev/assets/24014/v1/model.glb"
+          curl --fail --location --retry 4 --retry-all-errors "$saddle_url" -o /tmp/phase5-mounts/saddle-source.glb
+          saddle_bytes=$(stat -c%s /tmp/phase5-mounts/saddle-source.glb)
+          [ "$saddle_bytes" -ge 20000 ] || { echo "::error::CC0 saddle pad source unexpectedly small: $saddle_bytes"; exit 1; }
+          [ "$(od -An -tx1 -N4 /tmp/phase5-mounts/saddle-source.glb | tr -d ' \\n')" = "676c5446" ] || { echo "::error::Saddle source is not GLB"; exit 1; }
+          gltfpack -noq -i /tmp/phase5-mounts/saddle-source.glb -o assets/mounts/saddle.glb
+          saddle_packed=$(stat -c%s assets/mounts/saddle.glb)
+          [ "$saddle_packed" -gt 10000 ] || { echo "::error::Optimized saddle GLB below 10KB: $saddle_packed"; exit 1; }
+          echo "CC0_SADDLE_PAD_CACHE_READY: bytes=$saddle_packed source_bytes=$saddle_bytes license=CC0"
           curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "https://grab3d.com/dl/ninja-rigged/ninja-rigged.glb" -o /tmp/phase5-mounts/ninja-rigged.glb
           prepare_model /tmp/phase5-mounts/ninja-rigged.glb hero_assassin.glb
           python3 - <<'PY'
@@ -201,7 +210,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5-mount-glb-v4-assassin-${{ hashFiles('scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
+          key: phase5-mount-glb-v5-saddle-assassin-${{ hashFiles('scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
       - name: Restore approved asset cache
         uses: actions/cache@v4
         with:
@@ -222,10 +231,10 @@ jobs:
           test -s .cache/hf-assets/twin_city_runtime_assets.json
           test -s .cache/hf-assets/landmark_sources.txt
           test -x .cache/tools/bin/gltfpack
-          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb hero_assassin.glb; do
+          for file in steed_horse.glb mount_deer.glb mount_wolf.glb saddle.glb hero_assassin.glb; do
             test -s "assets/mounts/$file" || { echo "::error::Restored model missing: $file"; exit 1; }
             bytes=$(stat -c%s "assets/mounts/$file")
-            [ "$bytes" -gt 30720 ] || { echo "::error::Restored mount model below 30KB: $file bytes=$bytes"; exit 1; }
+            if [ "$file" = "saddle.glb" ]; then [ "$bytes" -gt 10000 ] || { echo "::error::Restored saddle below 10KB: $bytes"; exit 1; }; else [ "$bytes" -gt 30720 ] || { echo "::error::Restored mount model below 30KB: $file bytes=$bytes"; exit 1; }; fi
             echo "MOUNT_MODEL_RESTORED_OK: $file bytes=$bytes"
           done
           cp .cache/hf-assets/landmark_sources.txt artifacts/landmark_sources.txt
