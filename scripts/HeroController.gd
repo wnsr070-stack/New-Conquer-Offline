@@ -225,7 +225,7 @@ func _play_hero_animation(token: String) -> bool:
  var clip := _find_animation_name(token)
  if clip.is_empty():
   for animation_name in animation_player.get_animation_list():
-   if _normalize_bone_name(String(animation_name)).contains("conquer"+token.to_lower()):
+   if _normalize_bone_name(String(animation_name)).contains("conquer") and _normalize_bone_name(String(animation_name)).ends_with(token.to_lower()):
     clip = String(animation_name)
     break
  if clip.is_empty():
