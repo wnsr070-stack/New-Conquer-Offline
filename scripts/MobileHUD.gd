@@ -123,6 +123,7 @@ func _build_hud() -> void:
 
  var chat:=_ornate_panel(root,Vector2(16,-390),Vector2(360,165))
  chat.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ chat.position=Vector2(maxf(16.0,(get_viewport_rect().size.x-360.0)*0.5),-390)
  chat.z_index=26
  var tabs:=HBoxContainer.new()
  tabs.position=Vector2(8,7)
@@ -300,8 +301,7 @@ func _refresh_status() -> void:
  var bp:=int(player.get("battle_power",0))
  _status_label.text="البطل: %s  •  المستوى %d\\nالحياة %d/%d  •  الطاقة %d/%d\\nالذهب %d  •  نقاط CP %d  •  قوة BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
  var anima := int(state.anima_phase) if state != null else 0
- _status_label.add_theme_color_override("font_color",_hero_rank_color(level,anima)
- )
+ _status_label.add_theme_color_override("font_color",_hero_rank_color(level,anima))
  if is_inside_tree():
   var player_hero := _find_hero()
   if player_hero != null:
@@ -1065,7 +1065,7 @@ func _apply_arabic_rtl(node: Node) -> void:
   var control := node as Control
   control.layout_direction = Control.LAYOUT_DIRECTION_LTR
   if node is Label or node is Button or node is RichTextLabel or node is LineEdit:
-   control.text_direction = Control.TEXT_DIRECTION_RTL
+   node.set("text_direction",Control.TEXT_DIRECTION_RTL)
  for child in node.get_children():
   _apply_arabic_rtl(child)
 func _arabic(caption: String) -> String:
