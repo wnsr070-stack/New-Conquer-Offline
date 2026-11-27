@@ -1575,23 +1575,28 @@ func _toggle_auto_combat() -> void:
  if combat == null or _hero == null: return
  combat.combat_active = not combat.combat_active
  if combat.combat_active: combat.current_target = combat.find_nearest_target(_hero)
+ _refresh_auto_hunt_button()
 
 func _refresh_auto_hunt_button() -> void:
  if not is_instance_valid(_auto_hunt_button): return
  var combat:=_root_autoload("CombatSystem")
  var active:=combat!=null and bool(combat.combat_active)
- var normal:=_circular_style(Color(0.07,0.055,0.025,0.98) if active else Color(0.075,0.055,0.035,0.98),Color(0.78,1.0,0.42) if active else Color(0.98,0.77,0.30),3,14)
+ var normal: StyleBoxFlat = _circular_style(Color(0.07,0.055,0.025,0.98) if active else Color(0.075,0.055,0.035,0.98),Color(0.78,1.0,0.42) if active else Color(0.98,0.77,0.30),3,14)
+ if not is_instance_valid(normal) or not normal is StyleBoxFlat:
+  push_error("PHASE5A_AUTO_HUNT_STYLE_INVALID: normal")
+  return
  normal.shadow_color=Color(0.28,1.0,0.18,0.95) if active else Color(0.0,0.0,0.0,0.86)
  normal.shadow_size=14 if active else 11
- var hover:=_circular_style(Color(0.12,0.18,0.045,1.0) if active else Color(0.16,0.12,0.055,1.0),Color(0.86,1.0,0.52) if active else Color(1.0,0.91,0.55),3,14)
+ var hover: StyleBoxFlat = _circular_style(Color(0.12,0.18,0.045,1.0) if active else Color(0.16,0.12,0.055,1.0),Color(0.86,1.0,0.52) if active else Color(1.0,0.91,0.55),3,14)
+ if not is_instance_valid(hover) or not hover is StyleBoxFlat:
+  push_error("PHASE5A_AUTO_HUNT_STYLE_INVALID: hover")
+  return
  hover.shadow_color=Color(0.35,1.0,0.22,1.0) if active else Color(0.22,0.16,0.04,0.92)
  hover.shadow_size=16 if active else 13
  _auto_hunt_button.add_theme_stylebox_override("normal",normal)
  _auto_hunt_button.add_theme_stylebox_override("hover",hover)
  _auto_hunt_button.add_theme_stylebox_override("pressed",hover)
  _auto_hunt_button.tooltip_text="صيد تلقائي: يعمل" if active else "صيد تلقائي: متوقف"
-
- _refresh_auto_hunt_button()
 
 func _on_joystick_input(event: InputEvent) -> void:
  if event is InputEventScreenTouch:
@@ -1681,7 +1686,13 @@ func _arabic(caption: String) -> String:
  return caption
 
 func _circular_style(bg: Color,border: Color,width: int,radius: int) -> StyleBoxFlat:
- var style:=_flat_style(bg,border,width)
+ var style: StyleBoxFlat = StyleBoxFlat.new()
+ if not is_instance_valid(style):
+  push_error("PHASE5A_STYLEBOX_CREATE_FAILED: circular")
+  return null
+ style.bg_color=bg
+ style.border_color=border
+ style.set_border_width_all(width)
  style.set_corner_radius_all(radius)
  style.shadow_color=Color(0.0,0.0,0.0,0.72)
  style.shadow_size=8
