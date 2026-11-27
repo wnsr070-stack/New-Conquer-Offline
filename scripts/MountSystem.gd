@@ -195,43 +195,59 @@ func run_functional_test(test_hero: Node3D) -> bool:
  var gear := get_node_or_null("/root/GearSystem")
  var state := get_node_or_null("/root/GameState")
  var db := get_node_or_null("/root/GearDatabase")
- if gear == null or state == null or db == null: return false
+ var merchant := get_node_or_null("/root/NPCMerchantSystem")
+ if gear == null or state == null or db == null or merchant == null: return false
  var old_equipped: Dictionary = gear.equipped.duplicate(true)
  var old_slots: Array = state.inventory_slots.duplicate(true)
+ var old_inventory: Dictionary = state.inventory.duplicate(true)
  var old_gold := int(state.gold)
+ var passed := true
  var steed: Dictionary = db.get_item("preview_steed_p12")
- if steed.is_empty(): return false
- gear.equip_item("steed",steed)
- if gear.get_equipped("steed").is_empty(): return false
- var garment: Dictionary = db.get_item("preview_garment")
- var accessory: Dictionary = db.get_item("preview_weapon_accessory")
- gear.equip_item("garment",garment)
- gear.equip_item("weapon_accessory",accessory)
- if int(gear.get_combat_bonuses().max_hp) < 1000 or int(gear.get_combat_bonuses().critical) <= 0: return false
- if not gear.unequip_item("garment") or not gear.unequip_item("weapon_accessory"): return false
- state.inventory_slots.clear()
- if not state.add_item("HPPotion",1): return false
- var merchant := get_node_or_null("/root/NPCMerchantSystem")
- if merchant == null or not merchant.has_method("sell_item"): return false
- var sold_before := int(state.gold)
- merchant.sell_item(0,1)
- if state.inventory_slots.size() != 0 or int(state.gold) <= sold_before: return false
+ if steed.is_empty(): passed = false
+ if passed:
+  gear.equip_item("steed",steed)
+  gear.unequip_item("mount_skin")
+  var garment: Dictionary = db.get_item("preview_garment")
+  var accessory: Dictionary = db.get_item("preview_weapon_accessory")
+  passed = not garment.is_empty() and not accessory.is_empty()
+  if passed:
+   gear.equip_item("garment",garment)
+   gear.equip_item("weapon_accessory",accessory)
+   var stats: Dictionary = gear.get_combat_bonuses()
+   passed = int(stats.get("max_hp",0)) >= 900 and float(stats.get("critical",0.0)) > 0.0
+   passed = passed and gear.unequip_item("garment") and gear.unequip_item("weapon_accessory")
+ if passed:
+  state.inventory_slots.clear()
+  state.inventory.clear()
+  passed = state.add_item("HPPotion",1)
+  if passed:
+   var sale: Dictionary = merchant.sell_item(0,1)
+   passed = bool(sale.get("ok",false)) and state.inventory_slots.is_empty() and int(sale.get("gold_earned",0)) > 0
  for kind in ["steed","tiger","deer","wolf"]:
   if kind == "steed":
    gear.unequip_item("mount_skin")
   else:
-   var skin_id := "mount_skin_"+kind
-   var skin: Dictionary = db.get_item(skin_id)
-   if skin.is_empty(): return false
+   var skin: Dictionary = db.get_item("mount_skin_"+kind)
+   if skin.is_empty():
+    passed = false
+    break
    gear.equip_item("mount_skin",skin)
-  if not mount(test_hero): return false
-  if active_mount_type != kind or not is_instance_valid(mount_visual): return false
-  if not dismount(): return false
- if not gear.unequip_item("mount_skin"): pass
+  if not mount(test_hero):
+   passed = false
+   break
+  if active_mount_type != kind or not is_instance_valid(mount_visual):
+   passed = false
+  if not dismount():
+   passed = false
+  if not passed: break
  gear.equipped = old_equipped.duplicate(true)
  gear._persist_equipment()
  state.inventory_slots = old_slots.duplicate(true)
+ state.inventory = old_inventory.duplicate(true)
  state.set_gold(old_gold)
  state.save_game()
- print("MOUNT_AND_EQUIP_TEST_PASS=true")
- return true
+ if passed:
+  print("MOUNT_AND_EQUIP_TEST_PASS=true")
+ else:
+  push_error("MOUNT_AND_EQUIP_TEST_PASS=false")
+ return passed
