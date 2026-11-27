@@ -120,7 +120,7 @@ func _run_functional_tests() -> void:
     settings.set_setting("auto_loot", true)
     loot._process(0.01)
     _check(int(state.get_item_count("HPPotion")) == before_probe + 1 and not loot._drops.has("settings_functional_probe"), "auto-loot enabled collects nearby drop")
-    state.remove_item("HPPotion", 1)\n
+    state.remove_item("HPPotion", 1)
     # Consume actual inventory items through GameState, verify HP and MP changes, then restore save data.
     state.player_data["max_hp"] = 100
     state.player_data["hp"] = 40
