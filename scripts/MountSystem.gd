@@ -332,6 +332,14 @@ func _measure_bounds(root: Node3D) -> AABB:
 
 func _apply_rider_pose(on_mount: bool) -> void:
  if _hero_model == null or not is_instance_valid(_hero_model): return
+ if on_mount:
+  # Stop the locomotion tracks before posing the rider; otherwise the active clip
+  # overwrites the seated thigh/knee rotations on the next animation frame.
+  var rider_players := _hero_model.find_children("*","AnimationPlayer",true,false)
+  for player_node in rider_players:
+   var rider_player := player_node as AnimationPlayer
+   if rider_player != null:
+    rider_player.stop()
  var skeleton_nodes := _hero_model.find_children("*","Skeleton3D",true,false)
  if not skeleton_nodes.is_empty():
   var rig := skeleton_nodes[0] as Skeleton3D
