@@ -23,7 +23,8 @@ func _ready()->void:
 func _process(delta:float)->void:
 	_tick_despawn(delta)
 	var hero:=_find_hero()
-	if hero!=null: try_auto_loot(hero)
+	var settings:=get_node_or_null("/root/GameSettings")
+	if hero!=null and (settings==null or bool(settings.get_setting("auto_loot",true))): try_auto_loot(hero)
 
 func _find_hero()->Node3D:
 	var hero:=get_tree().root.find_child("PlayableHero",true,false)
