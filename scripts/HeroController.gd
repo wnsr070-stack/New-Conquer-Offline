@@ -118,6 +118,7 @@ func _load_assassin_hero() -> void:
   push_error("HERO_ASSASSIN_ANIMATION_PLAYER_MISSING")
   return
  animation_player = players[0] as AnimationPlayer
+ animation_player.root_node = animation_player.get_path_to(hero_model)
  var imported_clips := animation_player.get_animation_list()
  var run_clip := _find_animation_name("run")
  var walk_clip := _find_animation_name("walk")
@@ -209,8 +210,8 @@ func _attach_retargeted_conquer_animations() -> void:
    if add_error != OK:
     push_error("HERO_ASSASSIN_COMBAT_CLIP_ATTACH_FAILED: "+String(clip_name))
     return
- if remapped_library.get_animation_list().is_empty():
-  push_error("HERO_ASSASSIN_COMBAT_RETARGET_EMPTY")
+ if remapped_library.get_animation_list().is_empty() or not remapped_library.has_animation("Attack_Assassin"):
+  push_error("HERO_ASSASSIN_COMBAT_RETARGET_EMPTY_OR_ASSASSIN_CLIP_MISSING: clips="+str(remapped_library.get_animation_list()))
   return
  var library_error := animation_player.add_animation_library("conquer",remapped_library)
  if library_error != OK:
