@@ -48,6 +48,7 @@ func _build_hud() -> void:
  var root:=Control.new()
  root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  root.layout_direction = Control.LAYOUT_DIRECTION_LTR
+ root.mouse_filter = Control.MOUSE_FILTER_IGNORE
  add_child(root)
  var hero:=_ornate_panel(root,Vector2(16,14),Vector2(365,164))
  var head:=HBoxContainer.new()
@@ -56,8 +57,25 @@ func _build_hud() -> void:
  var portrait:=TextureRect.new()
  portrait.texture=load("res://assets/ui/hero_portrait.svg")
  portrait.custom_minimum_size=Vector2(68,68)
- head.add_child(portrait)
- var info:=VBoxContainer.new()
+ portrait.size=Vector2(68,68)
+ portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+ portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED
+ var circle_shader:=Shader.new()
+ circle_shader.code="shader_type canvas_item; void fragment(){ vec2 p=UV-vec2(0.5); if(length(p)>0.49) discard; COLOR=texture(TEXTURE,UV)*COLOR; }"
+ var circle_material:=ShaderMaterial.new()
+ circle_material.shader=circle_shader
+ portrait.material=circle_material
+ var portrait_stack:=Control.new()
+ portrait_stack.custom_minimum_size=Vector2(76,76)
+ portrait_stack.size=Vector2(76,76)
+ portrait.position=Vector2(4,4)
+ portrait_stack.add_child(portrait)
+ var portrait_ring:=GoldRing.new()
+ portrait_ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ portrait_ring.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ portrait_stack.add_child(portrait_ring)
+ head.add_child(portrait_stack)
+var info:=VBoxContainer.new()
  info.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
  info.custom_minimum_size=Vector2(230,0)
  head.add_child(info)
@@ -97,12 +115,7 @@ func _build_hud() -> void:
  _quest_panel.size=Vector2(340,170)
  qcard.add_child(_quest_panel)
 
- var radar_frame:=Panel.new()
- radar_frame.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- radar_frame.position=Vector2(-202,16)
- radar_frame.size=Vector2(184,184)
- radar_frame.add_theme_stylebox_override("panel",_flat_style(Color(0.035,0.045,0.065,0.92),Color(0.92,0.69,0.28),4))
- root.add_child(radar_frame)
+ var radar_frame:=_ornate_panel(root,Vector2(-200,14),Vector2(184,184),true)
  var radar:=RadarDisplay.new()
  radar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  radar_frame.add_child(radar)
@@ -117,14 +130,17 @@ func _build_hud() -> void:
 
  var quick:=HBoxContainer.new()
  quick.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- quick.position=Vector2(-205,210)
+ quick.position=Vector2(-224,210)
  root.add_child(quick)
  for p in [["⚙","الإعدادات","System","settings"],["🎒","الحقيبة","Inventory","bag"],["♟","الشخصية","Character","character"],["📜","المهام","Quests","quest"]]:
   var entry:=VBoxContainer.new()
-  entry.custom_minimum_size=Vector2(54,64)
+  entry.custom_minimum_size=Vector2(52,68)
   entry.add_theme_constant_override("separation",1)
   var icon_button:=_round_button("",_quick_action.bind(String(p[2])))
-  icon_button.custom_minimum_size=Vector2(48,42)
+  icon_button.custom_minimum_size=Vector2(48,48)
+ icon_button.size=Vector2(48,48)
+ _apply_glass_round_style(icon_button,24)
+ icon_button.add_theme_constant_override("icon_max_width",32)
   icon_button.icon=load("res://assets/ui/menu/"+String(p[3]+".png")) as Texture2D
   icon_button.expand_icon=true
   entry.add_child(icon_button)
@@ -178,7 +194,7 @@ func _build_hud() -> void:
  joy.custom_minimum_size=Vector2(132,132)
  joy.z_index=50
  joy.visible=true
- joy.mouse_filter=Control.MOUSE_FILTER_STOP
+ joy.mouse_filter=Control.MOUSE_FILTER_IGNORE
  joy.gui_input.connect(_on_joystick_input)
  var joy_base:=Panel.new()
  joy_base.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -208,6 +224,7 @@ func _build_hud() -> void:
  hp_orb.name="CrystalHPOrb"
  hp_orb.kind="HP"
  hp_orb.size=Vector2(orb_size,orb_size)
+ hp_orb.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
  hp_orb.position=Vector2(start_x,-112)
  hp_orb.add_to_group("hud_orbs")
  bottom.add_child(hp_orb)
@@ -226,6 +243,7 @@ func _build_hud() -> void:
  mp_orb.name="CrystalMPOrb"
  mp_orb.kind="MP"
  mp_orb.size=Vector2(orb_size,orb_size)
+ mp_orb.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
  mp_orb.position=Vector2(start_x+orb_size+8.0+hotbar_width+8.0,-112)
  mp_orb.add_to_group("hud_orbs")
  bottom.add_child(mp_orb)
@@ -259,40 +277,49 @@ func _build_hud() -> void:
  _window_layer.z_index=30
  add_child(_window_layer)
 
+class GoldRing extends Control:
+ func _draw()->void:
+  var c:=size*0.5
+  draw_arc(c,34.0,0.0,TAU,72,Color(0.95,0.76,0.30,1.0),4.0,true)
+  draw_arc(c,29.5,0.0,TAU,72,Color(0.55,0.36,0.13,1.0),1.5,true)
+  for i in range(8):
+   var a:=TAU*float(i)/8.0
+   draw_circle(c+Vector2(cos(a),sin(a))*34.0,2.0,Color(1.0,0.88,0.55,1.0))
+
 class JoystickTouchArea extends Control:
-func _has_point(point: Vector2)->bool:
- return point.distance_to(size*0.5)<=size.x*0.5
+ func _has_point(point: Vector2)->bool:
+  return point.distance_to(size*0.5)<=size.x*0.5
 
 class RoyalOrnament extends Control:
-func _draw()->void:
- var gold:=Color(0.95,0.76,0.30,0.98)
- var ruby:=Color(0.82,0.035,0.09,1.0)
- var w:=size.x
- var h:=size.y
- for p in [Vector2(13,13),Vector2(w-13,13),Vector2(13,h-13),Vector2(w-13,h-13)]:
-  var sx:=1.0 if p.x<w*0.5 else -1.0
-  var sy:=1.0 if p.y<h*0.5 else -1.0
-  draw_polyline(PackedVector2Array([p,p+Vector2(14*sx,0),p+Vector2(25*sx,8*sy),p+Vector2(17*sx,14*sy),p+Vector2(8*sx,10*sy),p]),gold,2.5,true)
- var cx:=w*0.5
- for y in [8.0,h-8.0]:
-  var d:=1.0 if y<h*0.5 else -1.0
-  var crown:=PackedVector2Array([Vector2(cx-20,y+5*d),Vector2(cx-14,y-5*d),Vector2(cx-5,y+2*d),Vector2(cx,y-10*d),Vector2(cx+5,y+2*d),Vector2(cx+14,y-5*d),Vector2(cx+20,y+5*d)])
-  draw_polyline(crown,gold,2.8,true)
-  draw_colored_polygon(PackedVector2Array([Vector2(cx,y-5*d),Vector2(cx+5,y),Vector2(cx,y+6*d),Vector2(cx-5,y)]),ruby)
+ func _draw()->void:
+  var gold:=Color(0.95,0.76,0.30,0.98)
+  var ruby:=Color(0.82,0.035,0.09,1.0)
+  var w:=size.x
+  var h:=size.y
+  for p in [Vector2(13,13),Vector2(w-13,13),Vector2(13,h-13),Vector2(w-13,h-13)]:
+   var sx:=1.0 if p.x<w*0.5 else -1.0
+   var sy:=1.0 if p.y<h*0.5 else -1.0
+   draw_polyline(PackedVector2Array([p,p+Vector2(14*sx,0),p+Vector2(25*sx,8*sy),p+Vector2(17*sx,14*sy),p+Vector2(8*sx,10*sy),p]),gold,2.5,true)
+  var cx:=w*0.5
+  for y in [8.0,h-8.0]:
+   var d:=1.0 if y<h*0.5 else -1.0
+   var crown:=PackedVector2Array([Vector2(cx-20,y+5*d),Vector2(cx-14,y-5*d),Vector2(cx-5,y+2*d),Vector2(cx,y-10*d),Vector2(cx+5,y+2*d),Vector2(cx+14,y-5*d),Vector2(cx+20,y+5*d)])
+   draw_polyline(crown,gold,2.8,true)
+   draw_colored_polygon(PackedVector2Array([Vector2(cx,y-5*d),Vector2(cx+5,y),Vector2(cx,y+6*d),Vector2(cx-5,y)]),ruby)
 
 class CrystalOrb extends Control:
-var kind:="HP"
-func _draw()->void:
- var c:=size*0.5
- var r:=size.x*0.43
- var red:=kind=="HP"
- draw_circle(c,r+5.0,Color(0.95,0.76,0.30,0.95))
- draw_circle(c,r+2.0,Color(0.18,0.12,0.06,1.0))
- draw_circle(c,r,Color(0.72,0.035,0.10,0.96) if red else Color(0.025,0.24,0.82,0.96))
- draw_circle(c,r*0.68,Color(1.0,0.18,0.22,0.62) if red else Color(0.16,0.52,1.0,0.62))
- draw_circle(c+Vector2(-r*0.28,-r*0.30),r*0.18,Color(1.0,1.0,1.0,0.55))
- draw_arc(c,r+4.0,0.0,TAU,72,Color(1.0,0.88,0.55,1.0),3.0,true)
- draw_string(ThemeDB.fallback_font,c+Vector2(-r*0.55,5),kind,HORIZONTAL_ALIGNMENT_CENTER,40,12,Color.WHITE)
+ var kind:="HP"
+ func _draw()->void:
+  var c:=size*0.5
+  var r:=size.x*0.43
+  var red:=kind=="HP"
+  draw_circle(c,r+5.0,Color(0.95,0.76,0.30,0.95))
+  draw_circle(c,r+2.0,Color(0.18,0.12,0.06,1.0))
+  draw_circle(c,r,Color(0.72,0.035,0.10,0.96) if red else Color(0.025,0.24,0.82,0.96))
+  draw_circle(c,r*0.68,Color(1.0,0.18,0.22,0.62) if red else Color(0.16,0.52,1.0,0.62))
+  draw_circle(c+Vector2(-r*0.28,-r*0.30),r*0.18,Color(1.0,1.0,1.0,0.55))
+  draw_arc(c,r+4.0,0.0,TAU,72,Color(1.0,0.88,0.55,1.0),3.0,true)
+  draw_string(ThemeDB.fallback_font,c+Vector2(-r*0.55,5),kind,HORIZONTAL_ALIGNMENT_CENTER,40,12,Color.WHITE)
 
 class SplitOrb extends Control:
  var hp_ratio:=1.0
@@ -1505,6 +1532,7 @@ func _set_skill_button_icon(button: Button,kind: String) -> void:
 
 func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false) -> Panel:
  var panel:=Panel.new()
+ panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
  panel.custom_minimum_size=panel_size
  panel.size=panel_size
  panel.position=offset
