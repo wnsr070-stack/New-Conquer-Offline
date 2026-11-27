@@ -214,7 +214,7 @@ jobs:
 
           def copy_verified(source, destination):
               data = source.read_bytes()
-              if len(data) <= 100 or data[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+              if len(data) <= 100 or data[:8] != b"\x89PNG\r\\n\x1a\\n":
                   raise SystemExit(f"Invalid PNG: {source} ({len(data)} bytes)")
               target = pathlib.Path(destination)
               target.parent.mkdir(parents=True, exist_ok=True)
@@ -227,7 +227,7 @@ jobs:
 
           def dimensions(path):
               data = path.read_bytes()
-              if data[:8] != b"\\x89PNG\\r\\n\\x1a\\n" or len(data) < 24:
+              if data[:8] != b"\x89PNG\r\\n\x1a\\n" or len(data) < 24:
                   return (0, 0)
               return struct.unpack(">II", data[16:24])
 
@@ -249,7 +249,7 @@ jobs:
 
           # The ornate panel artwork is in the FantasyUI pack, not in Kenney's UI Adventure Pack.
           fantasy_pngs = sorted(p for p in fantasy_root.rglob("*.png") if p.is_file())
-          border_candidates = [p for p in fantasy_pngs if re.fullmatch(r"panel-border-(?:0[0-2][0-9]|030)\\.png", p.name, re.I)]
+          border_candidates = [p for p in fantasy_pngs if re.fullmatch(r"panel-border-(?:0[0-2][0-9]|030)\.png", p.name, re.I)]
           panel_candidates = [p for p in border_candidates if "FantasyUI2/Border" in p.as_posix()]
           slot_candidates = [p for p in border_candidates if "FantasyUI/Border" in p.as_posix()]
           if not panel_candidates or not slot_candidates:
