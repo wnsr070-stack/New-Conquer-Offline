@@ -213,7 +213,7 @@ jobs:
           def png_ok(path):
               try:
                   data = path.read_bytes()
-                  return len(data) > 100 and data[:8] == b"\x89PNG\r\n\x1a\n"
+                  return len(data) > 100 and data[:8] == bytes.fromhex("89504e470d0a1a0a")
               except OSError:
                   return False
 
