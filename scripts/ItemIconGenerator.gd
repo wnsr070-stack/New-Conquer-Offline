@@ -91,6 +91,21 @@ func _draw_fallback_icon(center: Vector2,side: float) -> void:
    draw_arc(center,side*.23,0,TAU,32,gold,5.0,true)
   "necklace":
    draw_arc(center+Vector2(0,-side*.04),side*.27,0,PI,28,gold,3.0,true)
+  "fan":
+   for blade_index in range(5):
+    var angle: float = -0.9 + float(blade_index) * 0.45
+    draw_line(center,center+Vector2(cos(angle),sin(angle))*side*0.34,gold,3.0)
+   draw_arc(center,side*0.34,-0.9,0.9,24,metal,3.0,true)
+  "tower":
+   draw_rect(Rect2(center+Vector2(-side*0.22,-side*0.30),Vector2(side*0.44,side*0.60)),Color(0.24,0.50,0.78),true)
+   draw_line(center+Vector2(-side*0.30,side*0.20),center+Vector2(side*0.30,side*0.20),gold,3.0)
+  "steed":
+   draw_circle(center+Vector2(-side*0.02,-side*0.02),side*0.22,Color(0.62,0.34,0.16))
+   draw_line(center+Vector2(-side*0.18,side*0.10),center+Vector2(-side*0.24,side*0.34),metal,4.0)
+   draw_line(center+Vector2(side*0.12,side*0.10),center+Vector2(side*0.20,side*0.34),metal,4.0)
+  "wing":
+   draw_colored_polygon(PackedVector2Array([center,center+Vector2(-side*.36,-side*.28),center+Vector2(-side*.18,side*.25),center+Vector2(0,side*.08)]),Color(0.55,0.78,1.0))
+   draw_colored_polygon(PackedVector2Array([center,center+Vector2(side*.36,-side*.28),center+Vector2(side*.18,side*.25),center+Vector2(0,side*.08)]),Color(0.75,0.88,1.0))
   "boots":
    draw_colored_polygon(PackedVector2Array([center+Vector2(-side*.22,-side*.28),center+Vector2(side*.03,-side*.28),center+Vector2(side*.03,side*.12),center+Vector2(side*.27,side*.22),center+Vector2(side*.27,side*.33),center+Vector2(-side*.25,side*.33)]),metal)
   "potion":
@@ -100,6 +115,10 @@ func _draw_fallback_icon(center: Vector2,side: float) -> void:
 func _item_kind(data: Dictionary) -> String:
  var text: String = " ".join([String(data.get("type","")), String(data.get("slot","")), String(data.get("family","")), String(data.get("id","")), String(data.get("name",""))]).to_lower()
  if text.contains("bow"): return "bow"
+ if text.contains("steed") or text.contains("horse") or text.contains("mount"): return "steed"
+ if text.contains("fan"): return "fan"
+ if text.contains("tower"): return "tower"
+ if text.contains("wing"): return "wing"
  if text.contains("sword") or text.contains("dagger") or text.contains("blade") or text.contains("knife"): return "blade"
  if text.contains("armor") or text.contains("shield") or text.contains("body"): return "armor"
  if text.contains("helmet") or text.contains("headgear") or text.contains("hood"): return "helmet"

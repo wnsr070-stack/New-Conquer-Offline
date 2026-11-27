@@ -72,6 +72,7 @@ func _initialize() -> void:
      items[item_id] = {"id":item_id,"family":family,"level":level,"quality":quality,"plus":plus,"classes":WEAPON_FAMILIES[family].classes,"model_keys":WEAPON_FAMILIES[family].models,"tier_color":_tier_color(level),"display_name":"%s Lv.%d %s +%d" % [family.replace("_"," ").capitalize(),level,quality,plus],"base_attack":_family_attack(family),"base_defense":_family_defense(family),"composition_points":0,"sockets":[],"gem_bonuses":{"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}}
  _initialize_armor_items()
  _initialize_quest_items()
+ _initialize_mount_items()
  initialized = true
  print("PHASE3B_GEAR_DATABASE_READY: ",items.size()," weapon+armor variants; armor_assets=33 classes=7")
 func _tier_color(level: int) -> Color:
@@ -117,6 +118,38 @@ func clear_cache() -> void:
  items.clear()
  initialized = false
  print("PHASE4D_GEAR_DATABASE_CACHE_CLEARED")
+
+func _initialize_mount_items() -> void:
+ var fixtures := [
+  {"id":"preview_heaven_fan","name":"الفانة السماوية","slot":"fan","family":"fan","type":"Equipment","base_attack":18,"base_defense":4},
+  {"id":"preview_star_tower","name":"تاور النجمة","slot":"tower","family":"tower","type":"Equipment","base_attack":8,"base_defense":24},
+  {"id":"preview_steed","name":"الخيل +12","slot":"steed","family":"steed","type":"Mount","base_attack":0,"base_defense":0,"mount_speed":180},
+  {"id":"preview_fire_tiger_skin","name":"سكن المطية الأسطورية: النمر الناري","slot":"mount_skin","family":"mount_skin","type":"MountSkin","base_attack":0,"base_defense":0},
+  {"id":"preview_wing","name":"جناح سماوي","slot":"wing","family":"wing","type":"Wing","base_attack":0,"base_defense":0},
+  {"id":"preview_mount_whip","name":"سوط ركوب","slot":"mount_whip","family":"mount_whip","type":"MountWhip","base_attack":0,"base_defense":0},
+  {"id":"preview_garment","name":"زي الحارس","slot":"garment","family":"garment","type":"Garment","base_attack":0,"base_defense":0}
+ ]
+ for fixture in fixtures:
+  var fixture_id := String(fixture.id)
+  var plus_max := PLUS_LEVELS if String(fixture.slot) in ["fan","tower","steed"] else 0
+  if plus_max == 0:
+   items[fixture_id] = fixture.duplicate(true)
+  else:
+   for plus in range(0,plus_max+1):
+    var item_id := fixture_id + "_p" + str(plus)
+    var item: Dictionary = fixture.duplicate(true)
+    item["id"] = item_id
+    item["plus"] = plus
+    item["quality"] = "Super" if plus == 12 else "Normal"
+    item["level"] = 130 if String(fixture.slot) == "steed" else 120
+    item["composition_points"] = 0
+    item["sockets"] = []
+    item["attack_bonus"] = int(fixture.base_attack) + plus * 4
+    item["defense_bonus"] = int(fixture.base_defense) + plus * 3
+    item["gem_bonuses"] = {"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}
+    item["display_name"] = String(fixture.name) + " +" + str(plus)
+    items[item_id] = item
+ print("PHASE5A_MOUNT_EQUIPMENT_FIXTURES_READY: fan=+0..+12 tower=+0..+12 steed=+0..+12 fire_tiger_skin=true wings=true whip=true garment=true")
 
 func _initialize_quest_items() -> void:
  var rows := [["EuxeniteOre","Euxenite Ore"],["RebuildOre","Rebuild Ore"],["PeaceCommandToken","Peace Command Token"],["ChaosCommandToken","Chaos Command Token"],["DesertedCommandToken","Deserted Command Token"],["ProsperousCommandToken","Prosperous Command Token"],["DisturbedCommandToken","Disturbed Command Token"],["CalmedCommandToken","Calmed Command Token"],["SoulJade","Soul Jade"],["MoonBox","Moon Box"],["CleanWater","Clean Water"],["CelestialStone","Celestial Stone"],["HeavenFan","Heaven Fan"],["StarTower","Star Tower"],["ThunderGem","Thunder Gem"],["GloryGem","Glory Gem"]]

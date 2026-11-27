@@ -19,6 +19,10 @@ var _quest_category := "MAIN_PROMOTION"
 var _selected_inventory_slot := -1
 var _selected_warehouse_slot := -1
 var _window_menu: VBoxContainer
+var _character_preview_model: Node3D
+var _character_preview_container: SubViewportContainer
+var _character_preview_dragging := false
+var _selected_equipment_slot := "weapon"
 
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -33,9 +37,11 @@ func _ready() -> void:
  if OS.get_cmdline_user_args().has("--preview-mobile-hud"):
   call_deferred("_run_mobile_hud_preview")
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
  _refresh_status()
  _refresh_minimap()
+ if is_instance_valid(_character_preview_model) and not _character_preview_dragging:
+  _character_preview_model.rotation.y += delta * 0.22
 
 func _build_hud() -> void:
  var root:=Control.new()
@@ -73,9 +79,10 @@ func _build_hud() -> void:
  hero.add_child(buffs)
  var modes:=HBoxContainer.new()
  modes.position=Vector2(10,135)
- for mode in ["Peace","Team","Capture","PK"]:
+ for mode in ["سلمي","فريق","صيد","حر"]:
   var mb:=_button(mode,_set_combat_mode.bind(mode))
   mb.custom_minimum_size=Vector2(78,26)
+  mb.add_theme_font_size_override("font_size",12)
   modes.add_child(mb)
  hero.add_child(modes)
  var qcard:=_ornate_panel(root,Vector2(-390,640),Vector2(365,190))
@@ -237,7 +244,7 @@ class JoystickVisual extends Control:
  func _draw() -> void:
   var center := size*0.5
   var radius := minf(size.x,size.y)*0.45
-  draw_circle(center,radius,Color(0.08,0.10,0.14,0.42))
+  draw_circle(center,radius,Color(0.08,0.10,0.14,0.65))
   draw_arc(center,radius,0.0,TAU,64,Color(0.88,0.76,0.52,0.78),4.0,true)
   draw_circle(center,radius*0.46,Color(0.18,0.20,0.24,0.65))
   draw_arc(center,radius*0.46,0.0,TAU,48,Color(0.96,0.84,0.62,0.92),3.0,true)
@@ -321,7 +328,7 @@ func _refresh_minimap() -> void:
  var city := "المدينة التوأم" if world == null or String(world.current_city)=="TwinCity" else String(world.current_city)
  var p := _find_hero()
  var pos := p.global_position if p != null else Vector3.ZERO
- _minimap_label.text = "MAP\n%s\nX %.1f  Z %.1f" % [city,pos.x,pos.z]
+ _minimap_label.text = "خريطة\n%s\nX %.1f  Z %.1f" % [city,pos.x,pos.z]
 
 func _refresh_quests(_unused_a: Variant = null,_unused_b: Variant = null,_unused_c: Variant = null) -> void:
  if _active_window=="Quests": call_deferred("_open_window","Quests")
@@ -375,9 +382,10 @@ func _open_artisan() -> void:
 func _open_window(window_name: String) -> void:
  _active_window = window_name
  for child in _window_layer.get_children(): child.queue_free()
- var panel := _panel(_window_layer, Vector2.ZERO, Vector2(650,540), false)
+ var window_size := Vector2(860,540) if window_name == "Character" else Vector2(650,540)
+ var panel := _panel(_window_layer, Vector2.ZERO, window_size, false)
  panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
- panel.size = Vector2(650,540)
+ panel.size = window_size
  panel.position = (get_viewport_rect().size - panel.size) * 0.5
  panel.z_index = 50
  var layout := VBoxContainer.new()
@@ -596,20 +604,20 @@ func _build_inventory(layout: VBoxContainer) -> void:
    var item_id := String(item.get("item_id",""))
    var data := _get_item_data(item_id)
    var plus := int(item.get("instance_data",{}).get("plus",data.get("plus",0)))
-   var icon := _make_item_icon(data,plus,Vector2(34,34))
-   icon.position = Vector2(9,9)
+   var icon := _make_item_icon(data,plus,Vector2(42,42))
+   icon.position = Vector2(5,5)
    cell.add_child(icon)
    if plus > 0:
     var plus_label := Label.new()
     plus_label.text = "+"+str(plus)
     plus_label.position = Vector2(1,0)
-    plus_label.add_theme_font_size_override("font_size",10)
+    plus_label.add_theme_font_size_override("font_size",11)
     plus_label.add_theme_color_override("font_color",_rank_color_for_plus(plus))
     cell.add_child(plus_label)
    var quantity := Label.new()
    quantity.text = "x%d" % int(item.get("count",1))
    quantity.position = Vector2(25,35)
-   quantity.add_theme_font_size_override("font_size",10)
+   quantity.add_theme_font_size_override("font_size",11)
    cell.add_child(quantity)
    cell.pressed.connect(_select_inventory_item.bind(index))
   grid.add_child(cell)
@@ -637,32 +645,180 @@ func _build_character(layout: VBoxContainer) -> void:
  var state := _root_autoload("GameState")
  var gear := _root_autoload("GearSystem")
  var equipped: Dictionary = gear.equipped if gear != null else {}
- var grid := GridContainer.new()
- grid.columns = 3
- grid.add_theme_constant_override("h_separation",8)
- grid.add_theme_constant_override("v_separation",6)
- layout.add_child(grid)
- for slot in ["helmet","necklace","armor","weapon","ring","boots","fan","tower","garment"]:
-  var item: Dictionary = equipped.get(slot,{})
-  var cell := Button.new()
-  cell.custom_minimum_size = Vector2(54,54)
-  cell.clip_contents = true
-  cell.text = ""
-  _apply_button_skin(cell,true)
-  cell.add_theme_stylebox_override("normal",_slot_style())
-  var icon := _make_item_icon(item,int(item.get("plus",0)),Vector2(38,38))
-  icon.position = Vector2(8,8)
-  cell.add_child(icon)
-  var slot_label := Label.new()
-  slot_label.text = _arabic(slot.capitalize())
-  slot_label.position = Vector2(1,1)
-  slot_label.add_theme_font_size_override("font_size",8)
-  cell.add_child(slot_label)
-  grid.add_child(cell)
+ var body := HBoxContainer.new()
+ body.custom_minimum_size = Vector2(820,470)
+ body.add_theme_constant_override("separation",0)
+ layout.add_child(body)
+ var left_column := VBoxContainer.new()
+ left_column.custom_minimum_size = Vector2(170,0)
+ left_column.add_theme_constant_override("separation",4)
+ body.add_child(left_column)
+ var center_column := VBoxContainer.new()
+ center_column.custom_minimum_size = Vector2(480,0)
+ center_column.add_theme_constant_override("separation",5)
+ body.add_child(center_column)
+ var right_column := VBoxContainer.new()
+ right_column.custom_minimum_size = Vector2(170,0)
+ right_column.add_theme_constant_override("separation",4)
+ body.add_child(right_column)
+ var left_slots: Array = [["fan","فانة"],["tower","تاور"],["wing","جناح"],["mount_whip","سوط ركوب"],["steed","خيل"],["mount_skin","سكن مطية"],["garment","زي/لبسة"]]
+ var right_slots: Array = [["helmet","خوذة"],["necklace","قلادة"],["armor","درع"],["weapon","سلاح يمين"],["weapon_left","سلاح يسار"],["ring","خاتم"],["boots","حذاء"]]
+ for entry in left_slots:
+  _add_character_equipment_slot(left_column,String(entry[0]),String(entry[1]),false,equipped)
+ for entry in right_slots:
+  _add_character_equipment_slot(right_column,String(entry[0]),String(entry[1]),true,equipped)
+ var preview := SubViewportContainer.new()
+ preview.name = "CharacterModelPreview"
+ preview.custom_minimum_size = Vector2(480,270)
+ preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ preview.stretch = true
+ preview.mouse_filter = Control.MOUSE_FILTER_STOP
+ preview.gui_input.connect(_on_character_preview_input)
+ center_column.add_child(preview)
+ _character_preview_container = preview
+ var viewport := SubViewport.new()
+ viewport.name = "CharacterSubViewport"
+ viewport.size = Vector2i(480,270)
+ viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+ viewport.transparent_bg = false
+ preview.add_child(viewport)
+ var world := Node3D.new()
+ world.name = "CharacterPreviewWorld"
+ viewport.add_child(world)
+ var camera := Camera3D.new()
+ camera.position = Vector3(0,1.25,4.8)
+ camera.current = true
+ camera.fov = 38.0
+ world.add_child(camera)
+ camera.look_at(Vector3(0,0.92,0),Vector3.UP)
+ var key_light := DirectionalLight3D.new()
+ key_light.rotation_degrees = Vector3(-38,-28,0)
+ key_light.light_energy = 1.35
+ world.add_child(key_light)
+ var fill_light := OmniLight3D.new()
+ fill_light.position = Vector3(-2.0,2.4,2.2)
+ fill_light.light_energy = 0.8
+ fill_light.omni_range = 8.0
+ world.add_child(fill_light)
+ var rim_light := DirectionalLight3D.new()
+ rim_light.rotation_degrees = Vector3(-12,145,0)
+ rim_light.light_energy = 0.75
+ world.add_child(rim_light)
+ var controller_script: Script = load("res://scripts/CharacterVisualController.gd") as Script
+ if controller_script != null:
+  var controller := controller_script.new() as Node3D
+  controller.name = "RangerPreviewController"
+  world.add_child(controller)
+  controller.call("build_character","archer",70,"male")
+  controller.call("normalize_character")
+  _character_preview_model = controller.get("character_root") as Node3D
+ if _character_preview_model == null:
+  push_error("PHASE5A_CHARACTER_PREVIEW_MODEL_MISSING: Ranger Hood real 3D model")
+ else:
+  _character_preview_model.rotation.y = deg_to_rad(22.0)
+  print("PHASE5A_CHARACTER_PREVIEW_MODEL_READY: source=Male_Ranger.glb viewport=480x270 touch_drag=true mouse_drag=true")
+ var selected: Dictionary = equipped.get(_selected_equipment_slot,{})
+ var details := PanelContainer.new()
+ details.custom_minimum_size = Vector2(480,76)
+ details.add_theme_stylebox_override("panel",_flat_style(Color(0.12,0.085,0.055,0.96),Color(0.88,0.68,0.34),2))
+ center_column.add_child(details)
+ var detail_row := HBoxContainer.new()
+ detail_row.add_theme_constant_override("separation",8)
+ details.add_child(detail_row)
+ var detail_text := VBoxContainer.new()
+ detail_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ detail_row.add_child(detail_text)
+ var item_name := String(selected.get("display_name",selected.get("name",selected.get("id","لا توجد قطعة محددة"))))
+ var plus_level := int(selected.get("plus",0))
+ var title_label := _label(item_name + ("  +" + str(plus_level) if plus_level > 0 else ""))
+ title_label.add_theme_color_override("font_color",_rank_color_for_plus(plus_level))
+ title_label.add_theme_font_size_override("font_size",15)
+ detail_text.add_child(title_label)
+ detail_text.add_child(_label("الهجوم %d  •  الدفاع %d  •  المستوى %d" % [int(selected.get("attack_bonus",selected.get("base_attack",0))),int(selected.get("defense_bonus",selected.get("base_defense",0))),int(selected.get("level",1))]))
+ detail_row.add_child(_button("خلع القطعة",_unequip_character_slot.bind(_selected_equipment_slot)))
  var stats: Dictionary = gear.get_combat_bonuses() if gear != null else {}
  var player: Dictionary = state.player_data if state != null else {}
  var bp := int(player.get("battle_power",int(stats.get("attack",0))+int(stats.get("defense",0))))
- layout.add_child(_label("قوة المعركة: %d   الهجوم: %d   الدفاع: %d   الهجوم السحري: %d" % [bp,int(stats.get("attack",0)),int(stats.get("defense",0)),int(stats.get("magic_attack",0))]))
+ var steed: Dictionary = equipped.get("steed",{})
+ var speed := int(steed.get("mount_speed",steed.get("speed",0)))
+ var stats_panel := PanelContainer.new()
+ stats_panel.custom_minimum_size = Vector2(480,78)
+ stats_panel.add_theme_stylebox_override("panel",_flat_style(Color(0.08,0.065,0.045,0.96),Color(0.68,0.50,0.27),1))
+ center_column.add_child(stats_panel)
+ var stats_text := VBoxContainer.new()
+ stats_text.add_theme_constant_override("separation",2)
+ stats_panel.add_child(stats_text)
+ stats_text.add_child(_label("قوة المعركة: %d   الهجوم: %d   الدفاع: %d" % [bp,int(stats.get("attack",0)),int(stats.get("defense",0))]))
+ stats_text.add_child(_label("الهجوم السحري: %d   سرعة الركوب: %d" % [int(stats.get("magic_attack",0)),speed]))
+ stats_text.add_child(_label("الرتبة: %s   القطع المجهزة: %d/14" % [String(selected.get("quality","عادية")),equipped.size()]))
+
+func _add_character_equipment_slot(column: VBoxContainer,slot: String,caption: String,label_first: bool,equipped: Dictionary) -> void:
+ var row := HBoxContainer.new()
+ row.custom_minimum_size = Vector2(168,51)
+ row.add_theme_constant_override("separation",4)
+ column.add_child(row)
+ var item: Dictionary = equipped.get(slot,{})
+ var cell := Button.new()
+ cell.custom_minimum_size = Vector2(48,48)
+ cell.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+ cell.clip_contents = true
+ cell.text = ""
+ _apply_button_skin(cell,true)
+ cell.add_theme_stylebox_override("normal",_slot_style())
+ var icon_data: Dictionary = item if not item.is_empty() else {"id":slot,"slot":slot,"type":"Equipment"}
+ var icon := _make_item_icon(icon_data,int(item.get("plus",0)),Vector2(40,40))
+ icon.position = Vector2(4,4)
+ cell.add_child(icon)
+ if int(item.get("plus",0)) > 0:
+  var plus_label := Label.new()
+  plus_label.text = "+" + str(item.get("plus",0))
+  plus_label.position = Vector2(1,0)
+  plus_label.add_theme_font_size_override("font_size",9)
+  plus_label.add_theme_color_override("font_color",_rank_color_for_plus(int(item.get("plus",0))))
+  cell.add_child(plus_label)
+ cell.pressed.connect(_select_character_slot.bind(slot))
+ var caption_label := Label.new()
+ caption_label.text = caption
+ caption_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ caption_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+ caption_label.add_theme_font_size_override("font_size",12)
+ if label_first:
+  row.add_child(caption_label)
+  row.add_child(cell)
+ else:
+  row.add_child(cell)
+  row.add_child(caption_label)
+
+func _select_character_slot(slot: String) -> void:
+ _selected_equipment_slot = slot
+ _open_window("Character")
+
+func _unequip_character_slot(slot: String) -> void:
+ var gear := _root_autoload("GearSystem")
+ var state := _root_autoload("GameState")
+ if gear == null: return
+ var item: Dictionary = gear.get_equipped(slot)
+ if item.is_empty(): return
+ var item_id := String(item.get("id",item.get("item_id","")))
+ if state != null and not item_id.is_empty():
+  state.add_item(item_id,1,item)
+ gear.unequip_item(slot)
+ _open_window("Character")
+
+func _on_character_preview_input(event: InputEvent) -> void:
+ if event is InputEventScreenDrag:
+  if is_instance_valid(_character_preview_model):
+   _character_preview_model.rotation.y += (event as InputEventScreenDrag).relative.x * 0.012
+ elif event is InputEventScreenTouch:
+  _character_preview_dragging = (event as InputEventScreenTouch).pressed
+ elif event is InputEventMouseButton:
+  var mouse_event := event as InputEventMouseButton
+  if mouse_event.button_index == MOUSE_BUTTON_LEFT:
+   _character_preview_dragging = mouse_event.pressed
+ elif event is InputEventMouseMotion and _character_preview_dragging:
+  if is_instance_valid(_character_preview_model):
+   _character_preview_model.rotation.y += (event as InputEventMouseMotion).relative.x * 0.012
+
 func _build_quest_book(layout: VBoxContainer) -> void:
  var quests := _root_autoload("QuestSystem")
  if quests == null: return
@@ -760,7 +916,7 @@ func _build_artisan(layout: VBoxContainer) -> void:
  layout.add_child(tabs)
  for tab in FORGE_TABS: tabs.add_child(_button(tab,_select_forge_tab.bind(tab)))
  layout.add_child(_label("ArtisanMaster — choose an equipped slot, then select an operation."))
- for slot in ["weapon","armor","helmet","ring","necklace","boots"]:
+ for slot in ["weapon","armor","helmet","ring","necklace","boots","fan","tower","steed"]:
   layout.add_child(_button("Upgrade " + slot,_forge_operation.bind(slot)))
 
 func _select_forge_tab(tab: String) -> void:
@@ -1079,6 +1235,7 @@ func _arabic(caption: String) -> String:
   "Day":"اليوم","Claim today’s login reward":"استلام مكافأة تسجيل الدخول اليوم",
   "All":"الكل","Talk":"عام","Whisper":"همس","Guild":"نقابة","System":"النظام","Send":"إرسال",
   "Daily":"الدخول اليومي","Hunt":"الصيد التلقائي","Map":"الخريطة","Settings":"الإعدادات",
+  "Peace":"سلمي","Team":"فريق","Capture":"صيد","PK":"حر",
   "Status":"الشخصية والعتاد","Skill":"المهارات","Bag":"الحقيبة","Quest":"المهام","Market":"السوق والتجارة",
   "Warehouse":"الخزنة","ArtisanMaster":"الحرفي","Character":"الشخصية والعتاد","Inventory":"الحقيبة",
   "Quests":"المهام","Daily Login":"تسجيل الدخول اليومي","Merchant":"السوق والتجارة",
@@ -1178,7 +1335,11 @@ func _run_mobile_hud_preview() -> void:
   push_error("PHASE5A_MOBILE_HUD_PREVIEW_FAILED: character capture")
   get_tree().quit(1)
   return
- print("PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true arabic=true")
+ if _character_preview_model == null:
+  push_error("PHASE5A_MOBILE_HUD_PREVIEW_FAILED: real Ranger 3D model not loaded")
+  get_tree().quit(1)
+  return
+ print("PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true arabic=true slots=14 ranger_3d=true viewport=480x270")
  get_tree().quit(0)
 
 func _save_mobile_hud_preview(file_name: String) -> bool:
@@ -1215,7 +1376,10 @@ func _seed_mobile_hud_preview_data() -> void:
    "weapon":"bow_lv10_normal_p12",
    "armor":"body_03_beginner_super_p12",
    "helmet":"helmet_01_beginner_super_p12",
-   "boots":"boots_01_beginner_super_p12"
+   "boots":"boots_01_beginner_super_p12",
+   "fan":"preview_heaven_fan_p12",
+   "tower":"preview_star_tower_p12",
+   "steed":"preview_steed_p12"
   }
   for slot in fixtures:
    var definition: Dictionary = db.get_item(String(fixtures[slot]))
@@ -1225,10 +1389,14 @@ func _seed_mobile_hud_preview_data() -> void:
     gear.equipped[slot]=definition
   gear.equipped["necklace"]={"id":"preview_necklace_p12","name":"قلادة +12","slot":"necklace","plus":12,"type":"Accessory"}
   gear.equipped["ring"]={"id":"preview_ring_p12","name":"خاتم +12","slot":"ring","plus":12,"type":"Accessory"}
+  gear.equipped["wing"]={"id":"preview_wing","name":"جناح سماوي","slot":"wing","plus":0,"type":"Wing"}
+  gear.equipped["mount_whip"]={"id":"preview_mount_whip","name":"سوط ركوب","slot":"mount_whip","plus":0,"type":"MountWhip"}
+  gear.equipped["mount_skin"]={"id":"preview_fire_tiger_skin","name":"سكن المطية: النمر الناري","slot":"mount_skin","plus":0,"type":"MountSkin"}
+  gear.equipped["garment"]={"id":"preview_garment","name":"لبسة الحارس","slot":"garment","plus":0,"type":"Garment"}
  if state != null:
   state.player_data["active_quests"]={
    "novice_1":{"status":"ACTIVE","progress":0},
    "novice_2":{"status":"ACTIVE","progress":2}
   }
  _refresh_quests()
- print("PHASE5A_MOBILE_HUD_PREVIEW_FIXTURES_READY: meteor=15 dragon_ball=5 dragon_gem=3 plus2=8 hp_potion=50 equipped=6 active_quests=2 save_untouched=true")
+ print("PHASE5A_MOBILE_HUD_PREVIEW_FIXTURES_READY: meteor=15 dragon_ball=5 dragon_gem=3 plus2=8 hp_potion=50 equipped=14 active_quests=2 mount_fixtures=true save_untouched=true")

@@ -284,10 +284,27 @@ func _mesh_bounds(root: Node, parent_transform: Transform3D) -> AABB:
    found = true
  return result if found else AABB()
 
+func _arabic_npc_name(npc_id: String) -> String:
+ var names := {
+  "GeneralQing":"القائد تشينغ","RebirthMaster":"معلم الميلاد الثاني",
+  "ItemSocketingMaster":"معلم الثقوب","ArcherGod":"إله الرماة",
+  "EventMaster":"معلم الفعاليات","MonsterSlayer":"صائد الوحوش",
+  "GemCollector":"جامع الجواهر","TCGuide":"مرشد المبتدئين",
+  "Blacksmith":"الحداد","Armorer":"صانع الدروع","ArtisanMaster":"الحرفي",
+  "AccessoryMerchant":"تاجر الإكسسوارات","WeaponMaster":"معلم الأسلحة",
+  "GuildOfficer":"ضابط النقابة","Pharmacist":"الصيدلي","Warehouseman":"أمين المخزن",
+  "Celestine":"سيليستين","ImperialEnvoy":"المبعوث الإمبراطوري","Master":"المعلم"
+ }
+ if names.has(npc_id):
+  return String(names[npc_id])
+ if npc_id.ends_with("Master"):
+  return "المعلم " + npc_id.trim_suffix("Master")
+ return npc_id
+
 func _add_name_label(npc: Node3D,npc_id: String) -> void:
  var label := Label3D.new()
  label.name = "NPCName"
- label.text = npc_id
+ label.text = _arabic_npc_name(npc_id)
  label.position = Vector3(0,3.78,0)
  label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
  label.font_size = 32
