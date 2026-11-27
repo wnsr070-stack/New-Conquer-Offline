@@ -429,9 +429,15 @@ jobs:
               "hunt": {"hunt", "target", "crosshair", "monster", "bow"},
               "mount": {"horse", "steed", "mount", "saddle", "animal"},
           }
+          used_menu_sources = set()
           for label, terms in menu_targets.items():
               matches = ranked_candidates(terms)
-              source = matches[0][0] if matches else fallback_pool[0][0]
+              if not matches: matches = fallback_pool
+              candidates = [entry for entry in matches if str(entry[0]) not in used_menu_sources]
+              if not candidates: candidates = [entry for entry in indexed if str(entry[0]) not in used_menu_sources]
+              if not candidates: raise SystemExit("Not enough distinct menu PNG artworks for: " + label)
+              source = candidates[0][0]
+              used_menu_sources.add(str(source))
               copy_png(source, f"assets/ui/menu/{label}.png")
 
           # Ten individually named real skill textures for F1-F10.
@@ -447,12 +453,18 @@ jobs:
               "heal": {"heal", "heart", "health", "potion"},
               "poison": {"poison", "skull", "venom"}
           }
+          used_skill_sources = set()
           for label, terms in skill_targets.items():
               matches = ranked_candidates(terms)
-              source = matches[0][0] if matches else fallback_pool[0][0]
+              if not matches: matches = fallback_pool
+              candidates = [entry for entry in matches if str(entry[0]) not in used_skill_sources]
+              if not candidates: candidates = [entry for entry in indexed if str(entry[0]) not in used_skill_sources]
+              if not candidates: raise SystemExit("Not enough distinct skill PNG artworks for: " + label)
+              source = candidates[0][0]
+              used_skill_sources.add(str(source))
               copy_png(source, f"assets/ui/skills/{label}.png")
           
-          print(f"PHASE5A_KENNEY_RPG_ICONS_READY: categories_copied={copied}/11 index_rows={len(indexed)}")
+          print(f"PHASE5A_KENNEY_RPG_ICONS_READY: categories_copied={copied}/19 index_rows={len(indexed)}")
           PY
           rm -rf /tmp/kenney
           trap - EXIT
