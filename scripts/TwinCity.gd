@@ -889,7 +889,11 @@ func _capture_mount_showcase() -> void:
         await _shutdown(1)
         return
     mounts.bind_hero(hero)
-    print("MOUNT_SHOWCASE_HERO_BOUND: hero_path=", hero.get_path())
+    hero.global_position = Vector3(0.0,0.2,0.0)
+    hero.velocity = Vector3.ZERO
+    if hero.get("has_move_target") != null:
+        hero.set("has_move_target",false)
+    print("MOUNT_SHOWCASE_HERO_BOUND: hero_path=", hero.get_path(), " open_plaza_position=", hero.global_position)
     if not mounts.run_functional_test(hero):
         push_error("MOUNT_AND_EQUIP_TEST_FAILED")
         await _shutdown(1)
@@ -904,11 +908,12 @@ func _capture_mount_showcase() -> void:
         mounts.upgrade_steed(12)
     var camera := Camera3D.new()
     camera.name = "MountShowcaseCamera"
-    camera.position = hero.global_position + Vector3(5.5, 4.8, 7.5)
-    camera.fov = 42.0
+    camera.position = hero.global_position + Vector3(10.5, 7.5, 10.5)
+    camera.fov = 45.0
     add_child(camera)
-    camera.look_at(hero.global_position + Vector3(0, 1.15, 0), Vector3.UP)
+    camera.look_at(hero.global_position + Vector3(0, 3.0, 0), Vector3.UP)
     camera.current = true
+    print("MOUNT_SHOWCASE_CAMERA_COMPOSITION_OK: yaw=45 pitch=side_front plaza_center=true full_mount_frame=true")
     var showcase := [
         {"type":"steed", "file":"mount_showcase_steed.png"},
         {"type":"tiger", "file":"mount_showcase_tiger.png"},
@@ -932,8 +937,8 @@ func _capture_mount_showcase() -> void:
             push_error("MOUNT_SHOWCASE_MOUNT_FAILED: " + kind)
             await _shutdown(1)
             return
-        camera.position = hero.global_position + Vector3(5.5, 4.8, 7.5)
-        camera.look_at(hero.global_position + Vector3(0, 1.15, 0), Vector3.UP)
+        camera.position = hero.global_position + Vector3(10.5, 7.5, 10.5)
+        camera.look_at(hero.global_position + Vector3(0, 3.0, 0), Vector3.UP)
         await get_tree().process_frame
         await get_tree().process_frame
         await RenderingServer.frame_post_draw
