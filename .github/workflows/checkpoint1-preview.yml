@@ -606,53 +606,6 @@ jobs:
             artifacts/mount_showcase_wolf.png
             artifacts/mount_showcase.log
             artifacts/syntax_gate.log
-            artifacts/city_phoenix_castle.png
-            artifacts/city_ape_mountain.png
-            artifacts/city_desert_city.png
-            artifacts/city_bird_island.png
-            artifacts/city_desert_oasis_closeup.png
-            artifacts/city_bird_island_bridges_closeup.png
-            artifacts/phase3a3.log
-            artifacts/twin_city_overview.png
-            artifacts/twin_city_palace.png
-            artifacts/twin_city_ne_pagoda.png
-            artifacts/twin_city_nw_quest_hall.png
-            artifacts/twin_city_se_tea_house.png
-            artifacts/twin_city_sw_blacksmith.png
-            artifacts/wilderness_overview.png
-            artifacts/wilderness_snowy_mountains.png
-            artifacts/wilderness_bridge_grass.png
-            artifacts/wilderness_eastern_plateau.png
-            artifacts/wilderness_western_plateau.png
-            artifacts/wilderness_south_plaza.png
-            artifacts/wilderness_river_overview.png
-            artifacts/wilderness_river_north_waterfall.png
-            artifacts/wilderness_river_east_bridge.png
-            artifacts/wilderness_river_south_bridge.png
-            artifacts/wilderness_river_west_bend.png
-            artifacts/wilderness_river_south_bank.png
-            artifacts/wilderness_flora_overview.png
-            artifacts/wilderness_flora_giant_trees.png
-            artifacts/wilderness_flora_sakura_forest.png
-            artifacts/wilderness_flora_autumn_forest.png
-            artifacts/wilderness_flora_rural_cottages.png
-            artifacts/wilderness_flora_bridge_forest_cottages.png
-            artifacts/wilderness_bridge_exits.png
-            artifacts/landmarks_preview.png
-            artifacts/landmark_sources.txt
-            artifacts/wilderness_prepare.log
-            artifacts/wilderness_asset_report.json
-            artifacts/import.log
-            artifacts/hero_animation_build.log
-            artifacts/twin_city_hero_isometric.png
-            artifacts/godot.log
-            artifacts/mobile_hud_inventory_preview.png
-            artifacts/mobile_hud_character_preview.png
-            artifacts/mobile_hud_preview.log
-            artifacts/phase5a_kenney_asset_report.txt
-            artifacts/settings_functional_test.log
-            assets/mounts/*.glb
-            assets/mounts/PROVENANCE.md
       - name: Verify all six captures and checkpoint markers
         if: always()
         run: |
