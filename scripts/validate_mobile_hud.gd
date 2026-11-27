@@ -101,21 +101,6 @@ func _run_functional_tests() -> void:
     _check(simulated.process_mode == Node.PROCESS_MODE_DISABLED and not simulated_mesh.visible, "simulated players hidden and processing disabled")
 
     # Camera sensitivity is exercised through HeroController's real camera rotation method.
-    settings.set_setting("camera_sensitivity", 2.0)
-    var hero_controller = null
-    for frame in range(7200):
-        hero_controller = test_root.find_child("TwinCityPlayableHero", true, false)
-        if hero_controller != null and hero_controller.get("camera_pivot") is Node3D:
-            break
-        await process_frame
-    if hero_controller != null and hero_controller.get("camera_pivot") is Node3D and hero_controller.has_method("_rotate_camera"):
-        var pivot: Node3D = hero_controller.get("camera_pivot")
-        var original_yaw := pivot.rotation_degrees.y
-        hero_controller._rotate_camera(Vector2(10.0, 0.0))
-        _check(absf((pivot.rotation_degrees.y - original_yaw) + 3.2) < 0.05, "live HeroController camera rotation uses configured sensitivity")
-        pivot.rotation_degrees.y = original_yaw
-    else:
-        _check(false, "TwinCity HeroController camera became available for sensitivity test")
 
     # Auto-loot is exercised through LootDropManager._process and a real test drop.
     var test_hero := Node3D.new()
@@ -123,19 +108,19 @@ func _run_functional_tests() -> void:
     test_root.add_child(test_hero)
     var drop_node := Node3D.new()
     test_root.add_child(drop_node)
-    var before_probe := int(state.get_item_count("SettingsAutoLootProbe"))
+    var before_probe := int(state.get_item_count("HPPotion"))
     loot._drops["settings_functional_probe"] = {
         "node": drop_node,
-        "data": {"item_id": "SettingsAutoLootProbe", "item_type": "Probe", "amount": 1},
+        "data": {"item_id": "HPPotion", "item_type": "Potions", "amount": 1},
         "remaining": 30.0
     }
     settings.set_setting("auto_loot", false)
     loot._process(0.01)
-    _check(int(state.get_item_count("SettingsAutoLootProbe")) == before_probe and loot._drops.has("settings_functional_probe"), "auto-loot disabled prevents pickup")
+    _check(int(state.get_item_count("HPPotion")) == before_probe and loot._drops.has("settings_functional_probe"), "auto-loot disabled prevents pickup")
     settings.set_setting("auto_loot", true)
     loot._process(0.01)
-    _check(int(state.get_item_count("SettingsAutoLootProbe")) == before_probe + 1 and not loot._drops.has("settings_functional_probe"), "auto-loot enabled collects nearby drop")
-
+    _check(int(state.get_item_count("HPPotion")) == before_probe + 1 and not loot._drops.has("settings_functional_probe"), "auto-loot enabled collects nearby drop")
+    state.remove_item("HPPotion", 1)\n
     # Consume actual inventory items through GameState, verify HP and MP changes, then restore save data.
     state.player_data["max_hp"] = 100
     state.player_data["hp"] = 40
@@ -170,6 +155,7 @@ func _run_functional_tests() -> void:
     settings.apply_audio_settings()
     settings.apply_world_settings()
     loot._drops.erase("settings_functional_probe")
+    await process_frame
     if is_instance_valid(test_root):
         test_root.remove_child(test_hero)
         test_hero.free()
@@ -185,6 +171,23 @@ func _run_functional_tests() -> void:
     var unstuck_ok: bool = await settings.unstuck_to_twin_city()
     var final_scene := current_scene
     _check(unstuck_ok and String(world_map.current_city) == "TwinCity" and not bool(world_map.transition_in_progress) and final_scene != null and String(final_scene.scene_file_path).ends_with("TwinCity.tscn"), "unstuck performs completed TwinCity scene transition")
+
+    settings.set_setting("camera_sensitivity", 2.0)
+    var hero_controller = null
+    for frame in range(600):
+        hero_controller = final_scene.find_child("TwinCityPlayableHero", true, false) if final_scene != null else null
+        if hero_controller != null and hero_controller.get("camera_pivot") is Node3D:
+            break
+        await process_frame
+    if hero_controller != null and hero_controller.get("camera_pivot") is Node3D and hero_controller.has_method("_rotate_camera"):
+        var pivot: Node3D = hero_controller.get("camera_pivot")
+        var original_yaw := pivot.rotation_degrees.y
+        hero_controller._rotate_camera(Vector2(10.0, 0.0))
+        _check(absf((pivot.rotation_degrees.y - original_yaw) + 3.2) < 0.05, "live HeroController camera rotation uses configured sensitivity")
+        pivot.rotation_degrees.y = original_yaw
+    else:
+        _check(false, "TwinCity HeroController camera became available after unstuck")
+    settings.set_setting("camera_sensitivity", float(original_settings.get("camera_sensitivity", 1.0)))
 
     if failures.is_empty():
         print("SETTINGS_FUNCTIONAL_TEST_PASS=true")
