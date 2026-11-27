@@ -132,6 +132,9 @@ func _play_attack_animation(hero: Node3D,class_id: String) -> void:
 func _spawn_floating_damage(target: Node3D,amount: int,critical: bool) -> void:
  var label := Label3D.new()
  label.name = "FloatingDamage" if target.get_node_or_null("FloatingDamage") == null else "FloatingDamage_"+str(target.get_child_count())
+ label.set_meta("game_settings_role", "damage")
+ var game_settings := get_node_or_null("/root/GameSettings")
+ label.visible = bool(game_settings.get_setting("show_damage_numbers", true)) if game_settings != null else true
  label.text = str(amount)+("!" if critical else "")
  label.font_size = 64 if critical else 52
  label.pixel_size = 0.004
