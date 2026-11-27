@@ -1,6 +1,7 @@
 extends Control
 ## Touch-first 2D HUD. All 3D presentation remains imported assets; this UI owns no 3D nodes.
 const ICON_SCRIPT = preload("res://scripts/ItemIconGenerator.gd")
+const SKILL_ICON_FILES := {"bow":"bow.png","arrow":"arrow.png","fire":"fire.png","lightning":"lightning.png","speed":"speed.png","shield":"shield.png"}
 const WINDOW_NAMES := ["Inventory","Character","Quests","Daily Login","Map","Chat","Merchant","Warehouse","ArtisanMaster"]
 const FORGE_TABS := ["Plus +1…+12","Quality","Level","Sockets","Anima"]
 var _hero: Node3D
@@ -61,6 +62,8 @@ func _build_hud() -> void:
  head.add_child(info)
  _status_label=Label.new()
  _status_label.add_theme_font_size_override("font_size",15)
+ _status_label.custom_maximum_size = Vector2(230,0)
+ _status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
  info.add_child(_status_label)
  var rank:=Label.new()
  rank.text="رامٍ  •  النقابة: بلا"
@@ -156,7 +159,8 @@ func _build_hud() -> void:
 
  var joy:=_ornate_panel(root,Vector2(18,-205),Vector2(190,190))
  joy.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- joy.z_index=25
+ joy.z_index=60
+ joy.visible=true
  joy.gui_input.connect(_on_joystick_input)
  var joyart:=JoystickVisual.new()
  joyart.position=Vector2(8,8)
@@ -191,6 +195,7 @@ func _build_hud() -> void:
  for i in range(10):
   var b:=_button("F%d"%(i+1),_use_skill_at.bind(i))
   b.custom_minimum_size=Vector2(34,34)
+  _set_skill_button_icon(b,["bow","arrow","fire","lightning","speed","shield","arrow","fire","lightning","shield"][i])
   hot.add_child(b)
  bottom.add_child(hot)
 
@@ -207,6 +212,8 @@ func _build_hud() -> void:
  var arc_buttons: Array =[["قفزة",_jump,Vector2(100,78)],["تشتت",_use_primary_skill,Vector2(48,38)],["طيران",_jump,Vector2(4,78)],["مطر",_use_secondary_skill,Vector2(48,118)],["سريع",_use_primary_skill,Vector2(100,4)],["هدف",_cycle_target,Vector2(4,158)]]
  for item in arc_buttons:
   var b:=_round_button(String(item[0]),item[1])
+  var arc_icon := {"قفزة":"speed","تشتت":"arrow","طيران":"speed","مطر":"fire","سريع":"lightning","هدف":"bow"}.get(String(item[0]),"bow")
+  _set_skill_button_icon(b,String(arc_icon))
   b.position=item[2]
   b.size=Vector2(68,58)
   combat.add_child(b)
@@ -657,10 +664,14 @@ func _build_character(layout: VBoxContainer) -> void:
  center_column.custom_minimum_size = Vector2(480,0)
  center_column.add_theme_constant_override("separation",5)
  body.add_child(center_column)
+ var right_margin := MarginContainer.new()
+ right_margin.custom_minimum_size = Vector2(194,0)
+ right_margin.add_theme_constant_override("margin_right",24)
+ body.add_child(right_margin)
  var right_column := VBoxContainer.new()
  right_column.custom_minimum_size = Vector2(170,0)
  right_column.add_theme_constant_override("separation",4)
- body.add_child(right_column)
+ right_margin.add_child(right_column)
  var left_slots: Array = [["fan","فانة"],["tower","تاور"],["wing","جناح"],["mount_whip","سوط ركوب"],["steed","خيل"],["mount_skin","سكن مطية"],["garment","زي/لبسة"]]
  var right_slots: Array = [["helmet","خوذة"],["necklace","قلادة"],["armor","درع"],["weapon","سلاح يمين"],["weapon_left","سلاح يسار"],["ring","خاتم"],["boots","حذاء"]]
  for entry in left_slots:
@@ -716,7 +727,8 @@ func _build_character(layout: VBoxContainer) -> void:
   push_error("PHASE5A_CHARACTER_PREVIEW_MODEL_MISSING: Ranger Hood real 3D model")
  else:
   _character_preview_model.rotation.y = deg_to_rad(22.0)
-  print("PHASE5A_CHARACTER_PREVIEW_MODEL_READY: source=Male_Ranger.glb viewport=480x270 touch_drag=true mouse_drag=true")
+  var idle_started := _play_character_idle_animation(controller)
+  print("PHASE5A_CHARACTER_PREVIEW_MODEL_READY: source=Male_Ranger.glb viewport=480x270 touch_drag=true mouse_drag=true idle=",idle_started)
  var selected: Dictionary = equipped.get(_selected_equipment_slot,{})
  var details := PanelContainer.new()
  details.custom_minimum_size = Vector2(480,76)
@@ -730,7 +742,8 @@ func _build_character(layout: VBoxContainer) -> void:
  detail_row.add_child(detail_text)
  var item_name := String(selected.get("display_name",selected.get("name",selected.get("id","لا توجد قطعة محددة"))))
  var plus_level := int(selected.get("plus",0))
- var title_label := _label(item_name + ("  +" + str(plus_level) if plus_level > 0 else ""))
+ var plus_suffix := "+" + str(plus_level)
+ var title_label := _label(item_name + ("  " + plus_suffix if plus_level > 0 and not item_name.contains(plus_suffix) else ""))
  title_label.add_theme_color_override("font_color",_rank_color_for_plus(plus_level))
  title_label.add_theme_font_size_override("font_size",15)
  detail_text.add_child(title_label)
@@ -788,6 +801,19 @@ func _add_character_equipment_slot(column: VBoxContainer,slot: String,caption: S
  else:
   row.add_child(cell)
   row.add_child(caption_label)
+
+func _play_character_idle_animation(root: Node) -> bool:
+ if root == null: return false
+ for candidate in root.find_children("*","AnimationPlayer",true,false):
+  var player := candidate as AnimationPlayer
+  if player == null: continue
+  for animation_name in player.get_animation_list():
+   if String(animation_name).to_lower().contains("idle"):
+    player.play(String(animation_name))
+    print("PHASE5A_CHARACTER_IDLE_ANIMATION_PLAYING: player=",player.get_path()," animation=",animation_name)
+    return true
+ push_warning("PHASE5A_CHARACTER_IDLE_ANIMATION_NOT_FOUND: Ranger model has no Idle AnimationPlayer clip")
+ return false
 
 func _select_character_slot(slot: String) -> void:
  _selected_equipment_slot = slot
@@ -1272,13 +1298,24 @@ func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
  style.set_corner_radius_all(6)
  return style
 
+func _set_skill_button_icon(button: Button,kind: String) -> void:
+ var filename := String(SKILL_ICON_FILES.get(kind,"bow.png"))
+ var texture := load("res://assets/ui/skills/" + filename) as Texture2D
+ if texture != null:
+  button.icon = texture
+  button.expand_icon = true
+  button.icon_max_width = 24
+  button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+ else:
+  push_warning("PHASE5A_SKILL_ICON_MISSING: " + filename)
+
 func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right:=false) -> Panel:
  var panel:=Panel.new()
  panel.custom_minimum_size=panel_size
  panel.size=panel_size
  panel.position=offset
  if top_right: panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- panel.add_theme_stylebox_override("panel",_texture_style("res://assets/ui/borders/panel_brown.png"))
+ panel.add_theme_stylebox_override("panel",_texture_style("res://assets/ui/borders/ornate_panel.png"))
  parent.add_child(panel)
  return panel
 
@@ -1297,7 +1334,7 @@ func _texture_style(path: String) -> StyleBoxTexture:
  return style
 
 func _slot_style() -> StyleBoxTexture:
- return _texture_style("res://assets/ui/slots/slot_brown.png")
+ return _texture_style("res://assets/ui/slots/ornate_slot.png")
 
 func _apply_button_skin(button: Button,square := false) -> void:
  var normal_path := "res://assets/ui/buttons/btn_sq_brown.png" if square else "res://assets/ui/buttons/btn_brown.png"
@@ -1339,7 +1376,8 @@ func _run_mobile_hud_preview() -> void:
   push_error("PHASE5A_MOBILE_HUD_PREVIEW_FAILED: real Ranger 3D model not loaded")
   get_tree().quit(1)
   return
- print("PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true arabic=true slots=14 ranger_3d=true viewport=480x270")
+ var joystick := find_child("JoystickVisual",true,false)
+ print("PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true arabic=true slots=14 ranger_3d=true viewport=480x270 ornate=true joystick_visible=",is_instance_valid(joystick) and (joystick as Control).is_visible_in_tree())
  get_tree().quit(0)
 
 func _save_mobile_hud_preview(file_name: String) -> bool:
