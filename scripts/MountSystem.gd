@@ -25,6 +25,7 @@ var active_mount_type := ""
 var _hero_model: Node3D
 var _hero_model_base_y := 0.0
 var _base_move_speed := 7.0
+var _rider_original_bone_rotations: Dictionary = {}
 
 func _ready() -> void:
  var gear := get_node_or_null("/root/GearSystem")
@@ -155,12 +156,75 @@ func _refresh_visual() -> void:
 
 func _fit_mount_model(root: Node3D,kind: String) -> void:
  var bounds := _measure_bounds(root)
- if bounds.size.y <= 0.001: return
- var target_height := 1.75 if kind == "steed" else 1.55
- var factor := target_height/bounds.size.y
- root.scale = Vector3.ONE*factor
- root.position = Vector3(0,-bounds.position.y*factor,0)
+ if bounds.size.y <= 0.001 or maxf(bounds.size.x,bounds.size.z) <= 0.001:
+  push_error("MOUNT_AABB_INVALID: kind="+kind+" bounds="+str(bounds))
+  return
+ # Fit the animal's measured body to a 2.5m horizontal length and 1.4m back height.
+ var horizontal_extent := maxf(bounds.size.x,bounds.size.z)
+ var horizontal_factor := 2.5/horizontal_extent
+ var vertical_factor := 1.4/bounds.size.y
  root.rotation.y = PI
+ root.scale = Vector3(horizontal_factor,vertical_factor,horizontal_factor)
+ root.position = Vector3(bounds.get_center().x*horizontal_factor,-bounds.position.y*vertical_factor,bounds.get_center().z*horizontal_factor)
+ print("MOUNT_AABB_FIT_OK: kind=",kind," source=",bounds.size," target_length=2.5 target_back_height=1.4 scale=",root.scale)
+ _apply_mount_regalia(root,kind)
+
+func _apply_mount_regalia(root: Node3D,kind: String) -> void:
+ var aura_color := Color("#f5c451")
+ var tint := Color("#e4bd72")
+ match kind:
+  "tiger":
+   aura_color = Color("#ff762b")
+   tint = Color("#d98a38")
+  "deer":
+   aura_color = Color("#37e6a0")
+   tint = Color("#a9d9a9")
+  "wolf":
+   aura_color = Color("#9c8cff")
+   tint = Color("#a9b6e8")
+  _:
+   aura_color = Color("#ffd45a")
+   tint = Color("#e5c57b")
+ var stack: Array[Node] = [root]
+ var tinted_surfaces := 0
+ while not stack.is_empty():
+  var current: Node = stack.pop_back()
+  if current is MeshInstance3D:
+   var mesh_instance := current as MeshInstance3D
+   if mesh_instance.mesh != null:
+    for surface in range(mesh_instance.mesh.get_surface_count()):
+     var source_material := mesh_instance.get_active_material(surface) as StandardMaterial3D
+     if source_material == null:
+      continue
+     var material := source_material.duplicate() as StandardMaterial3D
+     material.albedo_color = material.albedo_color.lerp(tint,0.18)
+     material.metallic = maxf(material.metallic,0.42)
+     material.roughness = minf(material.roughness,0.48)
+     material.emission_enabled = true
+     material.emission = aura_color
+     material.emission_energy_multiplier = 0.32
+     mesh_instance.set_surface_override_material(surface,material)
+     tinted_surfaces += 1
+  for child in current.get_children():
+   stack.append(child)
+ # Lights provide a soft ground/side glow without creating substitute mesh geometry.
+ var ground_glow := OmniLight3D.new()
+ ground_glow.name = "MountGroundAura"
+ ground_glow.light_color = aura_color
+ ground_glow.light_energy = 1.8
+ ground_glow.omni_range = 4.2
+ ground_glow.shadow_enabled = false
+ ground_glow.position = Vector3(0,0.28,0)
+ root.add_child(ground_glow)
+ var body_glow := OmniLight3D.new()
+ body_glow.name = "MountBodyGlow"
+ body_glow.light_color = aura_color
+ body_glow.light_energy = 0.65
+ body_glow.omni_range = 2.8
+ body_glow.shadow_enabled = false
+ body_glow.position = Vector3(0,0.95,0)
+ root.add_child(body_glow)
+ print("MOUNT_REGALIA_AURA_READY: kind=",kind," color=",aura_color," tinted_surfaces=",tinted_surfaces," glow=ground+body")
 
 func _measure_bounds(root: Node3D) -> AABB:
  var bounds := AABB()
@@ -183,6 +247,32 @@ func _measure_bounds(root: Node3D) -> AABB:
 
 func _apply_rider_pose(on_mount: bool) -> void:
  if _hero_model == null or not is_instance_valid(_hero_model): return
+ var skeleton := _hero_model.find_children("*","Skeleton3D",true,false)
+ if not skeleton.is_empty():
+  var rig := skeleton[0] as Skeleton3D
+  if on_mount:
+   _rider_original_bone_rotations.clear()
+   for index in range(rig.get_bone_count()):
+    var bone_name := rig.get_bone_name(index).to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
+    var is_thigh := "thigh" in bone_name or "upleg" in bone_name or "upperleg" in bone_name
+    var is_knee := "knee" in bone_name or "lowerleg" in bone_name or "calf" in bone_name or "leglo" in bone_name
+    if not is_thigh and not is_knee:
+     continue
+    var original := rig.get_bone_pose_rotation(index)
+    _rider_original_bone_rotations[index] = original
+    if is_thigh:
+     var side_sign := -1.0 if ("left" in bone_name or bone_name.ends_with("l")) else 1.0
+     var seated := original * Quaternion(Vector3.RIGHT,deg_to_rad(-58.0)) * Quaternion(Vector3.FORWARD,deg_to_rad(side_sign*13.0))
+     rig.set_bone_pose_rotation(index,seated.normalized())
+    else:
+     rig.set_bone_pose_rotation(index,(original*Quaternion(Vector3.RIGHT,deg_to_rad(72.0))).normalized())
+   print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=",_rider_original_bone_rotations.size()," legs_spread=true knees_bent=true")
+  else:
+   for bone_index in _rider_original_bone_rotations:
+    if bone_index >= 0 and bone_index < rig.get_bone_count():
+     rig.set_bone_pose_rotation(int(bone_index),_rider_original_bone_rotations[bone_index])
+   _rider_original_bone_rotations.clear()
+   print("MOUNT_RIDER_BONE_POSE_RESTORED")
  _hero_model.position.y = _hero_model_base_y+(1.05 if on_mount else 0.0)
 
 func _apply_speed() -> void:
