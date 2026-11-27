@@ -408,7 +408,11 @@ func _open_window(window_name: String) -> void:
  heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  heading.add_theme_font_size_override("font_size",22)
  header.add_child(heading)
- header.add_child(_button("✕",func(): _active_window=""; panel.queue_free()))
+ var close_button := _button("✕",func(): _active_window=""; panel.queue_free())
+ close_button.add_theme_stylebox_override("normal",_flat_style(Color(0.25,0.035,0.045,0.98),Color(0.86,0.66,0.26),2))
+ close_button.add_theme_stylebox_override("hover",_flat_style(Color(0.42,0.045,0.055,1.0),Color(1.0,0.78,0.34),2))
+ close_button.add_theme_stylebox_override("pressed",_flat_style(Color(0.16,0.02,0.03,1.0),Color(0.72,0.48,0.22),2))
+ header.add_child(close_button)
  match window_name:
   "Inventory": _build_inventory(layout)
   "Bag": _build_inventory(layout)
@@ -1050,14 +1054,21 @@ func _warehouse_cell(item: Dictionary,index: int,selected: bool) -> Button:
  _apply_button_skin(cell,true)
  cell.add_theme_stylebox_override("normal",_selected_slot_style() if selected else _slot_style())
  if not item.is_empty():
-  var icon := _make_item_icon(_get_item_data(String(item.item_id)),int(item.get("instance_data",{}).get("plus",0)),Vector2(34,34))
-  icon.position = Vector2(9,9)
+  var item_plus := int(item.get("instance_data",{}).get("plus",0))
+  var icon := _make_item_icon(_get_item_data(String(item.item_id)),item_plus,Vector2(38,38))
+  icon.position = Vector2(7,7)
   cell.add_child(icon)
+  if item_plus > 0:
+   var plus_badge := Label.new()
+   plus_badge.text = "★" + str(item_plus)
+   plus_badge.position = Vector2(1,34)
+   plus_badge.add_theme_font_size_override("font_size",9)
+   plus_badge.add_theme_color_override("font_color",_rank_color_for_plus(item_plus))
+   cell.add_child(plus_badge)
   var quantity := Label.new()
   quantity.text = "x%d" % int(item.get("count",1))
   quantity.position = Vector2(25,35)
   quantity.add_theme_font_size_override("font_size",10)
-  quantity.position = Vector2(25,35)
   cell.add_child(quantity)
  return cell
 func _select_inventory_warehouse_slot(index: int) -> void:
