@@ -177,32 +177,49 @@ func spawn_city_npcs(city_root: Node3D) -> void:
 
 func _play_npc_idle_animation(character_root: Node, npc_id: String) -> void:
  var animation_players: Array[Node] = character_root.find_children("*","AnimationPlayer",true,false)
- if animation_players.is_empty():
-  push_warning("PHASE4D_NPC_IDLE_ANIMATION_MISSING: id="+npc_id+" animation_player=false")
-  return
- var animation_player := animation_players[0] as AnimationPlayer
- if animation_player == null:
-  push_warning("PHASE4D_NPC_IDLE_ANIMATION_MISSING: id="+npc_id+" animation_player_invalid=true")
-  return
- var animation_names := animation_player.get_animation_list()
- if animation_names.is_empty():
-  push_warning("PHASE4D_NPC_IDLE_ANIMATION_MISSING: id="+npc_id+" animations=0")
-  return
+ var animation_player := animation_players[0] as AnimationPlayer if not animation_players.is_empty() else null
  var selected_animation := ""
- for preferred_name in ["Idle","idle","Stand","stand","Standing","standing"]:
+ if animation_player != null:
+  var animation_names := animation_player.get_animation_list()
   for animation_name in animation_names:
-   if String(animation_name).to_lower() == String(preferred_name).to_lower():
+   var normalized := String(animation_name).to_lower().replace("_","").replace("-","").replace(" ","")
+   if normalized.contains("idle") or normalized.contains("stand") or normalized.contains("breath"):
     selected_animation = String(animation_name)
     break
-  if not selected_animation.is_empty():
-   break
- if selected_animation.is_empty():
-  selected_animation = String(animation_names[0])
- var animation := animation_player.get_animation(selected_animation)
- if animation != null:
-  animation.loop_mode = Animation.LOOP_LINEAR
- animation_player.play(selected_animation)
- print("PHASE4D_NPC_IDLE_ANIMATION_STARTED: id=",npc_id," animation=",selected_animation," loop=true")
+ if animation_player != null and not selected_animation.is_empty():
+  var animation := animation_player.get_animation(selected_animation)
+  if animation != null:
+   animation.loop_mode = Animation.LOOP_LINEAR
+  animation_player.play(selected_animation)
+  print("PHASE4D_NPC_IDLE_ANIMATION_STARTED: id=",npc_id," animation=",selected_animation," loop=true")
+  return
+ # Imported NPC source GLBs may contain no idle clip. Lower the bind-pose arms
+ # from T-pose using the authored skeleton; no replacement/procedural mesh is made.
+ if animation_player != null:
+  animation_player.stop()
+ var relaxed_bones := _apply_npc_relaxed_pose(character_root)
+ if relaxed_bones == 0:
+  push_warning("PHASE4D_NPC_IDLE_POSE_FALLBACK_INCOMPLETE: id="+npc_id+" relaxed_arm_bones=0")
+ else:
+  print("PHASE4D_NPC_TPOSE_CORRECTED: id=",npc_id," relaxed_arm_bones=",relaxed_bones)
+
+func _apply_npc_relaxed_pose(character_root: Node) -> int:
+ var skeletons: Array[Node] = character_root.find_children("*","Skeleton3D",true,false)
+ if skeletons.is_empty():
+  return 0
+ var skeleton := skeletons[0] as Skeleton3D
+ var adjusted := 0
+ for index in range(skeleton.get_bone_count()):
+  var bone_name := skeleton.get_bone_name(index).to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
+  var is_arm := ("upperarm" in bone_name or "arm" in bone_name) and not ("forearm" in bone_name or "hand" in bone_name)
+  if not is_arm:
+   continue
+  var side_sign := -1.0 if ("left" in bone_name or bone_name.ends_with("l")) else 1.0
+  var current := skeleton.get_bone_pose_rotation(index)
+  var lowered := current * Quaternion(Vector3.FORWARD,deg_to_rad(58.0*side_sign))
+  skeleton.set_bone_pose_rotation(index,lowered.normalized())
+  adjusted += 1
+ return adjusted
 
 func _ensure_authored_ground_collider(city_root: Node3D, authored_position: Vector3, npc_id: String) -> void:
  var key := "NPCGround_"+npc_id
