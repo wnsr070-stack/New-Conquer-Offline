@@ -139,7 +139,7 @@ func _run_functional_tests() -> void:
         await physics_frame
     # Run the same manager process path once after the physics-frame settling window.
     loot._process(0.01)
-    var probe_collected := int(state.get_item_count("HPPotion)) == before_probe + 1 and not loot._drops.has("settings_functional_probe")
+    var probe_collected := int(state.get_item_count("HPPotion")) == before_probe + 1 and not loot._drops.has("settings_functional_probe")
     _check(probe_collected, "auto-loot enabled collects exact-position ground drop after physics frames")
     if probe_collected:
         state.remove_item("HPPotion", 1)
