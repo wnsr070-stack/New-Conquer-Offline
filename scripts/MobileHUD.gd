@@ -1329,6 +1329,28 @@ func _build_artisan(layout: VBoxContainer) -> void:
  layout.add_child(_label("ArtisanMaster — choose an equipped slot, then select an operation."))
  for slot in ["weapon","armor","helmet","ring","necklace","boots","fan","tower","steed"]:
   layout.add_child(_button("Upgrade " + slot,_forge_operation.bind(slot)))
+ layout.add_child(_button("ترقية الخيل عند المروّض",_upgrade_steed_at_artisan))
+
+func _upgrade_steed_at_artisan() -> void:
+ var mounts := _root_autoload("MountSystem")
+ var gear := _root_autoload("GearSystem")
+ var state := _root_autoload("GameState")
+ if mounts == null or gear == null or state == null: return
+ var steed: Dictionary = gear.get_equipped("steed")
+ if steed.is_empty():
+  push_warning("STEED_UPGRADE_REQUIRES_EQUIPPED_HORSE")
+  return
+ var next_plus := int(steed.get("plus",0))+1
+ if next_plus > 12: return
+ var cost := next_plus*10000
+ if int(state.gold) < cost:
+  push_warning("STEED_UPGRADE_NOT_ENOUGH_GOLD: cost="+str(cost))
+  return
+ state.set_gold(int(state.gold)-cost)
+ if not mounts.upgrade_steed(next_plus):
+  state.add_gold(cost)
+  push_warning("STEED_UPGRADE_ROLLED_BACK")
+ _open_window("ArtisanMaster")
 
 func _select_forge_tab(tab: String) -> void:
  _current_role = tab
