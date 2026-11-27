@@ -666,6 +666,8 @@ jobs:
           grep -q "HERO_ASSASSIN_PRIMARY_MODEL_READY: npc_model_preserved=Male_Ranger.glb" artifacts/mount_showcase.log
           grep -q "HERO_ASSASSIN_COMBAT_ANIMATION_RETARGET_OK:" artifacts/mount_showcase.log
           grep -q "HERO_ASSASSIN_SKELETON_BONES:" artifacts/mount_showcase.log
+          grep -q "MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=" artifacts/mount_showcase.log
+          grep -q "MOUNT_SADDLE_HIP_ALIGNMENT:" artifacts/mount_showcase.log
           grep -q "MOUNT_STAG_AABB_NORMALIZED_OK: maximum_dimension=2.5" artifacts/mount_showcase.log
           grep -q "MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE" artifacts/mount_showcase.log
           for kind in steed tiger deer wolf; do
