@@ -145,6 +145,7 @@ func _refresh_visual() -> void:
  instance.name = "Mounted_"+kind.capitalize()
  hero.add_child(instance)
  _fit_mount_model(instance,kind)
+ _play_mount_animation(instance,kind)
  mount_visual = instance
  var gear := get_node_or_null("/root/GearSystem")
  var steed: Dictionary = gear.get_equipped("steed") if gear != null else {}
@@ -196,14 +197,48 @@ func _apply_mount_regalia(root: Node3D,kind: String) -> void:
      var source_material := mesh_instance.get_active_material(surface) as StandardMaterial3D
      if source_material == null:
       continue
-     var material := source_material.duplicate() as StandardMaterial3D
-     material.albedo_color = material.albedo_color.lerp(tint,0.18)
-     material.metallic = maxf(material.metallic,0.42)
-     material.roughness = minf(material.roughness,0.48)
-     material.emission_enabled = true
-     material.emission = aura_color
-     material.emission_energy_multiplier = 0.32
-     mesh_instance.set_surface_override_material(surface,material)
+     if kind == "tiger":
+      var shader := Shader.new()
+      shader.code = """
+shader_type spatial;
+uniform sampler2D base_texture : source_color, filter_linear_mipmap;
+uniform bool has_base_texture = false;
+uniform vec4 base_color : source_color = vec4(1.0);
+uniform vec3 emission_tint = vec3(1.0, 0.38, 0.06);
+void fragment() {
+ vec3 source_color = base_color.rgb;
+ if (has_base_texture) {
+  source_color *= texture(base_texture, UV).rgb;
+ }
+ float wave = sin(UV.x * 18.0 + sin(UV.y * 8.0) * 1.4);
+ float stripe_wave = abs(sin(UV.y * 42.0 + wave * 1.7));
+ float stripe = 1.0 - smoothstep(0.02, 0.22, stripe_wave);
+ vec3 royal_gold = vec3(1.0, 0.58, 0.14);
+ vec3 deep_amber = vec3(0.16, 0.055, 0.012);
+ vec3 coat = mix(royal_gold, deep_amber, stripe * 0.78);
+ ALBEDO = source_color * coat;
+ METALLIC = 0.52;
+ ROUGHNESS = 0.42;
+ EMISSION = emission_tint * 0.22;
+}
+"""
+      var tiger_material := ShaderMaterial.new()
+      tiger_material.shader = shader
+      tiger_material.set_shader_parameter("base_color",source_material.albedo_color)
+      tiger_material.set_shader_parameter("has_base_texture",source_material.albedo_texture != null)
+      if source_material.albedo_texture != null:
+       tiger_material.set_shader_parameter("base_texture",source_material.albedo_texture)
+      tiger_material.set_shader_parameter("emission_tint",Vector3(aura_color.r,aura_color.g,aura_color.b))
+      mesh_instance.set_surface_override_material(surface,tiger_material)
+     else:
+      var material := source_material.duplicate() as StandardMaterial3D
+      material.albedo_color = material.albedo_color.lerp(tint,0.18)
+      material.metallic = maxf(material.metallic,0.42)
+      material.roughness = minf(material.roughness,0.48)
+      material.emission_enabled = true
+      material.emission = aura_color
+      material.emission_energy_multiplier = 0.32
+      mesh_instance.set_surface_override_material(surface,material)
      tinted_surfaces += 1
   for child in current.get_children():
    stack.append(child)
@@ -273,7 +308,49 @@ func _apply_rider_pose(on_mount: bool) -> void:
      rig.set_bone_pose_rotation(int(bone_index),_rider_original_bone_rotations[bone_index])
    _rider_original_bone_rotations.clear()
    print("MOUNT_RIDER_BONE_POSE_RESTORED")
- _hero_model.position.y = _hero_model_base_y+(1.05 if on_mount else 0.0)
+ if on_mount:
+  var saddle_height := 1.4
+  var rider_vertical_offset := 0.12
+  if not skeleton.is_empty():
+   var rig := skeleton[0] as Skeleton3D
+   for index in range(rig.get_bone_count()):
+    var bone_name := rig.get_bone_name(index).to_lower()
+    if "hips" in bone_name or "pelvis" in bone_name:
+     var hip_in_model := _hero_model.to_local(rig.to_global(rig.get_bone_global_pose(index).origin))
+     rider_vertical_offset = saddle_height-hip_in_model.y
+     print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y=",saddle_height," offset=",rider_vertical_offset)
+     break
+  _hero_model.position.y = _hero_model_base_y+rider_vertical_offset
+ else:
+  _hero_model.position.y = _hero_model_base_y
+
+func _play_mount_animation(root: Node,kind: String) -> void:
+ var stack: Array[Node] = [root]
+ while not stack.is_empty():
+  var current: Node = stack.pop_back()
+  if current is AnimationPlayer:
+   var player := current as AnimationPlayer
+   var selected := ""
+   for animation_name in player.get_animation_list():
+    var normalized := String(animation_name).to_lower().replace("_","").replace("-","").replace(" ","")
+    if normalized.contains("idle") or normalized.contains("stand"):
+     selected = String(animation_name)
+     break
+   if selected.is_empty():
+    for animation_name in player.get_animation_list():
+     if not String(animation_name).to_lower().contains("reset"):
+      selected = String(animation_name)
+      break
+   if not selected.is_empty():
+    var animation := player.get_animation(selected)
+    if animation != null:
+     animation.loop_mode = Animation.LOOP_LINEAR
+    player.play(selected)
+    print("MOUNT_ANIMATION_STARTED: kind=",kind," clip=",selected," loop=true")
+    return
+  for child in current.get_children():
+   stack.append(child)
+ print("MOUNT_ANIMATION_STATIC_SOURCE: kind=",kind," no_embedded_clip=true")
 
 func _apply_speed() -> void:
  if hero == null or not is_instance_valid(hero): return
