@@ -147,25 +147,25 @@ func _find_animation_name(token: String) -> String:
 func _resolve_assassin_bone(source_name: String) -> String:
  var aliases := {
   "pelvis":["pelvis","hips"],
-  "spine_01":["spine_01","spine1","spine"],
-  "spine_02":["spine_02","spine2","chest"],
-  "spine_03":["spine_03","spine3","upperchest"],
-  "neck_01":["neck_01","neck1","neck"],
+  "spine01":["spine_01","spine1","spine"],
+  "spine02":["spine_02","spine2","chest"],
+  "spine03":["spine_03","spine3","upperchest"],
+  "neck01":["neck_01","neck1","neck"],
   "head":["head"],
-  "clavicle_l":["clavicle_l","claviclel","leftshoulder","shoulderl"],
-  "clavicle_r":["clavicle_r","clavicler","rightshoulder","shoulderr"],
-  "upperarm_l":["upperarm_l","upperarml","leftupperarm","upperarml","leftarm","upperarml"],
-  "upperarm_r":["upperarm_r","upperarmr","rightupperarm","upperarmr","rightarm"],
-  "lowerarm_l":["lowerarm_l","lowerarml","leftforearm","forearml","lowerarml"],
-  "lowerarm_r":["lowerarm_r","lowerarmr","rightforearm","forearmr","lowerarmr"],
-  "hand_l":["hand_l","handl","lefthand"],
-  "hand_r":["hand_r","handr","righthand"],
-  "thigh_l":["thigh_l","thighl","leftupleg","upperlegl","leftthigh"],
-  "thigh_r":["thigh_r","thighr","rightupleg","upperlegr","rightthigh"],
-  "calf_l":["calf_l","calfl","leftleg","lowerlegl","leftcalf"],
-  "calf_r":["calf_r","calfr","rightleg","lowerlegr","rightcalf"],
-  "foot_l":["foot_l","footl","leftfoot"],
-  "foot_r":["foot_r","footr","rightfoot"]
+  "claviclel":["clavicle_l","claviclel","leftshoulder","shoulderl"],
+  "clavicler":["clavicle_r","clavicler","rightshoulder","shoulderr"],
+  "upperarml":["upperarm_l","upperarml","leftupperarm","upperarml","leftarm","upperarml"],
+  "upperarmr":["upperarm_r","upperarmr","rightupperarm","upperarmr","rightarm"],
+  "lowerarml":["lowerarm_l","lowerarml","leftforearm","forearml","lowerarml"],
+  "lowerarmr":["lowerarm_r","lowerarmr","rightforearm","forearmr","lowerarmr"],
+  "handl":["hand_l","handl","lefthand"],
+  "handr":["hand_r","handr","righthand"],
+  "thighl":["thigh_l","thighl","leftupleg","upperlegl","leftthigh"],
+  "thighr":["thigh_r","thighr","rightupleg","upperlegr","rightthigh"],
+  "calfl":["calf_l","calfl","leftleg","lowerlegl","leftcalf"],
+  "calfr":["calf_r","calfr","rightleg","lowerlegr","rightcalf"],
+  "footl":["foot_l","footl","leftfoot"],
+  "footr":["foot_r","footr","rightfoot"]
  }
  var key := _normalize_bone_name(source_name)
  var candidates: Array = aliases.get(key,[source_name])
