@@ -498,15 +498,23 @@ jobs:
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
+      - name: Godot 4.3 GDScript Syntax Gate
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --editor --quit 2>&1 | tee artifacts/syntax_gate.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource" artifacts/syntax_gate.log
+          echo "GODOT_GDSCRIPT_SYNTAX_GATE_PASS=true"
       - name: Functional GameSettings integration test in Twin City scene
         env:
           SETTINGS_FUNCTIONAL_TEST: "1"
+          PHASE4A_CAPTURE: "1"
         run: |
           set -euo pipefail
-          timeout 600s "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/validate_mobile_hud.gd 2>&1 | tee artifacts/settings_functional_test.log
+          export LIBGL_ALWAYS_SOFTWARE=1
+          xvfb-run -a --server-args="-screen 0 1280x720x24" timeout 600s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 --script res://scripts/validate_mobile_hud.gd 2>&1 | tee artifacts/settings_functional_test.log
           grep -q "PHASE5A_MOBILE_HUD_PARSE_OK" artifacts/settings_functional_test.log
           grep -q "SETTINGS_FUNCTIONAL_TEST_PASS=true" artifacts/settings_functional_test.log
-          ! grep -E "SCRIPT ERROR|Parse Error|SETTINGS_TEST_FAILED|Failed to load script|Failed loading resource" artifacts/settings_functional_test.log
+          ! grep -E "SCRIPT ERROR|Parse Error|SETTINGS_TEST_FAILED|Failed to load script|Failed loading resource|TWIN_CITY_HERO_CAPTURE_EMPTY" artifacts/settings_functional_test.log
       - name: Build locked shared animation resource
         run: |
           set -euo pipefail
@@ -517,7 +525,7 @@ jobs:
         run: |
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1
-          CI_CAPTURE=1 xvfb-run -a -s "-screen 0 960x540x24" timeout 1500s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
+          CI_CAPTURE=1 xvfb-run -a --server-args="-screen 0 1280x720x24" timeout 1500s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/godot.log
       - name: Render Phase 3A-3 four cities and six preview views
         run: |
           set -euo pipefail
