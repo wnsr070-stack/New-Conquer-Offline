@@ -66,12 +66,8 @@ func _build_hud() -> void:
  portrait.custom_minimum_size=Vector2(68,68)
  portrait.size=Vector2(68,68)
  portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
- portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED
- var circle_shader:=Shader.new()
- circle_shader.code="shader_type canvas_item; void fragment(){ vec2 p=UV-vec2(0.5); if(length(p)>0.49) discard; COLOR=texture(TEXTURE,UV)*COLOR; }"
- var circle_material:=ShaderMaterial.new()
- circle_material.shader=circle_shader
- portrait.material=circle_material
+ portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+ # The portrait SVG already contains one gold circular frame; do not mask or redraw a second ring.
  var portrait_stack:=Control.new()
  portrait_stack.custom_minimum_size=Vector2(76,76)
  portrait_stack.size=Vector2(76,76)
@@ -195,10 +191,12 @@ func _build_hud() -> void:
  var mount_entry:=VBoxContainer.new()
  mount_entry.custom_minimum_size=Vector2(64,72)
  mount_entry.add_theme_constant_override("separation",2)
- _mount_button=_round_button("ركوب",_toggle_mount)
+ _mount_button=_round_button("",_toggle_mount)
  _mount_button.custom_minimum_size=Vector2(58,54)
  _mount_button.size=Vector2(58,54)
- _mount_button.add_theme_font_size_override("font_size",12)
+ _mount_button.icon=load("res://assets/ui/menu/mount.png") as Texture2D
+ _mount_button.expand_icon=true
+ _mount_button.add_theme_constant_override("icon_max_width",34)
  mount_entry.add_child(_mount_button)
  var mount_caption:=_label("الخيل والمطايا")
  mount_caption.add_theme_font_size_override("font_size",10)
@@ -227,12 +225,14 @@ func _build_hud() -> void:
  chat.z_index=26
  var tabs:=HBoxContainer.new()
  tabs.position=Vector2(8,7)
- for t in ["All","Talk","Whisper","Team","Guild","System"]:
+ for t in ["عام","همس","فريق","نقابة","العالم"]:
   var b:=_button(t,_select_chat_tab.bind(t))
-  b.custom_minimum_size=Vector2(54,26)
-  b.add_theme_color_override("font_color",Color(1.0,0.93,0.76))
-  b.add_theme_color_override("font_hover_color",Color(1.0,0.78,0.32))
+  b.custom_minimum_size=Vector2(62,26)
+  b.add_theme_color_override("font_color",Color(1.0,0.96,0.86))
+  b.add_theme_color_override("font_hover_color",Color(1.0,0.86,0.52))
   b.add_theme_color_override("font_pressed_color",Color(1.0,0.82,0.42))
+  b.add_theme_color_override("font_outline_color",Color(0.015,0.012,0.008,1.0))
+  b.add_theme_constant_override("outline_size",2)
   tabs.add_child(b)
  chat.add_child(tabs)
  var log:=Label.new()
@@ -349,6 +349,15 @@ class GoldRing extends Control:
   for i in range(8):
    var a:=TAU*float(i)/8.0
    draw_circle(c+Vector2(cos(a),sin(a))*34.0,2.0,Color(1.0,0.88,0.55,1.0))
+
+class RaisedGoldHighlight extends Control:
+ func _draw()->void:
+  var left:=Vector2(9.0,3.5)
+  var right:=Vector2(maxf(9.0,size.x-9.0),3.5)
+  draw_line(left,right,Color(1.0,0.93,0.70,0.92),2.0,true)
+  draw_line(left+Vector2(0,3),right+Vector2(0,3),Color(0.98,0.73,0.28,0.52),1.0,true)
+  draw_circle(left,1.2,Color(1.0,0.94,0.72,0.95))
+  draw_circle(right,1.2,Color(1.0,0.94,0.72,0.95))
 
 class JoystickTouchArea extends Control:
  func _has_point(point: Vector2)->bool:
@@ -1193,7 +1202,8 @@ func _toggle_mount() -> void:
 func _refresh_mount_button() -> void:
  if not is_instance_valid(_mount_button): return
  var mounts := _root_autoload("MountSystem")
- _mount_button.text = "نزول" if mounts != null and mounts.mounted else "ركوب"
+ _mount_button.text = ""
+ _mount_button.tooltip_text = "نزول من المطية" if mounts != null and mounts.mounted else "ركوب المطية"
  _mount_button.disabled = mounts == null or (not mounts.mounted and mounts.get_equipped_mount_type().is_empty())
 
 func _select_character_slot(slot: String) -> void:
@@ -1794,19 +1804,29 @@ func _circular_style(bg: Color,border: Color,width: int,radius: int) -> StyleBox
 
 func _apply_glass_round_style(button: Button,radius: int) -> void:
  var normal:=_circular_style(Color(0.075,0.055,0.035,0.98),Color(0.98,0.77,0.30),3,radius)
- normal.shadow_color=Color(0.0,0.0,0.0,0.86)
- normal.shadow_size=11
+ normal.shadow_color=Color(0.0,0.0,0.0,0.92)
+ normal.shadow_size=12
+ normal.shadow_offset=Vector2(0,5)
  normal.border_color=Color(0.98,0.77,0.30)
  var hover:=_circular_style(Color(0.16,0.12,0.055,1.0),Color(1.0,0.91,0.55),3,radius)
- hover.shadow_color=Color(0.22,0.16,0.04,0.92)
- hover.shadow_size=13
+ hover.shadow_color=Color(0.22,0.16,0.04,0.96)
+ hover.shadow_size=14
+ hover.shadow_offset=Vector2(0,5)
  var pressed:=_circular_style(Color(0.22,0.12,0.035,1.0),Color(1.0,0.58,0.18),3,radius)
- pressed.shadow_color=Color(0.0,0.0,0.0,0.92)
- pressed.shadow_size=5
+ pressed.shadow_color=Color(0.0,0.0,0.0,0.96)
+ pressed.shadow_size=6
+ pressed.shadow_offset=Vector2(0,2)
  button.add_theme_stylebox_override("normal",normal)
  button.add_theme_stylebox_override("hover",hover)
  button.add_theme_stylebox_override("pressed",pressed)
  button.add_theme_stylebox_override("focus",hover)
+ if button.find_child("RaisedGoldHighlight",false,false)==null:
+  var highlight:=RaisedGoldHighlight.new()
+  highlight.name="RaisedGoldHighlight"
+  highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+  highlight.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  highlight.z_index=3
+  button.add_child(highlight)
 
 func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
  var style:=StyleBoxFlat.new()
@@ -1822,33 +1842,34 @@ func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
 func _set_skill_button_icon(button: Button,kind: String,hotkey: String = "") -> void:
  var filename := String(SKILL_ICON_FILES.get(kind,"bow.png"))
  var texture := load("res://assets/ui/skills/" + filename) as Texture2D
- if texture != null:
-  var icon_rect := TextureRect.new()
-  icon_rect.name = "SkillTextureIcon"
-  icon_rect.texture = texture
-  icon_rect.custom_minimum_size = Vector2(30,30)
-  icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-  icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-  icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-  icon_rect.position = (button.size-Vector2(30,30))*0.5 + Vector2(0,2)
-  icon_rect.size = Vector2(30,30)
-  icon_rect.z_index = 1
-  button.add_child(icon_rect)
- else:
+ if texture == null:
   push_error("PHASE5A_SKILL_ICON_MISSING: " + filename)
+  return
+ var icon_side := minf(42.0,button.size.x*0.58)
+ var icon_rect := TextureRect.new()
+ icon_rect.name = "SkillTextureIcon"
+ icon_rect.texture = texture
+ icon_rect.custom_minimum_size = Vector2(icon_side,icon_side)
+ icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+ icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+ icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ icon_rect.size = Vector2(icon_side,icon_side)
+ icon_rect.position = (button.size-Vector2(icon_side,icon_side))*0.5 + (Vector2(0,5) if not hotkey.is_empty() else Vector2.ZERO)
+ icon_rect.z_index = 1
+ button.add_child(icon_rect)
  if not hotkey.is_empty():
   var badge_panel:=Panel.new()
   badge_panel.name="SkillHotkeyBadge"
-  badge_panel.position=Vector2(1,0)
-  badge_panel.size=Vector2(15,12)
+  badge_panel.position=Vector2(2,2)
+  badge_panel.size=Vector2(22 if hotkey.length()<=2 else 25,12)
   badge_panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  badge_panel.add_theme_stylebox_override("panel",_flat_style(Color(0.035,0.025,0.015,0.98),Color(0.92,0.68,0.22),1))
+  badge_panel.add_theme_stylebox_override("panel",_flat_style(Color(0.035,0.025,0.015,0.99),Color(1.0,0.82,0.36),1))
   badge_panel.z_index=4
   var badge:=Label.new()
   badge.text=hotkey
   badge.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-  badge.add_theme_font_size_override("font_size",8)
-  badge.add_theme_color_override("font_color",Color(1.0,0.91,0.65))
+  badge.add_theme_font_size_override("font_size",7)
+  badge.add_theme_color_override("font_color",Color(1.0,0.95,0.78))
   badge.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
   badge.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
   badge.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -1948,9 +1969,40 @@ func _run_mobile_hud_preview() -> void:
   push_error("PHASE5A_MOBILE_HUD_PREVIEW_FAILED: real Ranger 3D model not loaded")
   get_tree().quit(1)
   return
+ if not _validate_mobile_hud_icons():
+  push_error("PHASE5A_MOBILE_HUD_PREVIEW_FAILED: real RPG/menu/skill icon validation")
+  get_tree().quit(1)
+  return
  var joystick := find_child("JoystickVisual",true,false)
  print("PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true arabic=true slots=14 ranger_3d=true viewport=480x270 ornate=true joystick_visible=",is_instance_valid(joystick) and (joystick as Control).is_visible_in_tree())
  get_tree().quit(0)
+
+func _validate_mobile_hud_icons() -> bool:
+ var categories := ["bow","sword","dagger","armor","helmet","boots","ring","necklace","gem","skill","fan","tower","wing","steed","mount_whip","mount_skin","garment","weapon_accessory"]
+ var directory := DirAccess.open("res://assets/icons/rpg")
+ if directory == null:
+  push_error("PHASE5A_RPG_ICON_DIRECTORY_MISSING")
+  return false
+ var files := directory.get_files()
+ for category in categories:
+  var found := false
+  for file_name in files:
+   if file_name.to_lower().begins_with(category+"__") and file_name.to_lower().ends_with(".png"):
+    found = true
+    break
+  if not found:
+   push_error("PHASE5A_RPG_CATEGORY_ICON_MISSING: "+category)
+   return false
+ for filename in SKILL_ICON_FILES.values():
+  if not ResourceLoader.exists("res://assets/ui/skills/"+String(filename)):
+   push_error("PHASE5A_SKILL_ICON_RESOURCE_MISSING: "+String(filename))
+   return false
+ for filename in ["settings.png","bag.png","quest.png","character.png","merchant.png","skill.png","hunt.png","mount.png"]:
+  if not ResourceLoader.exists("res://assets/ui/menu/"+filename):
+   push_error("PHASE5A_MENU_ICON_RESOURCE_MISSING: "+filename)
+   return false
+ print("PHASE5A_ALL_REAL_RPG_MENU_SKILL_ICONS_VALIDATED: equipment_categories=",categories.size()," skills=",SKILL_ICON_FILES.size()," menu=8")
+ return true
 
 func _save_mobile_hud_preview(file_name: String) -> bool:
  var directory := ProjectSettings.globalize_path("res://artifacts")
