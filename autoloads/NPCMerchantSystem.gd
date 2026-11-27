@@ -211,14 +211,18 @@ func _apply_npc_relaxed_pose(character_root: Node) -> int:
  var adjusted := 0
  for index in range(skeleton.get_bone_count()):
   var bone_name := skeleton.get_bone_name(index).to_lower().replace("_","").replace("-","").replace(" ","").replace(":","")
-  var is_arm := ("upperarm" in bone_name or "arm" in bone_name) and not ("forearm" in bone_name or "hand" in bone_name)
+  var is_left_upper_arm := bone_name == "leftupperarm" or bone_name.ends_with("leftupperarm")
+  var is_right_upper_arm := bone_name == "rightupperarm" or bone_name.ends_with("rightupperarm")
+  var is_arm := is_left_upper_arm or is_right_upper_arm or (("upperarm" in bone_name or "arm" in bone_name) and not ("forearm" in bone_name or "hand" in bone_name))
   if not is_arm:
    continue
-  var side_sign := -1.0 if ("left" in bone_name or bone_name.ends_with("l")) else 1.0
+  var side_sign := -1.0 if (is_left_upper_arm or "left" in bone_name or bone_name.ends_with("l")) else 1.0
   var current := skeleton.get_bone_pose_rotation(index)
-  var lowered := current * Quaternion(Vector3.FORWARD,deg_to_rad(58.0*side_sign))
+  var lowered := current * Quaternion(Vector3.FORWARD,deg_to_rad(75.0*side_sign))
   skeleton.set_bone_pose_rotation(index,lowered.normalized())
   adjusted += 1
+ if adjusted > 0:
+  print("PHASE4D_NPC_RELAXED_UPPER_ARMS_OK: degrees=75 bones=",adjusted)
  return adjusted
 
 func _ensure_authored_ground_collider(city_root: Node3D, authored_position: Vector3, npc_id: String) -> void:
