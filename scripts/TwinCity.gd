@@ -916,7 +916,6 @@ func _capture_mount_showcase() -> void:
     print("MOUNT_SHOWCASE_CAMERA_COMPOSITION_OK: yaw=45 pitch=side_front plaza_center=true full_mount_frame=true")
     var showcase := [
         {"type":"steed", "file":"mount_showcase_steed.png"},
-        {"type":"tiger", "file":"mount_showcase_tiger.png"},
         {"type":"deer", "file":"mount_showcase_deer.png"},
         {"type":"wolf", "file":"mount_showcase_wolf.png"}
     ]
@@ -955,5 +954,5 @@ func _capture_mount_showcase() -> void:
             return
         print("MOUNT_SHOWCASE_CAPTURE_OK: ", kind, " file=", entry.file, " bytes=", bytes)
         mounts.dismount()
-    print("MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE")
+    print("MOUNT_SHOWCASE_ALL_THREE_CAPTURES_COMPLETE")
     await _shutdown(0)
