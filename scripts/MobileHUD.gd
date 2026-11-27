@@ -75,10 +75,6 @@ func _build_hud() -> void:
  portrait_stack.size=Vector2(76,76)
  portrait.position=Vector2(4,4)
  portrait_stack.add_child(portrait)
- var portrait_ring:=GoldRing.new()
- portrait_ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- portrait_ring.mouse_filter=Control.MOUSE_FILTER_IGNORE
- portrait_stack.add_child(portrait_ring)
  head.add_child(portrait_stack)
  var info:=VBoxContainer.new()
  info.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
@@ -218,6 +214,9 @@ func _build_hud() -> void:
  for t in ["All","Talk","Whisper","Team","Guild","System"]:
   var b:=_button(t,_select_chat_tab.bind(t))
   b.custom_minimum_size=Vector2(54,26)
+  b.add_theme_color_override("font_color",Color(1.0,0.93,0.76))
+  b.add_theme_color_override("font_hover_color",Color(1.0,0.78,0.32))
+  b.add_theme_color_override("font_pressed_color",Color(1.0,0.82,0.42))
   tabs.add_child(b)
  chat.add_child(tabs)
  var log:=Label.new()
@@ -457,9 +456,8 @@ func _refresh_status() -> void:
  var gold:=int(state.gold) if state!=null else 0
  var name:=String(player.get("name","Ranger"))
  var level:=int(player.get("level",1))
- var cps:=int(player.get("cps",player.get("conquer_points",0)))
  var bp:=int(player.get("battle_power",0))
- _status_label.text="البطل: %s  •  المستوى %d\nالحياة %d/%d  •  الطاقة %d/%d\nالذهب %d  •  نقاط CP %d  •  قوة BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
+ _status_label.text="البطل: %s  •  المستوى %d\nالحياة %d/%d  •  الطاقة %d/%d\nالذهب: %d  •  قوة المعركة %d" % [name,level,hp,max_hp,mp,max_mp,gold,bp]
  var anima := int(state.anima_phase) if state != null else 0
  _status_label.add_theme_color_override("font_color",_hero_rank_color(level,anima))
  if is_inside_tree():
@@ -831,28 +829,61 @@ func _select_inventory_item(index: int) -> void:
  _selected_inventory_slot = index
  _open_window("Inventory")
 
+func _is_equipment_item(data: Dictionary) -> bool:
+ var slot := String(data.get("slot",data.get("equipment_slot",""))).to_lower()
+ var kind := String(data.get("type","")).to_lower()
+ return not slot.is_empty() or kind in ["equipment","weapon","armor","mount","mountskin","wing","garment","mountwhip"]
+
 func _equip_inventory_item(index: int) -> void:
  var state := _root_autoload("GameState")
  var gear := _root_autoload("GearSystem")
  if state == null or gear == null or index < 0 or index >= state.inventory_slots.size(): return
- var entry: Dictionary = state.inventory_slots[index]
+ var entry: Dictionary = state.inventory_slots[index].duplicate(true)
  var item_id := String(entry.get("item_id",""))
  var item := _get_item_data(item_id)
+ item["id"] = item_id
  item["plus"] = int(entry.get("instance_data",{}).get("plus",item.get("plus",0)))
  var slot := String(item.get("slot",item.get("equipment_slot",""))).to_lower()
  if slot == "headgear": slot = "helmet"
- var ok := false
- if slot == "weapon": ok = gear.equip_weapon(item_id,String(state.player_data.get("class","archer")))
- elif not slot.is_empty(): ok = gear.equip_item(slot,item)
- if ok: state.remove_item_from_slot(index,1)
+ if slot.is_empty():
+  push_warning("MOBILE_EQUIP_REJECTED_NO_SLOT: " + item_id)
+  return
+ if slot == "weapon" and not gear.can_equip(item_id,String(state.player_data.get("class","archer")),int(state.player_data.get("level",1))):
+  push_warning("MOBILE_EQUIP_REJECTED_CLASS_OR_LEVEL: " + item_id)
+  return
+ var previous: Dictionary = gear.get_equipped(slot)
+ if not state.remove_item_from_slot(index,1):
+  push_warning("MOBILE_EQUIP_REMOVE_FAILED: " + item_id)
+  return
+ if not gear.equip_item(slot,item):
+  state.add_item(item_id,1,entry.get("instance_data",{}))
+  push_warning("MOBILE_EQUIP_FAILED_ROLLBACK: " + item_id)
+  _open_window("Inventory")
+  return
+ if not previous.is_empty():
+  var previous_id := String(previous.get("id",previous.get("item_id","")))
+  if not previous_id.is_empty() and not state.add_item(previous_id,1,previous):
+   gear.equip_item(slot,previous)
+   state.add_item(item_id,1,entry.get("instance_data",{}))
+   push_error("MOBILE_EQUIP_SWAP_ROLLBACK: inventory refused previous item")
+ _selected_inventory_slot = -1
  _open_window("Inventory")
 
 func _use_inventory_item(index: int) -> void:
  var state := _root_autoload("GameState")
  if state == null or index < 0 or index >= state.inventory_slots.size(): return
  var item_id := String(state.inventory_slots[index].get("item_id",""))
- var item_type := String(_get_item_data(item_id).get("type","")).to_lower()
- if item_type.contains("potion") or item_id.to_lower().contains("potion"): _use_potion(item_id)
+ var data := _get_item_data(item_id)
+ var item_type := String(data.get("type","")).to_lower()
+ if item_type.contains("potion") or item_id.to_lower().contains("potion"):
+  _use_potion(item_id)
+ else:
+  var item_use := _root_autoload("ItemUseSystem")
+  var used := false
+  if item_use != null:
+   if item_use.has_method("use_item"): used = bool(item_use.use_item(item_id,index))
+   elif item_use.has_method("activate_item"): used = bool(item_use.activate_item(item_id,index))
+  if not used: push_warning("MOBILE_ITEM_USE_UNSUPPORTED: " + item_id)
  _open_window("Inventory")
 
 func _sell_inventory_item(index: int) -> void:
@@ -921,9 +952,11 @@ func _build_inventory(layout: VBoxContainer) -> void:
   details.add_child(item_title)
   details.add_child(_label(String(data.get("description","لا يوجد وصف متاح."))))
   var actions := HBoxContainer.new()
-  actions.add_child(_button("لبس",_equip_inventory_item.bind(_selected_inventory_slot)))
-  actions.add_child(_button("استخدام",_use_inventory_item.bind(_selected_inventory_slot)))
-  actions.add_child(_button("بيع 50%",_sell_inventory_item.bind(_selected_inventory_slot)))
+  if _is_equipment_item(data):
+   actions.add_child(_button("ارتداء",_equip_inventory_item.bind(_selected_inventory_slot)))
+  else:
+   actions.add_child(_button("استخدام",_use_inventory_item.bind(_selected_inventory_slot)))
+  actions.add_child(_button("بيع بالذهب",_sell_inventory_item.bind(_selected_inventory_slot)))
   actions.add_child(_button("نقل للخزنة",_deposit_inventory_item.bind(_selected_inventory_slot)))
   details.add_child(actions)
  else:
@@ -1059,7 +1092,8 @@ func _build_character(layout: VBoxContainer) -> void:
  title_label.add_theme_font_size_override("font_size",15)
  detail_text.add_child(title_label)
  detail_text.add_child(_label("الهجوم %d  •  الدفاع %d  •  المستوى %d" % [int(selected.get("attack_bonus",selected.get("base_attack",0))),int(selected.get("defense_bonus",selected.get("base_defense",0))),int(selected.get("level",1))]))
- detail_row.add_child(_button("خلع القطعة",_unequip_character_slot.bind(_selected_equipment_slot)))
+ if not selected.is_empty():
+  detail_row.add_child(_button("خلع القطعة",_unequip_character_slot.bind(_selected_equipment_slot)))
  var stats: Dictionary = gear.get_combat_bonuses() if gear != null else {}
  var player: Dictionary = state.player_data if state != null else {}
  var bp := int(player.get("battle_power",int(stats.get("attack",0))+int(stats.get("defense",0))))
@@ -1136,13 +1170,17 @@ func _select_character_slot(slot: String) -> void:
 func _unequip_character_slot(slot: String) -> void:
  var gear := _root_autoload("GearSystem")
  var state := _root_autoload("GameState")
- if gear == null: return
+ if gear == null or state == null: return
  var item: Dictionary = gear.get_equipped(slot)
  if item.is_empty(): return
  var item_id := String(item.get("id",item.get("item_id","")))
- if state != null and not item_id.is_empty():
-  state.add_item(item_id,1,item)
- gear.unequip_item(slot)
+ if item_id.is_empty(): return
+ if not gear.unequip_item(slot):
+  push_warning("MOBILE_UNEQUIP_FAILED: " + slot)
+  return
+ if not state.add_item(item_id,1,item):
+  gear.equip_item(slot,item)
+  push_warning("MOBILE_UNEQUIP_ROLLBACK_INVENTORY_FULL: " + slot)
  _open_window("Character")
 
 func _on_character_preview_input(event: InputEvent) -> void:
@@ -1387,7 +1425,6 @@ func _build_currency_bar(include_warehouse: bool) -> Control:
  var state := _root_autoload("GameState")
  var player: Dictionary = state.player_data if state != null else {}
  var gold := int(state.gold) if state != null else 0
- var cps := int(player.get("cps",player.get("conquer_points",0)))
  var bar := PanelContainer.new()
  bar.name = "ClassicCurrencyBar"
  bar.custom_minimum_size = Vector2(0,42)
@@ -1395,15 +1432,17 @@ func _build_currency_bar(include_warehouse: bool) -> Control:
  var row := HBoxContainer.new()
  row.add_theme_constant_override("separation",12)
  bar.add_child(row)
+ var gold_icon := _make_item_icon({"id":"DragonGem","name":"كومة جواهر","type":"Gem","family":"gem"},0,Vector2(30,30))
+ row.add_child(gold_icon)
  var carried := Label.new()
- carried.text = "🪙 Gold: %s   ✦ CP: %s" % [gold,cps]
- carried.add_theme_color_override("font_color",Color(1.0,0.82,0.42))
+ carried.text = "الذهب: %s" % gold
+ carried.add_theme_color_override("font_color",Color(1.0,0.91,0.68))
  carried.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  row.add_child(carried)
  if include_warehouse:
   var stored := int(player.get("warehouse_gold",0))
   var vault := Label.new()
-  vault.text = "🏦 الخزنة: %s Gold" % stored
+  vault.text = "ذهب الخزنة: %s" % stored
   vault.add_theme_color_override("font_color",Color(0.92,0.72,0.34))
   row.add_child(vault)
   row.add_child(_button("إيداع الذهب",_deposit_all_gold))
