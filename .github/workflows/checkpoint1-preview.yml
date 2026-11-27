@@ -435,7 +435,7 @@ jobs:
               exact = [p for p in candidates if p.stem.lower() == identity.lower()]
               source = sorted(exact or candidates)[0]
               destination = output / filename
-              subprocess.run(["gltfpack", "-i", str(source), "-o", str(destination)], check=True)
+              subprocess.run([".cache/tools/bin/gltfpack", "-i", str(source), "-o", str(destination)], check=True)
               print("QUATERNIUS_SOURCE:", identity, source.relative_to(root))
           tiger_url = "https://gobkit.com/freebies/animal012/SumatranTiger.glb"
           tiger_path = output / "mount_tiger.glb"
