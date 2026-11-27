@@ -145,7 +145,7 @@ func _apply_node_settings(node: Node) -> void:
     if not is_instance_valid(node):
         return
     var quality := int(get_setting("graphics_quality", 1))
-    var is_ci_capture := OS.get_environment("CI_CAPTURE") == "1"
+    var is_ci_capture := OS.get_environment("CI_CAPTURE") == "1" and OS.get_environment("SETTINGS_FUNCTIONAL_TEST") != "1"
     if node is WorldEnvironment:
         var world_environment := node as WorldEnvironment
         if world_environment.environment != null:
@@ -209,4 +209,21 @@ func _consume_first_potion(state: Node, item_ids: Array[String]) -> bool:
         if state.has_method("get_item_count") and int(state.get_item_count(item_id)) > 0 and state.has_method("remove_item"):
             if bool(state.remove_item(item_id, 1)):
                 return true
+    return false
+
+
+## Return only after the WorldMapManager has completed a real Twin City scene transition.
+func unstuck_to_twin_city() -> bool:
+    var world_map := get_node_or_null("/root/WorldMapManager")
+    if world_map == null or not world_map.has_method("travel_to_city"):
+        push_error("GAME_SETTINGS_UNSTUCK_FAILED: WorldMapManager unavailable")
+        return false
+    world_map.travel_to_city("TwinCity", Vector3(0.0, -1.35, 0.0))
+    for frame in range(180):
+        await get_tree().process_frame
+        var scene := get_tree().current_scene
+        if String(world_map.current_city) == "TwinCity" and not bool(world_map.transition_in_progress) and scene != null and String(scene.scene_file_path).ends_with("TwinCity.tscn"):
+            print("GAME_SETTINGS_UNSTUCK_TWIN_CITY_OK: scene=", scene.scene_file_path)
+            return true
+    push_error("GAME_SETTINGS_UNSTUCK_TIMEOUT: city=" + String(world_map.current_city))
     return false
