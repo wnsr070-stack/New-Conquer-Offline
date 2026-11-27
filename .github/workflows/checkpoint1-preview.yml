@@ -575,14 +575,37 @@ jobs:
           grep -q "PHASE5A_MOBILE_HUD_PREVIEW_CAPTURE_OK: inventory=true character=true icons=true" artifacts/mobile_hud_preview.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|PHASE5A_MOBILE_HUD_PREVIEW_FAILED" artifacts/mobile_hud_preview.log
 
-      - name: Upload six captures and diagnostics
+      - name: Test mount, equipment and capture four mounted animals in Twin City
+        env:
+          MOUNT_SHOWCASE: "1"
+          CI_CAPTURE: "1"
+        run: |
+          set -euo pipefail
+          export LIBGL_ALWAYS_SOFTWARE=1
+          xvfb-run -a -s "-screen 0 1280x720x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/mount_showcase.log
+          grep -q "MOUNT_AND_EQUIP_TEST_PASS=true" artifacts/mount_showcase.log
+          grep -q "MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE" artifacts/mount_showcase.log
+          for image in mount_showcase_steed.png mount_showcase_tiger.png mount_showcase_deer.png mount_showcase_wolf.png; do
+            test -s "artifacts/$image"
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 15000 ] || { echo "::error::Mount preview too small: $image ($size bytes)"; exit 1; }
+          done
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|MOUNT_AND_EQUIP_TEST_PASS=false|MOUNT_SHOWCASE_CAPTURE_FAILED|MOUNT_SHOWCASE_MOUNT_FAILED" artifacts/mount_showcase.log
+
+      - name: Upload four mount showcase PNGs and test logs only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: twin-city-checkpoint1-preview-${{ github.run_number }}
+          name: mount-showcase-${{ github.run_number }}
           if-no-files-found: warn
           retention-days: 14
           path: |
+            artifacts/mount_showcase_steed.png
+            artifacts/mount_showcase_tiger.png
+            artifacts/mount_showcase_deer.png
+            artifacts/mount_showcase_wolf.png
+            artifacts/mount_showcase.log
+            artifacts/syntax_gate.log
             artifacts/city_phoenix_castle.png
             artifacts/city_ape_mountain.png
             artifacts/city_desert_city.png
