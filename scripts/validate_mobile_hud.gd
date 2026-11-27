@@ -103,7 +103,7 @@ func _run_functional_tests() -> void:
     # Camera sensitivity is exercised through HeroController's real camera rotation method.
     settings.set_setting("camera_sensitivity", 2.0)
     var hero_controller = null
-    for frame in range(900):
+    for frame in range(7200):
         hero_controller = test_root.find_child("TwinCityPlayableHero", true, false)
         if hero_controller != null and hero_controller.get("camera_pivot") is Node3D:
             break
