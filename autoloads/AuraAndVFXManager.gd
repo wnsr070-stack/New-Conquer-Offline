@@ -102,16 +102,36 @@ func _make_material(tint: Color = Color.WHITE) -> StandardMaterial3D:
  _material_cache[key] = material
  return material
 
+func _make_radial_glow_texture(tint: Color) -> GradientTexture2D:
+ var gradient := Gradient.new()
+ gradient.set_color(0,Color(tint.r,tint.g,tint.b,0.95))
+ gradient.set_color(1,Color(tint.r,tint.g,tint.b,0.0))
+ gradient.set_offset(0,0.0)
+ gradient.set_offset(1,1.0)
+ var texture := GradientTexture2D.new()
+ texture.gradient = gradient
+ texture.width = 128
+ texture.height = 128
+ texture.fill = GradientTexture2D.FILL_RADIAL
+ texture.fill_from = Vector2(0.5,0.5)
+ texture.fill_to = Vector2(1.0,0.5)
+ return texture
+
 func _build_frames(effect_type: String, variant: int) -> SpriteFrames:
  var key := "%s:%d" % [effect_type,clampi(variant,0,4)]
  if _frames_cache.has(key): return _frames_cache[key] as SpriteFrames
  if not EFFECT_FILES.has(effect_type): return null
  var file_name: String = EFFECT_FILES[effect_type][clampi(variant,0,4)]
  var path := EFFECT_ROOT + file_name
- if not ResourceLoader.exists(path):
-  push_warning("PHASE4D_VFX_ASSET_MISSING: "+path)
-  return null
  var texture: Texture2D = _texture_cache.get(path) as Texture2D
+ if texture == null and not ResourceLoader.exists(path):
+  if file_name in ["flame_fire.png","ring_fire.png"]:
+   texture = _make_radial_glow_texture(Color(1.0,0.42,0.10) if file_name == "flame_fire.png" else Color(1.0,0.72,0.20))
+   _texture_cache[path] = texture
+   print("PHASE4D_VFX_RADIAL_GRADIENT_FALLBACK_OK: ",file_name," fill=FILL_RADIAL")
+  else:
+   push_warning("PHASE4D_VFX_ASSET_MISSING: "+path)
+   return null
  if texture == null:
   var source_texture := load(path) as Texture2D
   if source_texture == null: return null
