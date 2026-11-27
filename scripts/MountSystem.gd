@@ -355,7 +355,10 @@ func _apply_rider_pose(on_mount: bool) -> void:
     else:
      rig.set_bone_pose_rotation(index,(original*Quaternion(Vector3.RIGHT,deg_to_rad(78.0))).normalized())
     seated_bones.append(actual_name)
-   print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=",_rider_original_bone_rotations.size()," names=",seated_bones," legs_spread=true knees_bent=true")
+   if _rider_original_bone_rotations.size() < 4:
+    push_error("MOUNT_RIDER_POSE_INCOMPLETE: thigh_knee_bones="+str(_rider_original_bone_rotations.size())+" names="+str(seated_bones))
+   else:
+    print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=",_rider_original_bone_rotations.size()," names=",seated_bones," legs_spread=true knees_bent=true")
   else:
    for bone_index in _rider_original_bone_rotations:
     if bone_index >= 0 and bone_index < rig.get_bone_count():
@@ -365,6 +368,7 @@ func _apply_rider_pose(on_mount: bool) -> void:
  if on_mount:
   var saddle_height_world := 4.48
   var rider_vertical_offset := 0.12
+  var hip_found := false
   if not skeleton_nodes.is_empty():
    var rig := skeleton_nodes[0] as Skeleton3D
    for index in range(rig.get_bone_count()):
@@ -375,7 +379,10 @@ func _apply_rider_pose(on_mount: bool) -> void:
      var saddle_height_local := saddle_height_world/model_scale_y
      rider_vertical_offset = saddle_height_local-hip_in_model.y
      print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y_world=",saddle_height_world," hero_scale_y=",model_scale_y," offset=",rider_vertical_offset)
+     hip_found = true
      break
+  if not hip_found:
+   push_error("MOUNT_SADDLE_HIP_BONE_MISSING: Ninja rig has no hips/pelvis bone")
   _hero_model.position.y = _hero_model_base_y+rider_vertical_offset
  else:
   _hero_model.position.y = _hero_model_base_y
