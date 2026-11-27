@@ -150,8 +150,7 @@ func _build_hud() -> void:
  joy.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
  joy.z_index=25
  joy.gui_input.connect(_on_joystick_input)
- var joyart:=TextureRect.new()
- joyart.texture=load("res://assets/ui/joystick.svg")
+ var joyart:=JoystickVisual.new()
  joyart.position=Vector2(8,8)
  joyart.size=Vector2(174,174)
  joyart.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -163,14 +162,15 @@ func _build_hud() -> void:
  root.add_child(bottom)
  var orb:=SplitOrb.new()
  orb.name="SplitHPMPOrb"
- orb.position=Vector2(560,-150)
  orb.size=Vector2(132,132)
  orb.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+ var bottom_group_width := 132.0 + 10.0 + 10.0 * 34.0 + 9.0 * 4.0
+ orb.position=Vector2(maxf(12.0,(get_viewport_rect().size.x-bottom_group_width)*0.5),-150)
  orb.add_to_group("hud_orbs")
  bottom.add_child(orb)
  var exp:=HBoxContainer.new()
  exp.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- exp.position=Vector2(704,-105)
+ exp.position=Vector2(orb.position.x+142.0,-105)
  for i in range(10):
   var c:=ColorRect.new()
   c.custom_minimum_size=Vector2(23,12)
@@ -179,7 +179,7 @@ func _build_hud() -> void:
  bottom.add_child(exp)
  var hot:=HBoxContainer.new()
  hot.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- hot.position=Vector2(704,-72)
+ hot.position=Vector2(orb.position.x+142.0,-72)
  for i in range(10):
   var b:=_button("F%d"%(i+1),_use_skill_at.bind(i))
   b.custom_minimum_size=Vector2(34,34)
@@ -231,6 +231,15 @@ class SplitOrb extends Control:
   draw_arc(center,radius,0.0,TAU,72,Color(0.96,0.76,0.32),5.0,true)
   draw_string(ThemeDB.fallback_font,center+Vector2(-radius*0.72,5),"HP",HORIZONTAL_ALIGNMENT_CENTER,42,13,Color.WHITE)
   draw_string(ThemeDB.fallback_font,center+Vector2(radius*0.30,5),"MP",HORIZONTAL_ALIGNMENT_CENTER,42,13,Color.WHITE)
+
+class JoystickVisual extends Control:
+ func _draw() -> void:
+  var center := size*0.5
+  var radius := minf(size.x,size.y)*0.45
+  draw_circle(center,radius,Color(0.08,0.10,0.14,0.42))
+  draw_arc(center,radius,0.0,TAU,64,Color(0.88,0.76,0.52,0.78),4.0,true)
+  draw_circle(center,radius*0.46,Color(0.18,0.20,0.24,0.65))
+  draw_arc(center,radius*0.46,0.0,TAU,48,Color(0.96,0.84,0.62,0.92),3.0,true)
 
 class RadarDisplay extends Control:
  func _draw()->void:
@@ -290,6 +299,9 @@ func _refresh_status() -> void:
  var cps:=int(player.get("cps",player.get("conquer_points",0)))
  var bp:=int(player.get("battle_power",0))
  _status_label.text="البطل: %s  •  المستوى %d\\nالحياة %d/%d  •  الطاقة %d/%d\\nالذهب %d  •  نقاط CP %d  •  قوة BP %d" % [name,level,hp,max_hp,mp,max_mp,gold,cps,bp]
+ var anima := int(state.anima_phase) if state != null else 0
+ _status_label.add_theme_color_override("font_color",_hero_rank_color(level,anima)
+ )
  for orb in get_tree().get_nodes_in_group("hud_orbs"):
   if orb is SplitOrb:
    orb.hp_ratio=float(hp)/float(max_hp)
@@ -492,6 +504,15 @@ func _build_guild_window(layout: VBoxContainer) -> void:
  layout.add_child(_label("النقابة"))
  layout.add_child(_label("نظام النقابة المحلي"))
 
+
+func _hero_rank_color(level: int,anima: int) -> Color:
+ if anima >= 18: return Color(0.70,0.36,1.0)
+ if level >= 130: return Color(1.0,0.78,0.20)
+ if level >= 120: return Color(0.92,0.12,0.22)
+ if level >= 100: return Color(0.12,0.32,0.95)
+ if level >= 70: return Color(0.12,0.88,0.95)
+ if level >= 40: return Color(0.18,0.82,0.32)
+ return Color.WHITE
 
 func _rank_color_for_plus(plus: int) -> Color:
  if plus >= 12: return Color(0.70,0.36,1.0)
@@ -930,8 +951,22 @@ func _get_item_data(item_id: String) -> Dictionary:
 func _item_display_name(item_id: String) -> String:
  var data := _get_item_data(item_id)
  var raw := String(data.get("display_name",data.get("name",item_id)))
- return _arabic(raw)
-
+ var key := item_id.to_lower()
+ var translated := ""
+ if key.contains("bow"): translated = "قوس الصياد"
+ elif key.contains("helmet"): translated = "خوذة المبتدئ السوبر" if key.contains("super") else "خوذة المبتدئ"
+ elif key.contains("body") or key.contains("armor"): translated = "درع المبتدئ السوبر" if key.contains("super") else "درع المبتدئ"
+ elif key.contains("boot") or key.contains("shoe"): translated = "حذاء المبتدئ السوبر" if key.contains("super") else "حذاء المبتدئ"
+ elif key.contains("ring"): translated = "خاتم"
+ elif key.contains("necklace") or key.contains("amulet"): translated = "قلادة"
+ elif key.contains("potion"): translated = "جرعة حياة" if key.contains("hp") else "جرعة طاقة"
+ else: translated = _arabic(raw)
+ var plus := int(data.get("plus",0))
+ if key.contains("_p12"): plus = maxi(plus,12)
+ elif key.contains("_p"): 
+  var marker := key.rfind("_p")
+  if marker >= 0: plus = maxi(plus,int(key.substr(marker+2)))
+ return translated + (" +" + str(plus) if plus > 0 and not translated.contains("+"+str(plus)) else "")
 func _make_item_icon(data: Dictionary,plus: int = 0,icon_size: Vector2 = Vector2(40,40)) -> Control:
  var icon: Control = ICON_SCRIPT.new()
  icon.custom_minimum_size = icon_size
