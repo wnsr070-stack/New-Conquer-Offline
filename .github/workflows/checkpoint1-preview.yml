@@ -35,6 +35,12 @@ jobs:
         with:
           path: .cache/tools
           key: twin-city-tools-linux-v1
+      - name: Cache Phase 5 mount GLB models
+        id: mount_models
+        uses: actions/cache@v4
+        with:
+          path: assets/mounts
+          key: phase5-mount-glb-v1-${{ hashFiles('scripts/MountSystem.gd') }}
       - name: Cache Hugging Face and external assets
         id: assets
         uses: actions/cache@v4
@@ -64,6 +70,48 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
           command -v gltfpack
           echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
+      - name: Fetch and validate four animated CC0 mount GLBs
+        if: steps.mount_models.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p assets/mounts /tmp/phase5-mounts
+          base="https://raw.githubusercontent.com/nishit47/Blender-Pre-vis-Pipeline---Screenplay-to-Animatic/main/assets/Animated%20Animal%20Pack-glb"
+          fetch_model() {
+            local source_name="$1" target_name="$2"
+            local source="/tmp/phase5-mounts/${source_name}"
+            local target="assets/mounts/${target_name}"
+            curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$base/${source_name}" -o "$source"
+            local bytes
+            bytes=$(stat -c%s "$source")
+            [ "$bytes" -gt 30720 ] || { echo "::error::Mount source GLB below 30KB: ${source_name} bytes=${bytes}"; exit 1; }
+            signature=$(od -An -tx1 -N4 "$source" | tr -d ' \n')
+            [ "$signature" = "676c5446" ] || { echo "::error::Mount source is not a binary GLB: ${source_name}"; exit 1; }
+            echo "MOUNT_SOURCE_GLB_VALID: ${source_name} bytes=${bytes}"
+            gltfpack -i "$source" -o "$target" -noq
+            local packed_bytes
+            packed_bytes=$(stat -c%s "$target")
+            [ "$packed_bytes" -gt 30720 ] || { echo "::error::Optimized mount GLB below 30KB: ${target_name} bytes=${packed_bytes}"; exit 1; }
+            signature=$(od -An -tx1 -N4 "$target" | tr -d ' \n')
+            [ "$signature" = "676c5446" ] || { echo "::error::Optimized mount is not a binary GLB: ${target_name}"; exit 1; }
+            echo "MOUNT_MODEL_CACHE_READY: ${target_name} bytes=${packed_bytes} compression=no_quantization"
+          }
+          fetch_model "Horse.glb" "steed_horse.glb" || {
+            echo "::warning::Primary Horse.glb source failed; using Three.js official Horse.glb fallback"
+            curl --fail --location --retry 4 --retry-all-errors "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Horse.glb" -o /tmp/phase5-mounts/Horse.glb
+            bytes=$(stat -c%s /tmp/phase5-mounts/Horse.glb)
+            [ "$bytes" -gt 30720 ] || { echo "::error::Fallback Horse.glb below 30KB: $bytes"; exit 1; }
+            gltfpack -i /tmp/phase5-mounts/Horse.glb -o assets/mounts/steed_horse.glb -noq
+            test "$(stat -c%s assets/mounts/steed_horse.glb)" -gt 30720
+            echo "MOUNT_MODEL_CACHE_READY: steed_horse.glb source=threejs_fallback"
+          }
+          fetch_model "Fox.glb" "mount_tiger.glb"
+          fetch_model "Stag.glb" "mount_deer.glb"
+          fetch_model "Wolf.glb" "mount_wolf.glb"
+          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb; do
+            test -s "assets/mounts/$file"
+            echo "MOUNT_FOUR_MODEL_ASSET_OK: $file bytes=$(stat -c%s "assets/mounts/$file")"
+          done
+          rm -rf /tmp/phase5-mounts
       - name: Install Python fetch dependencies
         run: |
           set -euo pipefail
@@ -134,6 +182,11 @@ jobs:
         with:
           path: .cache/tools
           key: twin-city-tools-linux-v1
+      - name: Restore four mount GLB models
+        uses: actions/cache@v4
+        with:
+          path: assets/mounts
+          key: phase5-mount-glb-v1-${{ hashFiles('scripts/MountSystem.gd') }}
       - name: Restore approved asset cache
         uses: actions/cache@v4
         with:
@@ -154,6 +207,12 @@ jobs:
           test -s .cache/hf-assets/twin_city_runtime_assets.json
           test -s .cache/hf-assets/landmark_sources.txt
           test -x .cache/tools/bin/gltfpack
+          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb; do
+            test -s "assets/mounts/$file" || { echo "::error::Restored mount model missing: $file"; exit 1; }
+            bytes=$(stat -c%s "assets/mounts/$file")
+            [ "$bytes" -gt 30720 ] || { echo "::error::Restored mount model below 30KB: $file bytes=$bytes"; exit 1; }
+            echo "MOUNT_MODEL_RESTORED_OK: $file bytes=$bytes"
+          done
           cp .cache/hf-assets/landmark_sources.txt artifacts/landmark_sources.txt
           echo PREPARED_ASSETS_AND_TOOLS_READY
       - name: Fetch approved Ranger hero and class weapons
