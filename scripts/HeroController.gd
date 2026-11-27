@@ -2,7 +2,6 @@ extends CharacterBody3D
 class_name HeroController
 
 const ASSASSIN_HERO := "res://assets/mounts/hero_assassin.glb"
-const RANGER_MALE := "res://assets/phase3b/characters/Male_Ranger.glb"
 const ANIMS := "res://assets/phase4/animations/conquer_hero_anims.res"
 const WEAPON_ROOT := "res://assets/phase3b/weapons/"
 const CLASS_ORDER := ["archer", "trojan", "warrior", "taoist"]
@@ -125,7 +124,7 @@ func _load_assassin_hero() -> void:
  if run_clip.is_empty() or walk_clip.is_empty():
   push_error("HERO_ASSASSIN_WALK_RUN_CLIPS_MISSING: clips="+str(imported_clips))
   return
- print("HERO_ASSASSIN_RIGGED_GL B_READY: path=",ASSASSIN_HERO," walk=",walk_clip," run=",run_clip," clips=",imported_clips)
+ print("HERO_ASSASSIN_RIGGED_GLB_READY: path=",ASSASSIN_HERO," walk=",walk_clip," run=",run_clip," clips=",imported_clips)
  _attach_retargeted_conquer_animations()
  animation_player.play(walk_clip)
  await get_tree().process_frame
