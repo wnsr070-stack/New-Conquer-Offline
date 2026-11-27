@@ -161,7 +161,7 @@ func _build_hud() -> void:
 
  var joy:=_ornate_panel(root,Vector2(18,-205),Vector2(190,190))
  joy.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
- joy.z_index=60
+ joy.z_index=40
  joy.visible=true
  joy.gui_input.connect(_on_joystick_input)
  var joyart:=JoystickVisual.new()
@@ -223,7 +223,7 @@ func _build_hud() -> void:
  _window_layer=Control.new()
  _window_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  _window_layer.mouse_filter=Control.MOUSE_FILTER_STOP
- _window_layer.z_index=50
+ _window_layer.z_index=30
  add_child(_window_layer)
 
 class SplitOrb extends Control:
@@ -391,7 +391,7 @@ func _open_artisan() -> void:
 func _open_window(window_name: String) -> void:
  _active_window = window_name
  for child in _window_layer.get_children(): child.queue_free()
- var window_size := Vector2(860,540) if window_name == "Character" else Vector2(650,540)
+ var window_size := Vector2(860,560) if window_name == "Character" else Vector2(650,560)
  var panel := _panel(_window_layer, Vector2.ZERO, window_size, false)
  panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
  panel.size = window_size
@@ -425,6 +425,8 @@ func _open_window(window_name: String) -> void:
   "Map": _build_map_window(layout)
   "Chat": _build_chat(layout)
   _: _build_npc_info(layout,window_name)
+ if window_name in ["Inventory","Bag","Character","Warehouse"]:
+  layout.add_child(_build_currency_bar(window_name == "Warehouse"))
  _apply_arabic_rtl(_window_layer)
 
 func _send_chat_message(entry: LineEdit,log: Label) -> void:
@@ -608,7 +610,7 @@ func _build_inventory(layout: VBoxContainer) -> void:
   cell.clip_contents = true
   cell.text = ""
   _apply_button_skin(cell,true)
-  cell.add_theme_stylebox_override("normal",_slot_style())
+  cell.add_theme_stylebox_override("normal",_selected_slot_style() if index == _selected_inventory_slot else _slot_style())
   if not item.is_empty():
    var item_id := String(item.get("item_id",""))
    var data := _get_item_data(item_id)
@@ -618,14 +620,14 @@ func _build_inventory(layout: VBoxContainer) -> void:
    cell.add_child(icon)
    if plus > 0:
     var plus_label := Label.new()
-    plus_label.text = "+"+str(plus)
-    plus_label.position = Vector2(1,0)
-    plus_label.add_theme_font_size_override("font_size",11)
+    plus_label.text = "★"+str(plus)
+    plus_label.position = Vector2(1,34)
+    plus_label.add_theme_font_size_override("font_size",10)
     plus_label.add_theme_color_override("font_color",_rank_color_for_plus(plus))
     cell.add_child(plus_label)
    var quantity := Label.new()
    quantity.text = "x%d" % int(item.get("count",1))
-   quantity.position = Vector2(25,35)
+   quantity.position = Vector2(27,35)
    quantity.add_theme_font_size_override("font_size",11)
    cell.add_child(quantity)
    cell.pressed.connect(_select_inventory_item.bind(index))
@@ -655,7 +657,7 @@ func _build_character(layout: VBoxContainer) -> void:
  var gear := _root_autoload("GearSystem")
  var equipped: Dictionary = gear.equipped if gear != null else {}
  var body := HBoxContainer.new()
- body.custom_minimum_size = Vector2(820,470)
+ body.custom_minimum_size = Vector2(820,420)
  body.add_theme_constant_override("separation",0)
  layout.add_child(body)
  var left_column := VBoxContainer.new()
@@ -704,6 +706,32 @@ func _build_character(layout: VBoxContainer) -> void:
  camera.fov = 38.0
  world.add_child(camera)
  camera.look_at(Vector3(0,0.92,0),Vector3.UP)
+ var gold_platform := MeshInstance3D.new()
+ gold_platform.name = "HeroGoldLightPlatform"
+ var platform_mesh := TorusMesh.new()
+ platform_mesh.inner_radius = 0.72
+ platform_mesh.outer_radius = 0.86
+ platform_mesh.rings = 48
+ platform_mesh.ring_segments = 16
+ gold_platform.mesh = platform_mesh
+ gold_platform.position = Vector3(0,0.035,0)
+ gold_platform.scale = Vector3(1.0,1.0,0.72)
+ var platform_material := StandardMaterial3D.new()
+ platform_material.albedo_color = Color(0.86,0.58,0.16,0.92)
+ platform_material.emission_enabled = true
+ platform_material.emission = Color(1.0,0.56,0.12)
+ platform_material.emission_energy_multiplier = 1.8
+ platform_material.metallic = 0.72
+ platform_material.roughness = 0.24
+ gold_platform.set_surface_override_material(0,platform_material)
+ world.add_child(gold_platform)
+ var platform_light := OmniLight3D.new()
+ platform_light.name = "HeroGoldPlatformLight"
+ platform_light.position = Vector3(0,0.38,0.55)
+ platform_light.light_color = Color(1.0,0.66,0.28)
+ platform_light.light_energy = 1.15
+ platform_light.omni_range = 4.5
+ world.add_child(platform_light)
  var key_light := DirectionalLight3D.new()
  key_light.rotation_degrees = Vector3(-38,-28,0)
  key_light.light_energy = 1.35
@@ -733,8 +761,8 @@ func _build_character(layout: VBoxContainer) -> void:
   print("PHASE5A_CHARACTER_PREVIEW_MODEL_READY: source=Male_Ranger.glb viewport=480x270 touch_drag=true mouse_drag=true idle=",idle_started)
  var selected: Dictionary = equipped.get(_selected_equipment_slot,{})
  var details := PanelContainer.new()
- details.custom_minimum_size = Vector2(480,76)
- details.add_theme_stylebox_override("panel",_flat_style(Color(0.12,0.085,0.055,0.96),Color(0.88,0.68,0.34),2))
+ details.custom_minimum_size = Vector2(480,62)
+ details.add_theme_stylebox_override("panel",_flat_style(Color(0.03,0.03,0.04,0.80),Color(0.86,0.66,0.26),2))
  center_column.add_child(details)
  var detail_row := HBoxContainer.new()
  detail_row.add_theme_constant_override("separation",8)
@@ -757,15 +785,18 @@ func _build_character(layout: VBoxContainer) -> void:
  var steed: Dictionary = equipped.get("steed",{})
  var speed := int(steed.get("mount_speed",steed.get("speed",0)))
  var stats_panel := PanelContainer.new()
- stats_panel.custom_minimum_size = Vector2(480,78)
- stats_panel.add_theme_stylebox_override("panel",_flat_style(Color(0.08,0.065,0.045,0.96),Color(0.68,0.50,0.27),1))
+ stats_panel.custom_minimum_size = Vector2(480,68)
+ stats_panel.add_theme_stylebox_override("panel",_flat_style(Color(0.03,0.03,0.04,0.80),Color(0.86,0.66,0.26),1))
  center_column.add_child(stats_panel)
- var stats_text := VBoxContainer.new()
- stats_text.add_theme_constant_override("separation",2)
- stats_panel.add_child(stats_text)
- stats_text.add_child(_label("قوة المعركة: %d   الهجوم: %d   الدفاع: %d" % [bp,int(stats.get("attack",0)),int(stats.get("defense",0))]))
- stats_text.add_child(_label("الهجوم السحري: %d   سرعة الركوب: %d" % [int(stats.get("magic_attack",0)),speed]))
- stats_text.add_child(_label("الرتبة: %s   القطع المجهزة: %d/14" % [String(selected.get("quality","عادية")),equipped.size()]))
+ var stats_grid := GridContainer.new()
+ stats_grid.columns = 2
+ stats_grid.add_theme_constant_override("h_separation",18)
+ stats_grid.add_theme_constant_override("v_separation",2)
+ stats_panel.add_child(stats_grid)
+ for stat_line in ["قوة المعركة: %d" % bp,"الهجوم: %d" % int(stats.get("attack",0)),"الدفاع: %d" % int(stats.get("defense",0)),"الهجوم السحري: %d" % int(stats.get("magic_attack",0)),"سرعة الركوب: %d" % speed,"القطع المجهزة: %d/14" % equipped.size()]:
+  var stat_label := _label(stat_line)
+  stat_label.add_theme_font_size_override("font_size",13)
+  stats_grid.add_child(stat_label)
 
 func _add_character_equipment_slot(column: VBoxContainer,slot: String,caption: String,label_first: bool,equipped: Dictionary) -> void:
  var row := HBoxContainer.new()
@@ -779,15 +810,15 @@ func _add_character_equipment_slot(column: VBoxContainer,slot: String,caption: S
  cell.clip_contents = true
  cell.text = ""
  _apply_button_skin(cell,true)
- cell.add_theme_stylebox_override("normal",_slot_style())
+ cell.add_theme_stylebox_override("normal",_selected_slot_style() if slot == _selected_equipment_slot else _slot_style())
  var icon_data: Dictionary = item if not item.is_empty() else {"id":slot,"slot":slot,"type":"Equipment"}
  var icon := _make_item_icon(icon_data,int(item.get("plus",0)),Vector2(40,40))
  icon.position = Vector2(4,4)
  cell.add_child(icon)
  if int(item.get("plus",0)) > 0:
   var plus_label := Label.new()
-  plus_label.text = "+" + str(item.get("plus",0))
-  plus_label.position = Vector2(1,0)
+  plus_label.text = "★" + str(item.get("plus",0))
+  plus_label.position = Vector2(1,33)
   plus_label.add_theme_font_size_override("font_size",9)
   plus_label.add_theme_color_override("font_color",_rank_color_for_plus(int(item.get("plus",0))))
   cell.add_child(plus_label)
@@ -1017,7 +1048,7 @@ func _warehouse_cell(item: Dictionary,index: int,selected: bool) -> Button:
  cell.clip_contents = true
  cell.text = ""
  _apply_button_skin(cell,true)
- cell.add_theme_stylebox_override("normal",_slot_style() if not selected else _texture_style("res://assets/ui/slots/slot_beige.png"))
+ cell.add_theme_stylebox_override("normal",_selected_slot_style() if selected else _slot_style())
  if not item.is_empty():
   var icon := _make_item_icon(_get_item_data(String(item.item_id)),int(item.get("instance_data",{}).get("plus",0)),Vector2(34,34))
   icon.position = Vector2(9,9)
@@ -1026,6 +1057,7 @@ func _warehouse_cell(item: Dictionary,index: int,selected: bool) -> Button:
   quantity.text = "x%d" % int(item.get("count",1))
   quantity.position = Vector2(25,35)
   quantity.add_theme_font_size_override("font_size",10)
+  quantity.position = Vector2(25,35)
   cell.add_child(quantity)
  return cell
 func _select_inventory_warehouse_slot(index: int) -> void:
@@ -1061,6 +1093,53 @@ func _transfer_warehouse(deposit: bool,all_items: bool) -> void:
   var quantity := int(state.warehouse_slots[_selected_warehouse_slot].get("count",1)) if all_items else 1
   state.withdraw_from_warehouse(_selected_warehouse_slot,quantity)
   _selected_warehouse_slot = -1
+ _open_window("Warehouse")
+
+func _build_currency_bar(include_warehouse: bool) -> Control:
+ var state := _root_autoload("GameState")
+ var player: Dictionary = state.player_data if state != null else {}
+ var gold := int(state.gold) if state != null else 0
+ var cps := int(player.get("cps",player.get("conquer_points",0)))
+ var bar := PanelContainer.new()
+ bar.name = "ClassicCurrencyBar"
+ bar.custom_minimum_size = Vector2(0,42)
+ bar.add_theme_stylebox_override("panel",_flat_style(Color(0.025,0.025,0.03,0.96),Color(0.86,0.66,0.26),2))
+ var row := HBoxContainer.new()
+ row.add_theme_constant_override("separation",12)
+ bar.add_child(row)
+ var carried := Label.new()
+ carried.text = "🪙 Gold: %s   ✦ CP: %s" % [gold,cps]
+ carried.add_theme_color_override("font_color",Color(1.0,0.82,0.42))
+ carried.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ row.add_child(carried)
+ if include_warehouse:
+  var stored := int(player.get("warehouse_gold",0))
+  var vault := Label.new()
+  vault.text = "🏦 الخزنة: %s Gold" % stored
+  vault.add_theme_color_override("font_color",Color(0.92,0.72,0.34))
+  row.add_child(vault)
+  row.add_child(_button("إيداع الذهب",_deposit_all_gold))
+  row.add_child(_button("سحب الذهب",_withdraw_all_gold))
+ return bar
+
+func _deposit_all_gold() -> void:
+ var state := _root_autoload("GameState")
+ if state == null: return
+ var amount := int(state.gold)
+ if amount <= 0: return
+ state.player_data["warehouse_gold"] = int(state.player_data.get("warehouse_gold",0)) + amount
+ state.set_gold(0)
+ state.save_game()
+ _open_window("Warehouse")
+
+func _withdraw_all_gold() -> void:
+ var state := _root_autoload("GameState")
+ if state == null: return
+ var amount := int(state.player_data.get("warehouse_gold",0))
+ if amount <= 0: return
+ state.player_data["warehouse_gold"] = 0
+ state.add_gold(amount)
+ state.save_game()
  _open_window("Warehouse")
 
 func _build_merchant(layout: VBoxContainer) -> void:
@@ -1298,16 +1377,25 @@ func _flat_style(bg: Color,border: Color,width: int) -> StyleBoxFlat:
  style.border_color=border
  style.set_border_width_all(width)
  style.set_corner_radius_all(6)
+ if width >= 3:
+  style.shadow_color = Color(0.0,0.0,0.0,0.72)
+  style.shadow_size = 8
  return style
 
 func _set_skill_button_icon(button: Button,kind: String) -> void:
  var filename := String(SKILL_ICON_FILES.get(kind,"bow.png"))
  var texture := load("res://assets/ui/skills/" + filename) as Texture2D
  if texture != null:
-  button.icon = texture
-  button.expand_icon = true
-  button.icon_max_width = 24
-  button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+  var icon_rect := TextureRect.new()
+  icon_rect.name = "SkillTextureIcon"
+  icon_rect.texture = texture
+  icon_rect.custom_minimum_size = Vector2(32,32)
+  icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+  icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+  icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+  icon_rect.position = Vector2(1,1)
+  icon_rect.size = Vector2(32,32)
+  button.add_child(icon_rect)
  else:
   push_warning("PHASE5A_SKILL_ICON_MISSING: " + filename)
 
@@ -1317,7 +1405,13 @@ func _ornate_panel(parent: Control,offset: Vector2,panel_size: Vector2,top_right
  panel.size=panel_size
  panel.position=offset
  if top_right: panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
- panel.add_theme_stylebox_override("panel",_texture_style("res://assets/ui/borders/ornate_panel.png"))
+ panel.add_theme_stylebox_override("panel",_flat_style(Color(0.06,0.05,0.05,0.96),Color(0.86,0.66,0.26),3))
+ var inner_frame := Panel.new()
+ inner_frame.position = Vector2(7,7)
+ inner_frame.size = panel_size - Vector2(14,14)
+ inner_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ inner_frame.add_theme_stylebox_override("panel",_flat_style(Color(0.06,0.05,0.05,0.0),Color(0.30,0.23,0.13),1))
+ panel.add_child(inner_frame)
  parent.add_child(panel)
  return panel
 
@@ -1335,8 +1429,14 @@ func _texture_style(path: String) -> StyleBoxTexture:
  style.draw_center = true
  return style
 
-func _slot_style() -> StyleBoxTexture:
- return _texture_style("res://assets/ui/slots/ornate_slot.png")
+func _slot_style() -> StyleBoxFlat:
+ return _flat_style(Color(0.08,0.08,0.09,0.95),Color(0.55,0.49,0.37),2)
+
+func _selected_slot_style() -> StyleBoxFlat:
+ var style := _flat_style(Color(0.10,0.085,0.055,0.98),Color(1.0,0.76,0.25),3)
+ style.shadow_color = Color(1.0,0.62,0.12,0.72)
+ style.shadow_size = 8
+ return style
 
 func _apply_button_skin(button: Button,square := false) -> void:
  var normal_path := "res://assets/ui/buttons/btn_sq_brown.png" if square else "res://assets/ui/buttons/btn_brown.png"
