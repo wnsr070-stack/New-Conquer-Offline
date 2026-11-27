@@ -195,19 +195,34 @@ jobs:
             assets/ui
             assets/icons
             assets/fonts
-          key: phase5a-mobile-ui-assets-v3
-      - name: Fetch exact Kenney UI files and basic RPG icons from Git
+          key: phase5a-mobile-ui-assets-v4
+      - name: Fetch ornate fantasy frames, real skill icons and Kenney RPG UI
         run: |
           set -euo pipefail
-          mkdir -p assets/ui/borders assets/ui/slots assets/ui/buttons assets/icons/rpg assets/fonts
+          mkdir -p assets/ui/borders assets/ui/slots assets/ui/buttons assets/ui/skills assets/icons/rpg assets/fonts
           rm -rf /tmp/kenney
           trap 'rm -rf /tmp/kenney' EXIT
           git clone --depth 1 https://github.com/shorepine/kenney.git /tmp/kenney
           python3 - <<'PY'
-          import pathlib, re, shutil
+          import pathlib, re, shutil, struct
 
           root = pathlib.Path("/tmp/kenney")
           pngs = sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() == ".png")
+
+          def copy_verified(source, destination):
+              data = source.read_bytes()
+              if len(data) <= 100 or data[:8] != b"\\x89PNG\\r\\n\\x1a\\n":
+                  raise SystemExit(f"Invalid PNG: {source} ({len(data)} bytes)")
+              target = pathlib.Path(destination)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(data)
+              print(f"KENNEY_SELECTED_PNG_OK: {target} bytes={len(data)} source={source.relative_to(root)}")
+
+          def dimensions(path):
+              data = path.read_bytes()
+              if data[:8] != b"\\x89PNG\\r\\n\\x1a\\n" or len(data) < 24:
+                  return (0, 0)
+              return struct.unpack(">II", data[16:24])
 
           exact = {
               "panel_brown.png": "assets/ui/borders/panel_brown.png",
@@ -219,31 +234,63 @@ jobs:
               "buttonSquare_brown.png": "assets/ui/buttons/btn_sq_brown.png",
               "buttonSquare_brown_pressed.png": "assets/ui/buttons/btn_sq_brown_pressed.png",
           }
-
-          def copy_verified(source, destination):
-              data = source.read_bytes()
-              if len(data) <= 100 or data[:8] != b"\x89PNG\r\n\x1a\n":
-                  raise SystemExit(f"Invalid PNG (>100 bytes and signature required): {source} ({len(data)} bytes)")
-              target = pathlib.Path(destination)
-              target.parent.mkdir(parents=True, exist_ok=True)
-              target.write_bytes(data)
-              print(f"KENNEY_SELECTED_PNG_OK: {target} bytes={len(data)} source={source.relative_to(root)}")
-
           for filename, destination in exact.items():
               matches = [p for p in pngs if p.name == filename]
               if not matches:
-                  raise SystemExit(f"Required Kenney file not found by name: {filename}")
+                  raise SystemExit(f"Required Kenney file not found: {filename}")
               copy_verified(matches[0], destination)
 
+          # Prefer the requested Fantasy UI Borders folder and the real border-000..030 artwork.
+          border_candidates = [p for p in pngs if re.fullmatch(r"border-(?:0[0-2][0-9]|030)\\.png", p.name, re.I)]
+          if not border_candidates:
+              raise SystemExit("Fantasy UI Borders: no border-000.png..border-030.png assets found")
+          def border_score(path, target_ratio):
+              width, height = dimensions(path)
+              if width < 32 or height < 32:
+                  return -10000
+              ratio = width / max(1, height)
+              folder_bonus = 500 if "fantasy ui borders" in str(path.parent).lower() else (250 if "fantasy" in str(path.parent).lower() else 0)
+              ratio_score = max(0, 180 - abs(ratio-target_ratio)*100)
+              return folder_bonus + ratio_score + min(width*height/10000, 100)
+          panel = max(border_candidates, key=lambda p: border_score(p, 1.65))
+          slot = max([p for p in border_candidates if p != panel], key=lambda p: border_score(p, 1.0), default=None)
+          if slot is None:
+              raise SystemExit("Could not find a second distinct ornate slot border")
+          copy_verified(panel, "assets/ui/borders/ornate_panel.png")
+          copy_verified(slot, "assets/ui/slots/ornate_slot.png")
+          print("PHASE5A_ORNATE_FANTASY_FRAMES_READY: panel=", panel.relative_to(root), "slot=", slot.relative_to(root))
+
+          # Match actual Kenney artwork by semantic filename/path; no generated placeholder icons.
+          skill_aliases = {
+              "bow": {"bow", "archery", "longbow"},
+              "arrow": {"arrow", "arrows", "archery"},
+              "fire": {"fire", "flame", "flames", "burning"},
+              "lightning": {"lightning", "thunder", "bolt", "electric"},
+              "speed": {"speed", "sprint", "running", "run", "haste", "wind"},
+              "shield": {"shield", "defence", "defense", "guard", "block"}
+          }
+          used = set()
+          for skill, aliases in skill_aliases.items():
+              candidates = []
+              for path in pngs:
+                  tokens = set(re.findall(r"[a-z0-9]+", (str(path.parent) + " " + path.stem).lower()))
+                  if tokens & aliases and path not in used:
+                      width, height = dimensions(path)
+                      if width >= 24 and height >= 24:
+                          candidates.append(path)
+              if not candidates:
+                  raise SystemExit(f"Missing real Kenney skill icon for {skill}; aliases={sorted(aliases)}")
+              candidates.sort(key=lambda p: (0 if "game-icons" in str(p).lower() else 1, len(str(p))))
+              selected = candidates[0]
+              copy_verified(selected, pathlib.Path("assets/ui/skills") / f"{skill}.png")
+              used.add(selected)
+          print("PHASE5A_REAL_SKILL_ICONS_READY: bow arrow fire lightning speed shield")
+
           categories = {
-              "sword": {"sword"},
-              "bow": {"bow"},
-              "shield": {"shield"},
-              "helmet": {"helmet", "helm"},
-              "boots": {"boots", "boot", "shoe"},
-              "ring": {"ring"},
-              "necklace": {"necklace", "amulet", "gem", "medal", "charm", "pendant", "crown"},
-              "potion": {"potion", "bottle", "flask", "vial"},
+              "sword": {"sword"}, "bow": {"bow"}, "shield": {"shield"},
+              "helmet": {"helmet", "helm"}, "boots": {"boots", "boot", "shoe"},
+              "ring": {"ring"}, "necklace": {"necklace", "amulet", "gem", "medal", "charm", "pendant", "crown"},
+              "potion": {"potion", "bottle", "flask", "vial"}
           }
           selected = set()
           icon_count = 0
@@ -253,29 +300,53 @@ jobs:
                   tokens = set(re.findall(r"[a-z0-9]+", path.stem.lower()))
                   if tokens & keywords and path not in selected:
                       candidates.append(path)
-              if not candidates:
-                  print(f"::warning::No Kenney PNG matched category keywords for {category}; continuing")
-                  continue
-              # Keep a small representative set per category; prefix every destination
-              # with its category so equal source basenames cannot overwrite each other.
               for source in candidates[:3]:
-                  if icon_count >= 30:
-                      break
-                  target_name = f"{category}__{source.name}"
-                  copy_verified(source, pathlib.Path("assets/icons/rpg") / target_name)
+                  if icon_count >= 30: break
+                  copy_verified(source, pathlib.Path("assets/icons/rpg") / f"{category}__{source.name}")
                   selected.add(source)
                   icon_count += 1
-
-          # Core categories should provide at least eight icons; optional categories may be absent.
           if icon_count < 8 or icon_count > 30:
               raise SystemExit(f"RPG icon count outside allowed range (8..30): {icon_count}")
-          print(f"KENNEY_BASIC_RPG_ICONS_READY: {icon_count} files; matched_categories={len(categories) - sum(1 for category, keywords in categories.items() if not any(set(re.findall(r'[a-z0-9]+', p.stem.lower())) & keywords for p in pngs))}/{len(categories)}")
+          print(f"KENNEY_BASIC_RPG_ICONS_READY: {icon_count} files")
           PY
-          # Remove the source checkout immediately after copying the approved files.
           rm -rf /tmp/kenney
           trap - EXIT
           test ! -e /tmp/kenney
-          test -s assets/fonts/NotoSansArabic-Bold.ttf || echo "Noto Sans Arabic will be installed by the next workflow step"
+
+      - name: Verify Phase 5A ornate UI, skill icons and cache inputs
+        run: |
+          set -euo pipefail
+          for file in \\
+            assets/ui/borders/panel_brown.png \\
+            assets/ui/borders/panel_beige.png \\
+            assets/ui/borders/ornate_panel.png \\
+            assets/ui/slots/slot_brown.png \\
+            assets/ui/slots/slot_beige.png \\
+            assets/ui/slots/ornate_slot.png \\
+            assets/ui/buttons/btn_brown.png \\
+            assets/ui/buttons/btn_brown_pressed.png \\
+            assets/ui/buttons/btn_sq_brown.png \\
+            assets/ui/buttons/btn_sq_brown_pressed.png \\
+            assets/ui/skills/bow.png \\
+            assets/ui/skills/arrow.png \\
+            assets/ui/skills/fire.png \\
+            assets/ui/skills/lightning.png \\
+            assets/ui/skills/speed.png \\
+            assets/ui/skills/shield.png \\
+            assets/fonts/NotoSansArabic-Bold.ttf; do
+            test -s "$file" || { echo "::error::Missing or empty asset: $file"; exit 1; }
+            bytes=$(stat -c%s "$file")
+            [ "$bytes" -gt 100 ] || { echo "::error::Asset is too small: $file ($bytes bytes)"; exit 1; }
+            if [[ "$file" == *.png ]]; then
+              signature=$(od -An -tx1 -N8 "$file" | tr -d ' \\n')
+              [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid PNG signature: $file"; exit 1; }
+            fi
+            echo "PHASE5A_ASSET_OK: $file bytes=$bytes"
+          done
+          icon_pngs=$(find assets/icons/rpg -type f -iname '*.png' | wc -l)
+          [ "$icon_pngs" -ge 8 ] && [ "$icon_pngs" -le 30 ] || { echo "::error::RPG icon count outside 8..30: $icon_pngs"; exit 1; }
+          echo "PHASE5A_RPG_ICON_PNG_COUNT: $icon_pngs"
+
       - name: Install verified Noto Sans Arabic font
         run: |
           set -euo pipefail
