@@ -99,6 +99,8 @@ func _persist_equipment() -> void:
  var state := get_node_or_null("/root/GameState")
  if state != null:
   state.player_data["equipped"] = equipped.duplicate(true)
+  state.player_data["equipment_bonuses"] = get_combat_bonuses()
+  state.player_data["max_hp_bonus"] = int(state.player_data["equipment_bonuses"].get("max_hp",0))
   state.save_game()
 func _apply_runtime_aura() -> void:
  var hero := get_tree().root.find_child("PlayableHero",true,false)
