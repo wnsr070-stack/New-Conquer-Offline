@@ -332,66 +332,63 @@ func _measure_bounds(root: Node3D) -> AABB:
 
 func _apply_rider_pose(on_mount: bool) -> void:
  if _hero_model == null or not is_instance_valid(_hero_model): return
+ var skeleton_nodes := _hero_model.find_children("*","Skeleton3D",true,false)
+ if skeleton_nodes.is_empty():
+  push_error("MOUNT_RIDER_SKELETON_MISSING")
+  return
+ var rig := skeleton_nodes[0] as Skeleton3D
  if on_mount:
-  # Stop the locomotion tracks before posing the rider; otherwise the active clip
-  # overwrites the seated thigh/knee rotations on the next animation frame.
   var rider_players := _hero_model.find_children("*","AnimationPlayer",true,false)
   for player_node in rider_players:
    var rider_player := player_node as AnimationPlayer
-   if rider_player != null:
-    rider_player.stop()
- var skeleton_nodes := _hero_model.find_children("*","Skeleton3D",true,false)
- if not skeleton_nodes.is_empty():
-  var rig := skeleton_nodes[0] as Skeleton3D
-  if on_mount:
-   _rider_original_bone_rotations.clear()
-   var seated_bones: Array[String] = []
-   for index in range(rig.get_bone_count()):
-    var actual_name := rig.get_bone_name(index)
-    var bone_name := actual_name.to_lower().replace("_","").replace("-","").replace(" ","").replace(":","").replace(".","")
-    var is_left := bone_name.contains("left") or bone_name.ends_with("l")
-    var is_thigh := "thigh" in bone_name or "upleg" in bone_name or "upperleg" in bone_name
-    var is_knee := "knee" in bone_name or "lowerleg" in bone_name or "calf" in bone_name or "leglo" in bone_name
-    if not is_thigh and not is_knee:
-     continue
-    var original := rig.get_bone_pose_rotation(index)
-    _rider_original_bone_rotations[index] = original
-    if is_thigh:
-     var side_sign := -1.0 if is_left else 1.0
-     var seated := original * Quaternion(Vector3.RIGHT,deg_to_rad(-58.0)) * Quaternion(Vector3.FORWARD,deg_to_rad(side_sign*18.0))
-     rig.set_bone_pose_rotation(index,seated.normalized())
-    else:
-     rig.set_bone_pose_rotation(index,(original*Quaternion(Vector3.RIGHT,deg_to_rad(78.0))).normalized())
-    seated_bones.append(actual_name)
-   if _rider_original_bone_rotations.size() < 4:
-    push_error("MOUNT_RIDER_POSE_INCOMPLETE: thigh_knee_bones="+str(_rider_original_bone_rotations.size())+" names="+str(seated_bones))
-   else:
-    print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=",_rider_original_bone_rotations.size()," names=",seated_bones," legs_spread=true knees_bent=true")
+   if rider_player != null: rider_player.stop()
+  _rider_original_bone_rotations.clear()
+  var required_bones := {
+   "LeftUpLeg": -55.0,
+   "RightUpLeg": -55.0,
+   "LeftLeg": 65.0,
+   "RightLeg": 65.0
+  }
+  var applied_names: Array[String] = []
+  for required_name in required_bones:
+   var bone_index := rig.find_bone(String(required_name))
+   if bone_index < 0:
+    push_error("MOUNT_RIDER_REQUIRED_BONE_MISSING: "+String(required_name))
+    continue
+   var original := rig.get_bone_pose_rotation(bone_index)
+   _rider_original_bone_rotations[bone_index] = original
+   var angle := float(required_bones[required_name])
+   rig.set_bone_pose_rotation(bone_index,(original*Quaternion(Vector3.RIGHT,deg_to_rad(angle))).normalized())
+   applied_names.append(String(required_name))
+  if applied_names.size() != 4:
+   push_error("MOUNT_RIDER_POSE_INCOMPLETE: expected=4 applied="+str(applied_names))
   else:
-   for bone_index in _rider_original_bone_rotations:
-    if bone_index >= 0 and bone_index < rig.get_bone_count():
-     rig.set_bone_pose_rotation(int(bone_index),_rider_original_bone_rotations[bone_index])
-   _rider_original_bone_rotations.clear()
-   print("MOUNT_RIDER_BONE_POSE_RESTORED")
+   print("MOUNT_RIDER_BONE_POSE_APPLIED: thigh_knee_bones=4 names=",applied_names," thigh_forward=55 knee_backward=65")
+ else:
+  for bone_index in _rider_original_bone_rotations:
+   if int(bone_index) >= 0 and int(bone_index) < rig.get_bone_count():
+    rig.set_bone_pose_rotation(int(bone_index),_rider_original_bone_rotations[bone_index])
+  _rider_original_bone_rotations.clear()
+  print("MOUNT_RIDER_BONE_POSE_RESTORED")
  if on_mount:
-  var saddle_height_world := 4.48
-  var rider_vertical_offset := 0.12
-  var hip_found := false
-  if not skeleton_nodes.is_empty():
-   var rig := skeleton_nodes[0] as Skeleton3D
-   for index in range(rig.get_bone_count()):
-    var bone_name := rig.get_bone_name(index).to_lower()
-    if "hips" in bone_name or "pelvis" in bone_name:
-     var hip_in_model := _hero_model.to_local(rig.to_global(rig.get_bone_global_pose(index).origin))
-     var model_scale_y := maxf(0.001,absf(_hero_model.scale.y))
-     var hip_height_world := model_scale_y*hip_in_model.y
-     rider_vertical_offset = saddle_height_world-_hero_model_base_y-hip_height_world
-     print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",bone_name," hip_y=",hip_in_model.y," saddle_y_world=",saddle_height_world," hero_scale_y=",model_scale_y," offset=",rider_vertical_offset)
-     hip_found = true
-     break
-  if not hip_found:
-   push_error("MOUNT_SADDLE_HIP_BONE_MISSING: Ninja rig has no hips/pelvis bone")
-  _hero_model.position.y = _hero_model_base_y+rider_vertical_offset
+  if not is_instance_valid(mount_visual):
+   push_error("MOUNT_SADDLE_ROOT_MISSING")
+   return
+  var saddle_world := mount_visual.to_global(Vector3(0.0,1.4,0.0))
+  var hip_bone_index := rig.find_bone("Hips")
+  if hip_bone_index < 0: hip_bone_index = rig.find_bone("Pelvis")
+  if hip_bone_index < 0:
+   push_error("MOUNT_SADDLE_HIP_BONE_MISSING: Ninja rig has no Hips/Pelvis bone")
+   return
+  var hip_world := rig.to_global(rig.get_bone_global_pose(hip_bone_index).origin)
+  var parent_3d := _hero_model.get_parent() as Node3D
+  if parent_3d == null:
+   push_error("MOUNT_RIDER_PARENT_NOT_NODE3D")
+   return
+  var world_delta := saddle_world + Vector3.UP*0.12 - hip_world
+  var local_delta := parent_3d.global_transform.basis.inverse() * world_delta
+  _hero_model.position += local_delta
+  print("MOUNT_SADDLE_HIP_ALIGNMENT: bone=",rig.get_bone_name(hip_bone_index)," hip_world=",hip_world," saddle_world=",saddle_world," delta_world=",world_delta," model_scale=",_hero_model.scale)
  else:
   _hero_model.position.y = _hero_model_base_y
 
