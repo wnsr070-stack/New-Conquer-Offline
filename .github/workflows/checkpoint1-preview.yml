@@ -214,7 +214,7 @@ jobs:
 
           def copy_verified(source, destination):
               data = source.read_bytes()
-              if len(data) <= 100 or data[:8] != b"\x89PNG\r\\n\x1a\\n":
+              if len(data) <= 100 or data[:8] != b"\x89PNG\r\n\x1a\n":
                   raise SystemExit(f"Invalid PNG: {source} ({len(data)} bytes)")
               target = pathlib.Path(destination)
               target.parent.mkdir(parents=True, exist_ok=True)
@@ -227,7 +227,7 @@ jobs:
 
           def dimensions(path):
               data = path.read_bytes()
-              if data[:8] != b"\x89PNG\r\\n\x1a\\n" or len(data) < 24:
+              if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) < 24:
                   return (0, 0)
               return struct.unpack(">II", data[16:24])
 
