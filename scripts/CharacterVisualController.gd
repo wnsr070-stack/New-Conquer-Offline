@@ -97,6 +97,13 @@ func build_character(class_id: String, level: int, gender: String = "male") -> v
         " left=", is_instance_valid(left_weapon_root))
 
 func _resolve_character_asset_path(file_id: String, gender: String) -> String:
+    if file_id == "assassin":
+        var assassin_template := "res://assets/mounts/hero_assassin.glb"
+        if ResourceLoader.exists(assassin_template):
+            print("PHASE5A_ASSASSIN_CHARACTER_TEMPLATE_READY: path=",assassin_template," gender_variant=",gender," shared_rig=true")
+            return assassin_template
+        push_error("PHASE5A_ASSASSIN_CHARACTER_TEMPLATE_MISSING: "+assassin_template)
+        return ""
     var character_dir := ROOT + "characters/"
     var candidates: Array[String] = [
         character_dir + file_id + "_" + gender + ".glb",
