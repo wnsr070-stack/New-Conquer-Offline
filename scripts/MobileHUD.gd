@@ -1854,7 +1854,7 @@ func _set_skill_button_icon(button: Button,kind: String,hotkey: String = "") -> 
  icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
  icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
  icon_rect.size = Vector2(icon_side,icon_side)
- icon_rect.position = (button.size-Vector2(icon_side,icon_side))*0.5 + (Vector2(0,5) if not hotkey.is_empty() else Vector2.ZERO)
+ icon_rect.position = (button.size-Vector2(icon_side,icon_side))*0.5 + (Vector2(0,6) if not hotkey.is_empty() else Vector2.ZERO)
  icon_rect.z_index = 1
  button.add_child(icon_rect)
  if not hotkey.is_empty():
