@@ -40,7 +40,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5-mount-glb-v3-heroic-${{ hashFiles('scripts/MountSystem.gd') }}
+          key: phase5-mount-glb-v4-assassin-${{ hashFiles('scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
       - name: Cache Hugging Face and external assets
         id: assets
         uses: actions/cache@v4
@@ -70,7 +70,7 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/.cache/tools/bin:$PATH"
           command -v gltfpack
           echo "$GITHUB_WORKSPACE/.cache/tools/bin" >> "$GITHUB_PATH"
-      - name: Fetch and validate four animated CC0 mount GLBs
+      - name: Fetch and validate four CC0 mounts plus rigged Ninja hero GLB
         if: steps.mount_models.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
@@ -106,9 +106,25 @@ jobs:
             curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$base/$source_name" -o "/tmp/phase5-mounts/$source_name"
             prepare_model "/tmp/phase5-mounts/$source_name" "$target_name"
           done
-          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb; do
+          curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "https://grab3d.com/dl/ninja-rigged/ninja-rigged.glb" -o /tmp/phase5-mounts/ninja-rigged.glb
+          prepare_model /tmp/phase5-mounts/ninja-rigged.glb hero_assassin.glb
+          python3 - <<'PY'
+          import pathlib, struct, json
+          path=pathlib.Path("assets/mounts/hero_assassin.glb")
+          data=path.read_bytes()
+          if len(data)<30000 or data[:4]!=b"glTF": raise SystemExit("Invalid hero_assassin.glb binary GLB")
+          magic,version,total=struct.unpack_from("<4sII",data,0)
+          chunk_len,chunk_type=struct.unpack_from("<II",data,12)
+          doc=json.loads(data[20:20+chunk_len].decode("utf-8").rstrip(" \\0"))
+          clips=[str(item.get("name","")).lower() for item in doc.get("animations",[])]
+          if version!=2 or total!=len(data) or not doc.get("skins"): raise SystemExit("Ninja GLB has no valid skinned rig")
+          if not any("walk" in clip for clip in clips) or not any("run" in clip for clip in clips):
+              raise SystemExit("Ninja GLB must contain Walk and Run clips: "+repr(clips))
+          print("HERO_ASSASSIN_RIGGED_GLB_VERIFIED: bytes=",len(data),"skins=",len(doc["skins"]),"animations=",clips)
+          PY
+          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb hero_assassin.glb; do
             test -s "assets/mounts/$file"
-            echo "MOUNT_FOUR_MODEL_ASSET_OK: $file bytes=$(stat -c%s "assets/mounts/$file")"
+            echo "PHASE5A_MODEL_ASSET_OK: $file bytes=$(stat -c%s "assets/mounts/$file")"
           done
           rm -rf /tmp/phase5-mounts
       - name: Install Python fetch dependencies
@@ -185,7 +201,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5-mount-glb-v3-heroic-${{ hashFiles('scripts/MountSystem.gd') }}
+          key: phase5-mount-glb-v4-assassin-${{ hashFiles('scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
       - name: Restore approved asset cache
         uses: actions/cache@v4
         with:
@@ -206,15 +222,15 @@ jobs:
           test -s .cache/hf-assets/twin_city_runtime_assets.json
           test -s .cache/hf-assets/landmark_sources.txt
           test -x .cache/tools/bin/gltfpack
-          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb; do
-            test -s "assets/mounts/$file" || { echo "::error::Restored mount model missing: $file"; exit 1; }
+          for file in steed_horse.glb mount_tiger.glb mount_deer.glb mount_wolf.glb hero_assassin.glb; do
+            test -s "assets/mounts/$file" || { echo "::error::Restored model missing: $file"; exit 1; }
             bytes=$(stat -c%s "assets/mounts/$file")
             [ "$bytes" -gt 30720 ] || { echo "::error::Restored mount model below 30KB: $file bytes=$bytes"; exit 1; }
             echo "MOUNT_MODEL_RESTORED_OK: $file bytes=$bytes"
           done
           cp .cache/hf-assets/landmark_sources.txt artifacts/landmark_sources.txt
           echo PREPARED_ASSETS_AND_TOOLS_READY
-      - name: Fetch approved Ranger hero and class weapons
+      - name: Fetch approved NPC Ranger and class weapons
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -494,7 +510,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: assets/mounts
-          key: phase5a-cc0-mounts-v1-${{ hashFiles('.github/workflows/checkpoint1-preview.yml') }}
+          key: phase5a-cc0-mounts-v2-assassin-${{ hashFiles('.github/workflows/checkpoint1-preview.yml', 'scripts/MountSystem.gd', 'scripts/HeroController.gd') }}
       - name: Download Quaternius horse, deer and wolf plus Gobkit tiger
         if: steps.mounts.outputs.cache-hit != 'true'
         run: |
@@ -547,10 +563,15 @@ jobs:
               doc = json.loads(data[20:20+chunk_len].decode("utf-8").rstrip(" \\0"))
               if doc.get("asset", {}).get("version") != "2.0" or not doc.get("meshes"):
                   raise SystemExit("GLB has no valid glTF 2.0 mesh payload: " + str(path))
+              if path.name == "hero_assassin.glb":
+                  clips = [str(item.get("name","")).lower() for item in doc.get("animations",[])]
+                  if not doc.get("skins") or not any("walk" in clip for clip in clips) or not any("run" in clip for clip in clips):
+                      raise SystemExit("Assassin hero rig/Walk/Run clips missing: " + repr(clips))
+                  print("HERO_ASSASSIN_CACHE_RIG_OK: skins=", len(doc["skins"]), " animations=", clips)
               print("PHASE5A_MOUNT_GLB_VERIFIED:", path, "bytes=", len(data), "meshes=", len(doc["meshes"]))
           for path in sorted(output.glob("*.glb")):
               verify(path)
-          expected = {"steed_horse.glb", "mount_deer.glb", "mount_wolf.glb", "mount_tiger.glb"}
+          expected = {"steed_horse.glb", "mount_deer.glb", "mount_wolf.glb", "mount_tiger.glb", "hero_assassin.glb"}
           actual = {p.name for p in output.glob("*.glb")}
           if actual != expected:
               raise SystemExit("Mount set mismatch: " + repr(actual))
@@ -562,7 +583,7 @@ jobs:
           python3 - <<'PY'
           import pathlib, struct, json
           root=pathlib.Path("assets/mounts")
-          expected={"steed_horse.glb","mount_deer.glb","mount_wolf.glb","mount_tiger.glb"}
+          expected={"steed_horse.glb","mount_deer.glb","mount_wolf.glb","mount_tiger.glb","hero_assassin.glb"}
           actual={p.name for p in root.glob("*.glb")}
           if actual != expected: raise SystemExit("Mount cache incomplete: "+repr(actual))
           for path in sorted(root.glob("*.glb")):
@@ -642,9 +663,15 @@ jobs:
           export LIBGL_ALWAYS_SOFTWARE=1
           xvfb-run -a -s "-screen 0 1280x720x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 res://scenes/TwinCity.tscn 2>&1 | tee artifacts/mount_showcase.log
           grep -q "MOUNT_AND_EQUIP_TEST_PASS=true" artifacts/mount_showcase.log
+          grep -q "HERO_ASSASSIN_PRIMARY_MODEL_READY: npc_model_preserved=Male_Ranger.glb" artifacts/mount_showcase.log
+          grep -q "HERO_ASSASSIN_COMBAT_ANIMATION_RETARGET_OK:" artifacts/mount_showcase.log
+          grep -q "HERO_ASSASSIN_SKELETON_BONES:" artifacts/mount_showcase.log
+          grep -q "MOUNT_STAG_AABB_NORMALIZED_OK: maximum_dimension=2.5" artifacts/mount_showcase.log
           grep -q "MOUNT_SHOWCASE_ALL_FOUR_CAPTURES_COMPLETE" artifacts/mount_showcase.log
           for kind in steed tiger deer wolf; do
             grep -Fq "MOUNT_MODEL_RUNTIME_READY: kind=$kind" artifacts/mount_showcase.log || { echo "::error::Mount runtime model did not load: $kind"; exit 1; }
+            grep -Fq "MOUNT_CLEARCOAT_PBR_READY: kind=$kind metallic=0.85 roughness=0.22 clearcoat=1.0" artifacts/mount_showcase.log || { echo "::error::Mount PBR regalia missing: $kind"; exit 1; }
+            grep -Fq "MOUNT_GPU_PARTICLES_READY: kind=$kind" artifacts/mount_showcase.log || { echo "::error::Mount GPU particles missing: $kind"; exit 1; }
           done
           for image in mount_showcase_steed.png mount_showcase_tiger.png mount_showcase_deer.png mount_showcase_wolf.png; do
             test -s "artifacts/$image"
