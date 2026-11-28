@@ -197,12 +197,22 @@ func _assert_population(minimum_actors: int, minimum_nameplates: int) -> bool:
 
 func _capture_now(filename: String) -> bool:
 	print("CAPTURE_STEP: begin frame=", _frame_tick, " file=", filename)
-	var img: Image = get_viewport().get_texture().get_image()
-	if img == null or img.is_empty() or img.get_width() < 960 or img.get_height() < 540:
-		_fail("viewport_image_empty_" + filename)
-		return false
 	var file_path := _output_dir.path_join(filename)
-	var err := img.save_png(file_path)
+	var tex: ViewportTexture = root.get_texture()
+	if tex == null:
+		push_error("CAPTURE_ERROR: root.get_texture() is null for " + file_path)
+		quit(1)
+		return false
+	var img: Image = tex.get_image()
+	if img == null or img.is_empty():
+		push_error("CAPTURE_ERROR: captured image is null or empty for " + file_path)
+		quit(1)
+		return false
+	if img.get_width() < 960 or img.get_height() < 540:
+		_fail("viewport_image_below_minimum_size_" + filename)
+		return false
+	var err: Error = img.save_png(file_path)
+	print("CAPTURED_OK: ", file_path, " err=", err)
 	if err != OK:
 		_fail("png_save_failed_" + filename + " error=" + str(err))
 		return false
