@@ -40,7 +40,7 @@ func _ready() -> void:
  if settings != null and settings.has_method("apply_world_settings"):
   settings.apply_world_settings()
  _refresh_all()
- print("PHASE5A_MOBILE_HUD_READY: touch_ui=true inventory=40 warehouse=40 stack=100 character_slots=10 procedural_3d=false")
+ print("PHASE5A_MOBILE_HUD_READY: touch_ui=true inventory=40 warehouse=40 stack=100 character_slots=14 procedural_3d=false")
  if OS.get_cmdline_user_args().has("--preview-mobile-hud"):
   call_deferred("_run_mobile_hud_preview")
 
@@ -1337,7 +1337,7 @@ func _build_artisan(layout: VBoxContainer) -> void:
  layout.add_child(tabs)
  for tab in FORGE_TABS: tabs.add_child(_button(tab,_select_forge_tab.bind(tab)))
  layout.add_child(_label("ArtisanMaster — choose an equipped slot, then select an operation."))
- for slot in ["weapon","armor","helmet","ring","necklace","boots","fan","tower","steed"]:
+ for slot in ["weapon","armor","helmet","ring","necklace","boots","fan","tower","wing","steed"]:
   layout.add_child(_button("Upgrade " + slot,_forge_operation.bind(slot)))
  layout.add_child(_button("ترقية الخيل عند المروّض",_upgrade_steed_at_artisan))
 
