@@ -370,6 +370,15 @@ func _update_hunter(entry: Dictionary, actor: Node3D, delta: float, hero: Node3D
 		_play_visual_hunter_attack(actor)
 
 func _play_visual_hunter_attack(actor: Node3D) -> void:
+	var model := actor.get_node_or_null("OrientalAssassinRig") as Node3D
+	if model != null:
+		var animation_nodes := model.find_children("*", "AnimationPlayer", true, false)
+		if not animation_nodes.is_empty():
+			var animation_player := animation_nodes[0] as AnimationPlayer
+			for clip in animation_player.get_animation_list():
+				if String(clip).to_lower().contains("attack"):
+					animation_player.play(String(clip))
+					break
 	var nearest: Node3D
 	var nearest_distance := 14.0
 	for candidate in get_tree().root.find_children("*", "MonsterActor", true, false):
