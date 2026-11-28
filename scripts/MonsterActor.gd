@@ -35,6 +35,7 @@ var _nameplate: Label3D
 var _health_bar_viewport: SubViewport
 var _health_bar: ProgressBar
 var _health_bar_sprite: Sprite3D
+var _boss_aura: OmniLight3D
 var _rng := RandomNumberGenerator.new()
 var _procedural_clock := 0.0
 var _model_rest_position := Vector3.ZERO
@@ -98,6 +99,14 @@ func configure(data: Dictionary, model_path: String, king: bool, boss: bool, cen
 
 	_build_nameplate()
 	_build_health_bar()
+	if is_boss:
+		_boss_aura = OmniLight3D.new()
+		_boss_aura.name = "WorldBossAura"
+		_boss_aura.light_color = Color(0.25, 0.72, 1.0, 1.0) if String(definition.get("boss_tier","")) == "reborn" else Color(1.0, 0.48, 0.12, 1.0)
+		_boss_aura.light_energy = 1.35
+		_boss_aura.omni_range = 5.5
+		_boss_aura.position = Vector3(0.0, 1.4, 0.0)
+		add_child(_boss_aura)
 	_respawn_timer = Timer.new()
 	_respawn_timer.name = "AutoRespawn"
 	_respawn_timer.one_shot = true
@@ -281,6 +290,8 @@ func die() -> void:
 		_nameplate.visible = false
 	if _health_bar_sprite != null:
 		_health_bar_sprite.visible = false
+	if _boss_aura != null:
+		_boss_aura.visible = false
 	if _animation_player != null and not embedded_death_clip.is_empty():
 		_animation_player.play(embedded_death_clip)
 		var death_length := _animation_player.get_animation(embedded_death_clip).length
@@ -311,6 +322,8 @@ func _on_respawn_timeout() -> void:
 		_nameplate.visible = bool(game_settings.get_setting("show_names", true)) if game_settings != null else true
 	if _health_bar_sprite != null:
 		_health_bar_sprite.visible = bool(game_settings.get_setting("show_hp_bars", true)) if game_settings != null else true
+	if _boss_aura != null:
+		_boss_aura.visible = true
 	_play_idle()
 	respawned.emit(self)
 
