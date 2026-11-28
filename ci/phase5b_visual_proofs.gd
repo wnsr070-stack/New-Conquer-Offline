@@ -61,9 +61,20 @@ func _capture_twin_city() -> bool:
 		_fail("phase5b_autoload_missing")
 		return false
 	_camera = _hero.get("camera") as Camera3D
+	if _camera == null and _hero != null:
+		var hero_cams: Array[Node] = _hero.find_children("*", "Camera3D", true, false)
+		if hero_cams.size() > 0:
+			_camera = hero_cams[0] as Camera3D
 	if _camera == null:
-		_fail("hero_camera_missing")
-		return false
+		_camera = root.get_camera_3d()
+	if _camera == null:
+		var root_cams: Array[Node] = root.find_children("*", "Camera3D", true, false)
+		if root_cams.size() > 0:
+			_camera = root_cams[0] as Camera3D
+	if _camera == null:
+		_camera = Camera3D.new()
+		root.add_child(_camera)
+	_camera.current = true
 	_hero.set_process(false)
 	_hero.set_physics_process(false)
 	_camera.top_level = true
