@@ -743,6 +743,7 @@ jobs:
             artifacts/mount_showcase.log
             artifacts/syntax_gate.log
             artifacts/monsters_and_wings_test.log
+            artifacts/phase5b_simulated_players_test.log
       - name: Verify all six captures and checkpoint markers
         if: always()
         run: |
