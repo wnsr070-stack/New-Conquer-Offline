@@ -154,7 +154,7 @@ func _on_monster_killed(target: Node3D,state: Node) -> void:
  var data: Dictionary = target.definition
  var exp_reward := int(data.get("exp",0))
  exp_reward = int(round(float(exp_reward)*(1.0+float(_gear_bonuses().exp_bonus))))
- if target.is_king: exp_reward = int(round(exp_reward*1.5))
+ if target.is_king or bool(target.get("is_boss")): exp_reward = int(round(exp_reward*1.5))
  if state != null:
   state.add_exp(exp_reward)
   state.add_xp(XP_PER_KILL)
