@@ -163,26 +163,31 @@ func _find_hero() -> Node3D:
 	return legacy as Node3D if legacy is Node3D else null
 
 func _sync_active_actors(hero: Node3D, city: String) -> void:
-	var candidates: Array[Dictionary] = []
+	var city_candidates: Array[Dictionary] = []
+	var hunter_candidates: Array[Dictionary] = []
 	var hero_position := hero.global_position
 	for entry in _roster:
 		if String(entry.city) == city and not bool(entry.hunter):
 			entry.current_position = _scene_root.to_global(entry.base_position)
 			var distance := hero_position.distance_to(entry.current_position)
 			if distance <= ACTIVATION_RADIUS_M:
-				candidates.append(entry)
+				city_candidates.append(entry)
 	for i in range(HUNTER_COUNT):
 		var hunter: Dictionary = _roster[_roster.size() - HUNTER_COUNT + i]
 		var angle := float(i) * TAU / float(HUNTER_COUNT) + _simulation_clock * 0.045
 		var radius := 10.0 + float(i % 4) * 2.3 if i < VISIBLE_HUNTERS else 70.0 + float(i - VISIBLE_HUNTERS) * 3.0
 		hunter.current_position = hero_position + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
 		if i < VISIBLE_HUNTERS:
-			candidates.append(hunter)
-	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			hunter_candidates.append(hunter)
+	city_candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return hero_position.distance_squared_to(a.current_position) < hero_position.distance_squared_to(b.current_position)
 	)
-	if candidates.size() > MAX_ACTIVE_PLAYERS:
-		candidates.resize(MAX_ACTIVE_PLAYERS)
+	var city_limit := MAX_ACTIVE_PLAYERS - VISIBLE_HUNTERS
+	if city_candidates.size() > city_limit:
+		city_candidates.resize(city_limit)
+	var candidates: Array[Dictionary] = city_candidates
+	for hunter in hunter_candidates:
+		candidates.append(hunter)
 	var wanted: Dictionary = {}
 	for entry in candidates:
 		wanted[String(entry.id)] = true
@@ -344,7 +349,7 @@ func _update_city_player(entry: Dictionary, actor: Node3D, delta: float) -> void
 			entry.pause_clock = _rng.randf_range(1.5, 3.5)
 	var target: Vector3 = entry.wander_target
 	if float(entry.pause_clock) <= 0.0:
-		actor.global_position = actor.global_position.move_toward(target, delta * 1.25)
+		actor.global_position = step_towards(actor.global_position, target, 1.25, delta)
 	var hop := 0.12 * absf(sin(_simulation_clock * 3.6 + float(entry.hop_phase)))
 	actor.global_position.y = _scene_root.to_global(entry.base_position).y + hop
 	var movement := target - actor.global_position
@@ -355,7 +360,7 @@ func _update_hunter(entry: Dictionary, actor: Node3D, delta: float, hero: Node3D
 	var hunter_index := int(String(entry.id).trim_prefix("sim_"))
 	var angle := float(hunter_index % HUNTER_COUNT) * TAU / float(HUNTER_COUNT) + _simulation_clock * 0.045
 	var target := hero.global_position + Vector3(cos(angle) * (10.0 + float(hunter_index % 4) * 2.3), 0.0, sin(angle) * (10.0 + float(hunter_index % 4) * 2.3))
-	actor.global_position = actor.global_position.move_toward(target, delta * 2.0)
+	actor.global_position = step_towards(actor.global_position, target, 2.0, delta)
 	entry.attack_clock = float(entry.attack_clock) - delta
 	if float(entry.attack_clock) <= 0.0:
 		entry.attack_clock = _rng.randf_range(2.5, 4.0)
@@ -422,6 +427,9 @@ func get_population_summary() -> Dictionary:
 
 func make_wander_target(origin: Vector3, radius: float = 5.0) -> Vector3:
 	return origin + Vector3(_rng.randf_range(-radius, radius), 0.0, _rng.randf_range(-radius, radius))
+
+func step_towards(origin: Vector3, target: Vector3, speed: float, delta: float) -> Vector3:
+	return origin.move_toward(target, maxf(0.0, speed) * maxf(0.0, delta))
 
 func validate_phase5b_contract() -> Dictionary:
 	if _roster.size() != TOTAL_PLAYERS:
