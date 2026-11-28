@@ -5,6 +5,9 @@ var _system: Node
 var _hero: Node3D
 var _camera: Camera3D
 var _world_map: Node
+var _capture_count := 0
+var _current_capture := "startup"
+var _proofs_completed := false
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -12,6 +15,7 @@ func _initialize() -> void:
 func _run() -> void:
 	OS.unset_environment("CI_CAPTURE")
 	print("PHASE5B_VISUAL_PROOFS_START=true captures=4 legacy_capture=disabled")
+	create_timer(60.0).timeout.connect(_on_capture_watchdog_timeout)
 	DisplayServer.window_set_size(Vector2i(960, 540))
 	_output_dir = ProjectSettings.globalize_path("res://artifacts")
 	DirAccess.make_dir_recursive_absolute(_output_dir)
@@ -115,6 +119,7 @@ func _run() -> void:
 		if image == null or image.is_empty() or image.get_width() < 960 or image.get_height() < 540:
 			_fail("invalid_capture_" + filename)
 			return
+	_proofs_completed = true
 	print("PHASE5B_VISUAL_PROOFS_PASS=true captures=4 crowd=true nameplates=true mounts=3 plus_levels=0,6,12 subcity=PhoenixCastle hunters=true")
 	quit(0)
 
@@ -136,9 +141,11 @@ func _set_location(city: String, position: Vector3) -> void:
 	_camera.current = true
 
 func _set_camera(target: Vector3, distance: float, height: float) -> void:
+	print("CAPTURE_STEP: camera_move_begin target=", target, " distance=", distance, " height=", height)
 	_camera.global_position = target + Vector3(0.0, height, distance)
 	_camera.look_at(target + Vector3(0.0, 1.6, 0.0), Vector3.UP)
 	_camera.current = true
+	print("CAPTURE_STEP: camera_move_done position=", _camera.global_position)
 
 func _settle(seconds: float) -> void:
 	for frame in range(int(ceil(seconds * 60.0))):
@@ -157,23 +164,41 @@ func _assert_population(minimum_actors: int, minimum_nameplates: int) -> bool:
 	return true
 
 func _capture(filename: String) -> bool:
-	await process_frame
-	await process_frame
-	var image := get_root().get_texture().get_image()
-	if image == null or image.is_empty() or image.get_width() < 960 or image.get_height() < 540:
+	_current_capture = filename
+	print("CAPTURE_STEP: begin ", filename)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	print("CAPTURE_STEP: viewport_read ", filename)
+	var img: Image = get_viewport().get_texture().get_image()
+	if img == null or img.is_empty() or img.get_width() < 960 or img.get_height() < 540:
 		_fail("viewport_image_empty_" + filename)
 		return false
-	var path := _output_dir.path_join(filename)
-	var error := image.save_png(path)
-	if error != OK:
-		_fail("png_save_failed_" + filename + " error=" + str(error))
+	var file_path := _output_dir.path_join(filename)
+	print("CAPTURE_STEP: save_png ", file_path)
+	var err := img.save_png(file_path)
+	print("CAPTURED_OK: ", file_path, " err=", err)
+	if err != OK:
+		_fail("png_save_failed_" + filename + " error=" + str(err))
 		return false
-	print("CAPTURED_OK: " + path)
-	var bytes := FileAccess.get_file_as_bytes(path).size()
+	var bytes := FileAccess.get_file_as_bytes(file_path).size()
 	if bytes < 15000:
 		_fail("png_below_minimum_size_" + filename + " bytes=" + str(bytes))
 		return false
+	_capture_count += 1
+	print("CAPTURE_STEP: complete ", filename, " count=", _capture_count)
 	return true
+
+func get_tree() -> SceneTree:
+	return self
+
+func get_viewport() -> Viewport:
+	return get_root()
+
+func _on_capture_watchdog_timeout() -> void:
+	if _proofs_completed:
+		return
+	push_error("PHASE5B_VISUAL_PROOFS_WATCHDOG: timeout=60s captured=%d/4 current=%s" % [_capture_count, _current_capture])
+	quit(1)
 
 func _fail(reason: String, code: int = 1) -> void:
 	push_error("PHASE5B_VISUAL_PROOFS_FAIL: " + reason)
