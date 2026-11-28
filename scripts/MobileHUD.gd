@@ -1135,7 +1135,7 @@ func _build_character(layout: VBoxContainer) -> void:
  stats_grid.add_theme_constant_override("h_separation",18)
  stats_grid.add_theme_constant_override("v_separation",2)
  stats_panel.add_child(stats_grid)
- for stat_line in ["قوة المعركة: %d" % int(stats.get("battle_power",bp)),"الهجوم: %d" % int(stats.get("attack",0)),"الدفاع: %d" % int(stats.get("defense",0)),"الحياة القصوى: %d" % int(player.get("max_hp",player.get("base_max_hp",100))),"الهجوم السحري: %d" % int(stats.get("magic_attack",0)),"سرعة الركوب: %d" % speed,"القطع المجهزة: %d/14" % equipped.size()]:
+ for stat_line in ["قوة المعركة: %d" % bp,"الهجوم: %d" % int(stats.get("attack",0)),"الدفاع: %d" % int(stats.get("defense",0)),"الحياة القصوى: %d" % int(player.get("max_hp",player.get("base_max_hp",100))),"الهجوم السحري: %d" % int(stats.get("magic_attack",0)),"سرعة الركوب: %d" % speed,"القطع المجهزة: %d/14" % equipped.size()]:
   var stat_label := _label(stat_line)
   stat_label.add_theme_font_size_override("font_size",13)
   stats_grid.add_child(stat_label)
