@@ -644,6 +644,12 @@ jobs:
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://ci/monsters_and_wings_test.gd 2>&1 | tee artifacts/monsters_and_wings_test.log
           grep -q "MONSTERS_AND_WINGS_SYSTEM_PASS=true" artifacts/monsters_and_wings_test.log
           ! grep -E "SCRIPT ERROR|Parse Error|MONSTERS_AND_WINGS_SYSTEM_FAIL|Failed to load script|Failed loading resource" artifacts/monsters_and_wings_test.log
+      - name: Functional Phase 5B simulated players and chat system test
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://ci/phase5b_simulated_players_test.gd 2>&1 | tee artifacts/phase5b_simulated_players_test.log
+          grep -q "PHASE5B_SIMULATED_PLAYERS_PASS=true" artifacts/phase5b_simulated_players_test.log
+          ! grep -E "SCRIPT ERROR|Parse Error|PHASE5B_SIMULATED_PLAYERS_FAIL|Failed to load script|Failed loading resource" artifacts/phase5b_simulated_players_test.log
       - name: Functional GameSettings integration test in Twin City scene
         env:
           SETTINGS_FUNCTIONAL_TEST: "1"
