@@ -38,7 +38,8 @@ const MODEL_FILES := {
 	"Mushroom King": "monsters/bosses/mushroom_king.glb",
 	"Blue Demon": "monsters/bosses/blue_demon.glb",
 	"Orc Skull": "monsters/bosses/orc_skull.glb",
-	"Dragon Evolved": "monsters/bosses/dragon_evolved.glb"
+	"Dragon Evolved": "monsters/bosses/dragon_evolved.glb",
+	"Reborn Guardian": "monsters/bosses/dragon_evolved.glb"
 }
 
 var hero: Node3D
@@ -118,7 +119,7 @@ func build_spawn_points() -> void:
 		point.set_meta("quest_zone", "RebornQuestZone")
 		var zone_marker := Label3D.new()
 		zone_marker.name = "RebornQuestZoneMarker"
-		zone_marker.text = "REBorn QUEST ZONE  •  Lv.130+"
+		zone_marker.text = "REBORN QUEST ZONE  •  Lv.130+"
 		zone_marker.font_size = 48
 		zone_marker.pixel_size = 0.012
 		zone_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -228,7 +229,7 @@ func _ensure_point_population(point: Node3D) -> void:
 	var requested_population := 1 if is_boss else int(point.get_meta("max_npc", 1))
 	var remaining_capacity := maxi(0, MAX_ACTIVE_MONSTERS - _count_active_monsters())
 	var population := mini(requested_population, remaining_capacity)
-	if not is_boss and population < MIN_ACTIVE_CAMP_POPULATION:
+	if population <= 0 or (not is_boss and population < MIN_ACTIVE_CAMP_POPULATION):
 		return
 	var regular_count := population if is_boss else maxi(0, population - 1)
 	for i in range(regular_count):
@@ -337,6 +338,9 @@ func get_monster_camp_city(monster_id: String) -> String:
 		if String(monster.id) == monster_id:
 			return String(monster.city)
 	for boss in TABLE.WORLD_BOSSES:
+		if String(boss.id) == monster_id:
+			return String(boss.city)
+	for boss in TABLE.QUEST_BOSSES:
 		if String(boss.id) == monster_id:
 			return String(boss.city)
 	return ""
