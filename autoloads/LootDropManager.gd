@@ -71,13 +71,14 @@ func get_lifetime_for_item(item_id:String,rarity:String="Normal")->float:
 func on_monster_killed(monster:Node3D)->int:
 	if monster==null or not is_instance_valid(monster): return 0
 	var origin:=monster.global_position
-	var is_boss:=bool(monster.get("is_king"))
+	var is_boss:=bool(monster.get("is_king")) or bool(monster.get("is_boss"))
 	var spawned:=0
 	var gold_roll:=_rng.randf()
+	var definition: Dictionary = monster.get("definition") if monster.get("definition") is Dictionary else {}
 	if is_boss or gold_roll<0.88:
-		var amount:=_rng.randi_range(1,999)
-		if gold_roll<(0.06 if is_boss else 0.012): amount=_rng.randi_range(10000,25000)
-		elif gold_roll<(0.30 if is_boss else 0.16): amount=_rng.randi_range(1000,9999)
+		var gold_min := maxi(1,int(definition.get("gold_min",1)))
+		var gold_max := maxi(gold_min,int(definition.get("gold_max",999)))
+		var amount := _rng.randi_range(gold_min,gold_max)
 		if spawn_drop({"item_id":"Gold","item_type":"Gold","amount":amount,"rarity":"Normal"},origin)!=null: spawned+=1
 	if _rng.randf()<(0.30 if is_boss else 0.045):
 		if spawn_drop({"item_id":"Meteor","item_type":"Meteor","amount":1,"rarity":"Super"},origin)!=null: spawned+=1
@@ -99,6 +100,9 @@ func on_monster_killed(monster:Node3D)->int:
 		var gear_id := String(["GearBox","RandomWeapon","RandomArmor"][_rng.randi_range(0,2)])
 		var quality := String(["Unique","Elite","Super"][_rng.randi_range(0,2)])
 		if spawn_drop({"item_id":gear_id,"item_type":"Gear","amount":1,"rarity":quality},origin)!=null: spawned+=1
+	var guaranteed: Array = get_guaranteed_quest_drops(definition)
+	for quest_drop in guaranteed:
+		if spawn_drop(quest_drop,origin)!=null: spawned+=1
 	print("PHASE4D_MONSTER_LOOT_ROLLED: monster=",monster.name," boss=",is_boss," drops=",spawned)
 	return spawned
 
@@ -223,3 +227,12 @@ func clear_cache()->void:
 	_drops.clear()
 	print("PHASE4D_LOOT_DROP_MANAGER_CLEARED")
 func _exit_tree()->void: clear_cache()
+
+func get_guaranteed_quest_drops(definition: Dictionary) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for item_id in definition.get("quest_drop_items", []):
+		var normalized := String(item_id)
+		if normalized.is_empty(): continue
+		var item_type := "Gems" if normalized.ends_with("Gem") else "Quest Material"
+		result.append({"item_id":normalized,"item_type":item_type,"amount":1,"rarity":"Super","guaranteed":true})
+	return result
