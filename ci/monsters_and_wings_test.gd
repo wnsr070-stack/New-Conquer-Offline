@@ -1,15 +1,17 @@
 extends SceneTree
 
+const MonsterTable = preload("res://scripts/MonsterGeneratorTable.gd")
+
 func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
 	await process_frame
-	var database := root.get_node_or_null("GearDatabase")
-	var gear := root.get_node_or_null("GearSystem")
-	var state := root.get_node_or_null("GameState")
-	var quests := root.get_node_or_null("QuestSystem")
-	var loot := root.get_node_or_null("LootDropManager")
+	var database: Variant = root.get_node_or_null("GearDatabase")
+	var gear: Variant = root.get_node_or_null("GearSystem")
+	var state: Variant = root.get_node_or_null("GameState")
+	var quests: Variant = root.get_node_or_null("QuestSystem")
+	var loot: Variant = root.get_node_or_null("LootDropManager")
 	if database == null or gear == null or state == null or quests == null or loot == null:
 		_fail("required_autoload_missing")
 		return
@@ -21,7 +23,7 @@ func _run() -> void:
 	if int(database.get_item_price("wing_sky_feather_p0")) <= 0:
 		_fail("wing_shop_price_missing")
 		return
-	var merchant := root.get_node_or_null("NPCMerchantSystem")
+	var merchant: Variant = root.get_node_or_null("NPCMerchantSystem")
 	if merchant == null:
 		_fail("merchant_autoload_missing")
 		return
@@ -71,20 +73,18 @@ func _run() -> void:
 	gear.equipped = original_equipment
 	gear._persist_equipment()
 
-	var table_script: Script = load("res://scripts/MonsterGeneratorTable.gd")
-	var errors: PackedStringArray = table_script.validate()
+	var errors: PackedStringArray = MonsterTable.validate()
 	if not errors.is_empty():
 		_fail("monster_table_validation: " + str(errors))
 		return
-	var table = table_script.new()
-	if table_script.camp_count() != 40:
+	if MonsterTable.camp_count() != 40:
 		_fail("expected_40_monster_camps")
 		return
-	if float(table_script.ACTIVATION_DISTANCE_M) != 45.0:
+	if float(MonsterTable.ACTIVATION_DISTANCE_M) != 45.0:
 		_fail("monster_activation_radius_not_45m")
 		return
 	var previous := {"level": 0, "hp": 0, "damage": 0, "defense": 0, "exp": 0, "gold_min": 0, "gold_max": 0}
-	for monster in table.MONSTERS:
+	for monster in MonsterTable.MONSTERS:
 		for key in previous:
 			if int(monster.get(key, 0)) <= int(previous[key]):
 				_fail("monster_progression_not_strict: " + String(monster.id) + "/" + key)
@@ -95,14 +95,14 @@ func _run() -> void:
 				_fail("camp_population_out_of_range: " + String(monster.id))
 				return
 	var major_bosses := 0
-	for boss in table.WORLD_BOSSES:
+	for boss in MonsterTable.WORLD_BOSSES:
 		if bool(boss.get("is_major_boss", false)):
 			major_bosses += 1
 	if major_bosses != 4:
 		_fail("expected_four_major_world_bosses")
 		return
 
-	var reborn: Dictionary = table.QUEST_BOSSES[0]
+	var reborn: Dictionary = MonsterTable.QUEST_BOSSES[0]
 	if int(reborn.get("level", 0)) < 130 or String(reborn.get("id", "")) != "Reborn Guardian":
 		_fail("reborn_quest_zone_boss_invalid")
 		return
