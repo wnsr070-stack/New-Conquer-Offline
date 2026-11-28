@@ -162,15 +162,16 @@ func _find_hero() -> Node3D:
 	var legacy := get_tree().root.find_child("TwinCityPlayableHero", true, false)
 	return legacy as Node3D if legacy is Node3D else null
 
-func _sync_active_actors(hero: Node3D, city: String) -> void:
+func select_active_entries(city: String, hero_position: Vector3) -> Array[Dictionary]:
 	var city_candidates: Array[Dictionary] = []
 	var hunter_candidates: Array[Dictionary] = []
-	var hero_position := hero.global_position
 	for entry in _roster:
 		if String(entry.city) == city and not bool(entry.hunter):
-			entry.current_position = _scene_root.to_global(entry.base_position)
-			var distance := hero_position.distance_to(entry.current_position)
-			if distance <= ACTIVATION_RADIUS_M:
+			var city_position: Vector3 = entry.base_position
+			if is_instance_valid(_scene_root):
+				city_position = _scene_root.to_global(city_position)
+			entry.current_position = city_position
+			if hero_position.distance_to(city_position) <= ACTIVATION_RADIUS_M:
 				city_candidates.append(entry)
 	for i in range(HUNTER_COUNT):
 		var hunter: Dictionary = _roster[_roster.size() - HUNTER_COUNT + i]
@@ -188,6 +189,10 @@ func _sync_active_actors(hero: Node3D, city: String) -> void:
 	var candidates: Array[Dictionary] = city_candidates
 	for hunter in hunter_candidates:
 		candidates.append(hunter)
+	return candidates
+
+func _sync_active_actors(hero: Node3D, city: String) -> void:
+	var candidates := select_active_entries(city, hero.global_position)
 	var wanted: Dictionary = {}
 	for entry in candidates:
 		wanted[String(entry.id)] = true
@@ -202,11 +207,8 @@ func _sync_active_actors(hero: Node3D, city: String) -> void:
 		var actor: Node3D = _active_actors.get(actor_id) as Node3D
 		if is_instance_valid(actor):
 			entry.actor = actor
-			if bool(entry.hunter):
+			if bool(entry.hunter) or String(entry.role) == "gate_road":
 				actor.global_position = entry.current_position
-			elif String(entry.role) == "gate_road":
-				actor.global_position = entry.current_position
-	_active_actors = _active_actors.duplicate()
 	print("PHASE5B_PROXIMITY_SYNC: city=", city, " active=", _active_actors.size(), " max=", MAX_ACTIVE_PLAYERS, " radius=55m")
 
 func _spawn_actor(entry: Dictionary) -> void:
