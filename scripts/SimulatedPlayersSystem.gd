@@ -105,7 +105,8 @@ func build_roster() -> void:
 func _add_player(city: String, role: String, spawn: Vector3, index: int, mounted: bool, hunter: bool = false) -> void:
 	var name_index := _roster.size()
 	var display_name := String(ARABIC_NAMES[name_index % ARABIC_NAMES.size()]) if name_index % 2 == 0 else String(ENGLISH_NAMES[name_index % ENGLISH_NAMES.size()])
-	var mount_type := ["steed", "deer", "wolf"][index % 3] if mounted else ""
+	var mount_types: Array[String] = ["steed", "deer", "wolf"]
+	var mount_type: String = mount_types[index % 3] if mounted else ""
 	var plus_level := _rng.randi_range(9, 12) if role == "hub" else _rng.randi_range(1, 12)
 	_roster.append({
 		"id": "sim_%03d" % name_index,
