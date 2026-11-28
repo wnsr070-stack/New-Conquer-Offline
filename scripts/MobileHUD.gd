@@ -27,6 +27,8 @@ var _selected_equipment_slot := "weapon"
 var _settings_feedback: Label
 var _auto_hunt_button: Button
 var _mount_button: Button
+var _chat_log_label: Label
+var _simulated_chat_lines: Array[String] = []
 
 func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -235,17 +237,18 @@ func _build_hud() -> void:
   b.add_theme_constant_override("outline_size",2)
   tabs.add_child(b)
  chat.add_child(tabs)
- var log:=Label.new()
- log.text="[النظام] مرحبًا بك في المدينة التوأم"
- log.position=Vector2(12,42)
- log.size=Vector2(330,72)
- chat.add_child(log)
+ _chat_log_label=Label.new()
+ _chat_log_label.text="[النظام] مرحبًا بك في المدينة التوأم"
+ _chat_log_label.position=Vector2(12,42)
+ _chat_log_label.size=Vector2(330,72)
+ _chat_log_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+ chat.add_child(_chat_log_label)
  var entry:=LineEdit.new()
  entry.placeholder_text="اكتب رسالتك هنا..."
  entry.position=Vector2(10,120)
  entry.size=Vector2(275,30)
  chat.add_child(entry)
- var send:=_button("Send",_send_chat_message.bind(entry,log))
+ var send:=_button("Send",_send_chat_message.bind(entry,_chat_log_label))
  send.position=Vector2(290,120)
  send.custom_minimum_size=Vector2(58,30)
  chat.add_child(send)
@@ -445,6 +448,9 @@ func _root_autoload(node_name: String) -> Node:
 
 func _connect_systems() -> void:
  var npcs := _root_autoload("NPCMerchantSystem")
+ var simulated_players := _root_autoload("SimulatedPlayersSystem")
+ if simulated_players != null and simulated_players.has_signal("simulated_chat_message") and not simulated_players.simulated_chat_message.is_connected(_on_simulated_chat_message):
+  simulated_players.simulated_chat_message.connect(_on_simulated_chat_message)
  if npcs != null and npcs.has_signal("npc_interacted") and not npcs.npc_interacted.is_connected(_on_npc_interacted):
   npcs.npc_interacted.connect(_on_npc_interacted)
  var quests := _root_autoload("QuestSystem")
@@ -606,8 +612,19 @@ func _open_window(window_name: String) -> void:
 
 func _send_chat_message(entry: LineEdit,log: Label) -> void:
  if not entry.text.strip_edges().is_empty():
-  log.text+="\\n[You] "+entry.text
+  var simulated_players := _root_autoload("SimulatedPlayersSystem")
+  if simulated_players != null and simulated_players.has_method("send_player_chat"):
+   simulated_players.send_player_chat(entry.text, "world")
+  else:
+   log.text+="\\n[You] "+entry.text
   entry.clear()
+
+func _on_simulated_chat_message(channel: String, speaker: String, message: String) -> void:
+ _simulated_chat_lines.append("[%s] %s: %s" % [channel, speaker, message])
+ while _simulated_chat_lines.size() > 4:
+  _simulated_chat_lines.pop_front()
+ if _chat_log_label != null:
+  _chat_log_label.text = "\\n".join(_simulated_chat_lines)
 
 func _set_combat_mode(mode: String) -> void:
  var state:=_root_autoload("GameState")
