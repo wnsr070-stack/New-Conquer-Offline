@@ -17,6 +17,11 @@ func _run() -> void:
 	if system == null:
 		_fail("simulated_players_autoload_missing")
 		return
+	var source := FileAccess.get_file_as_string("res://scripts/SimulatedPlayersSystem.gd")
+	for forbidden in ["/root/CombatSystem", "/root/SkillSystem", "/root/LootDropManager", "apply_skill_damage(", "perform_attack(", ".add_exp(", ".add_gold(", ".add_item("]:
+		if source.contains(String(forbidden)):
+			_fail("simulated_combat_must_remain_visual_only: " + String(forbidden))
+			return
 	var report: Dictionary = system.validate_phase5b_contract()
 	if not bool(report.get("ok", false)):
 		_fail("contract_validation: " + str(report))
