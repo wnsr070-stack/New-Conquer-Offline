@@ -3,34 +3,38 @@ class_name MonsterGeneratorTable
 ## Phase 4B Step 1: data-only CQ generator table.
 ## Camp population includes its single King/Champion; the King replaces one regular mob.
 
-const ACTIVATION_DISTANCE_M := 75.0
+const ACTIVATION_DISTANCE_M := 45.0
 const CAMP_SIZE_M := Vector2(40.0, 40.0)
 const CITY_ORDER := ["TwinCity", "PhoenixCastle", "ApeMountain", "DesertCity", "BirdIsland"]
 
 const MONSTERS := [
-    {"id":"Chicken","cq_name":"Pheasant","city":"TwinCity","level":1,"hp":33,"damage":8,"exp":15,"rest_secs":5.0,"camp_sizes":[20,20,20,20]},
-    {"id":"Pigeon","cq_name":"Turtledove","city":"TwinCity","level":7,"hp":81,"damage":18,"exp":35,"rest_secs":5.0,"camp_sizes":[20,20,20]},
-    {"id":"Birb","cq_name":"Robin","city":"TwinCity","level":12,"hp":183,"damage":32,"exp":65,"rest_secs":6.0,"camp_sizes":[25,25]},
-    {"id":"Ghost","cq_name":"Apparition","city":"TwinCity","level":17,"hp":303,"damage":50,"exp":110,"rest_secs":6.0,"camp_sizes":[15,15,15]},
-    {"id":"Blob","cq_name":"Poltergeist","city":"TwinCity","level":22,"hp":548,"damage":78,"exp":180,"rest_secs":7.0,"camp_sizes":[20,20]},
-    {"id":"Bunny","cq_name":"Bandit","city":"PhoenixCastle","level":27,"hp":850,"damage":115,"exp":270,"rest_secs":6.0,"camp_sizes":[20,20,20]},
-    {"id":"Dog","cq_name":"Ratling","city":"PhoenixCastle","level":35,"hp":1350,"damage":170,"exp":410,"rest_secs":6.0,"camp_sizes":[20,20,20]},
-    {"id":"Frog","cq_name":"Fire Spirit","city":"PhoenixCastle","level":43,"hp":2100,"damage":245,"exp":620,"rest_secs":6.0,"camp_sizes":[20,20]},
-    {"id":"Orc","cq_name":"Macaque","city":"ApeMountain","level":50,"hp":3200,"damage":340,"exp":900,"rest_secs":6.0,"camp_sizes":[20,20,20]},
-    {"id":"Yeti","cq_name":"Giant Ape","city":"ApeMountain","level":60,"hp":4900,"damage":480,"exp":1350,"rest_secs":6.0,"camp_sizes":[20,20,20]},
-    {"id":"Cactoro","cq_name":"Sand Monster","city":"DesertCity","level":70,"hp":7200,"damage":650,"exp":1950,"rest_secs":6.0,"camp_sizes":[20,20,20]},
-    {"id":"Dino","cq_name":"Hill Monster","city":"DesertCity","level":80,"hp":10500,"damage":880,"exp":2800,"rest_secs":7.0,"camp_sizes":[20,20]},
-    {"id":"Armabee","cq_name":"Birdman","city":"BirdIsland","level":90,"hp":15000,"damage":1180,"exp":3900,"rest_secs":6.0,"camp_sizes":[20,20,20]},
-    {"id":"Demon","cq_name":"HawKing","city":"BirdIsland","level":100,"hp":21500,"damage":1550,"exp":5400,"rest_secs":7.0,"camp_sizes":[20,20]},
-    {"id":"Alien","cq_name":"Senior Birdman","city":"BirdIsland","level":110,"hp":30000,"damage":2050,"exp":7500,"rest_secs":7.0,"camp_sizes":[20,20]}
+    {"id":"Chicken","cq_name":"Pheasant","city":"TwinCity","level":1,"hp":33,"damage":8,"defense":2,"exp":15,"gold_min":5,"gold_max":15,"rest_secs":4.0,"camp_sizes":[35,35,35,35]},
+    {"id":"Pigeon","cq_name":"Turtledove","city":"TwinCity","level":7,"hp":81,"damage":18,"defense":5,"exp":35,"gold_min":10,"gold_max":25,"rest_secs":4.0,"camp_sizes":[35,35,35]},
+    {"id":"Birb","cq_name":"Robin","city":"TwinCity","level":12,"hp":183,"damage":32,"defense":9,"exp":65,"gold_min":20,"gold_max":40,"rest_secs":4.0,"camp_sizes":[35,35]},
+    {"id":"Ghost","cq_name":"Apparition","city":"TwinCity","level":17,"hp":303,"damage":50,"defense":14,"exp":110,"gold_min":30,"gold_max":60,"rest_secs":4.5,"camp_sizes":[35,35,35]},
+    {"id":"Blob","cq_name":"Poltergeist","city":"TwinCity","level":22,"hp":548,"damage":78,"defense":20,"exp":180,"gold_min":40,"gold_max":80,"rest_secs":4.5,"camp_sizes":[35,35]},
+    {"id":"Bunny","cq_name":"Bandit","city":"PhoenixCastle","level":27,"hp":850,"damage":115,"defense":30,"exp":270,"gold_min":60,"gold_max":120,"rest_secs":4.5,"camp_sizes":[35,35,35]},
+    {"id":"Dog","cq_name":"Ratling","city":"PhoenixCastle","level":35,"hp":1350,"damage":170,"defense":42,"exp":410,"gold_min":80,"gold_max":160,"rest_secs":4.5,"camp_sizes":[35,35,35]},
+    {"id":"Frog","cq_name":"Fire Spirit","city":"PhoenixCastle","level":50,"hp":2100,"damage":245,"defense":60,"exp":620,"gold_min":100,"gold_max":220,"rest_secs":4.5,"camp_sizes":[35,35]},
+    {"id":"Orc","cq_name":"Macaque","city":"ApeMountain","level":55,"hp":3200,"damage":340,"defense":80,"exp":900,"gold_min":150,"gold_max":300,"rest_secs":5.0,"camp_sizes":[35,35,35]},
+    {"id":"Yeti","cq_name":"Giant Ape","city":"ApeMountain","level":70,"hp":4900,"damage":480,"defense":110,"exp":1350,"gold_min":200,"gold_max":400,"rest_secs":5.0,"camp_sizes":[35,35,35]},
+    {"id":"Cactoro","cq_name":"Sand Monster","city":"DesertCity","level":85,"hp":7200,"damage":650,"defense":145,"exp":1950,"gold_min":300,"gold_max":600,"rest_secs":5.0,"camp_sizes":[35,35,35]},
+    {"id":"Dino","cq_name":"Hill Monster","city":"DesertCity","level":100,"hp":10500,"damage":880,"defense":185,"exp":2800,"gold_min":400,"gold_max":800,"rest_secs":5.0,"camp_sizes":[35,35]},
+    {"id":"Armabee","cq_name":"Birdman","city":"BirdIsland","level":110,"hp":15000,"damage":1180,"defense":230,"exp":3900,"gold_min":500,"gold_max":1000,"rest_secs":5.5,"camp_sizes":[35,35,35]},
+    {"id":"Demon","cq_name":"HawKing","city":"BirdIsland","level":120,"hp":21500,"damage":1550,"defense":290,"exp":5400,"gold_min":700,"gold_max":1300,"rest_secs":5.5,"camp_sizes":[35,35]},
+    {"id":"Alien","cq_name":"Senior Birdman","city":"BirdIsland","level":130,"hp":30000,"damage":2050,"defense":360,"exp":7500,"gold_min":900,"gold_max":1800,"rest_secs":5.5,"camp_sizes":[35,35]}
 ]
 
 const WORLD_BOSSES := [
-    {"id":"Mushroom King","city":"TwinCity","level":25,"hp":12000,"damage":220,"exp":3500,"max_npc":1,"scale":2.5,"rest_secs":60.0},
-    {"id":"Orc Skull","city":"PhoenixCastle","level":48,"hp":45000,"damage":580,"exp":12000,"max_npc":1,"scale":2.5,"rest_secs":60.0},
-    {"id":"Alpaking Evolved","city":"ApeMountain","level":68,"hp":110000,"damage":1100,"exp":30000,"max_npc":1,"scale":2.5,"rest_secs":60.0},
-    {"id":"Blue Demon","city":"DesertCity","level":88,"hp":250000,"damage":1950,"exp":70000,"max_npc":1,"scale":2.5,"rest_secs":60.0},
-    {"id":"Dragon Evolved","cq_name":"Terato Dragon","city":"BirdIsland","level":115,"hp":600000,"damage":3500,"exp":180000,"max_npc":1,"scale":2.5,"rest_secs":60.0}
+    {"id":"Mushroom King","city":"TwinCity","level":25,"hp":12000,"damage":220,"defense":160,"exp":3500,"gold_min":3000,"gold_max":6000,"boss_tier":"quest","is_major_boss":false,"max_npc":1,"scale":2.5,"rest_secs":45.0},
+    {"id":"Orc Skull","city":"PhoenixCastle","level":55,"hp":45000,"damage":580,"defense":280,"exp":12000,"gold_min":7000,"gold_max":12000,"boss_tier":"world","is_major_boss":true,"max_npc":1,"scale":2.5,"rest_secs":60.0},
+    {"id":"Alpaking Evolved","city":"ApeMountain","level":85,"hp":110000,"damage":1100,"defense":480,"exp":30000,"gold_min":12000,"gold_max":20000,"boss_tier":"world","is_major_boss":true,"max_npc":1,"scale":2.5,"rest_secs":60.0},
+    {"id":"Blue Demon","city":"DesertCity","level":110,"hp":250000,"damage":1950,"defense":760,"exp":70000,"gold_min":20000,"gold_max":35000,"boss_tier":"world","is_major_boss":true,"max_npc":1,"scale":2.5,"rest_secs":60.0},
+    {"id":"Dragon Evolved","cq_name":"Terato Dragon","city":"BirdIsland","level":135,"hp":600000,"damage":3500,"defense":1200,"exp":180000,"gold_min":35000,"gold_max":60000,"boss_tier":"world","is_major_boss":true,"max_npc":1,"scale":2.5,"rest_secs":60.0}
+]
+
+const QUEST_BOSSES := [
+    {"id":"Reborn Guardian","cq_name":"Terato Dragon","city":"BirdIsland","level":130,"hp":900000,"damage":4200,"defense":1600,"exp":250000,"gold_min":50000,"gold_max":75000,"boss_tier":"reborn","is_major_boss":false,"max_npc":1,"scale":2.7,"rest_secs":45.0,"quest_drop_items":["CleanWater","DragonGem","PhoenixGem","RainbowGem","VioletGem","FuryGem","MoonGem","KylinGem"]}
 ]
 
 # Each city has its own scene-local coordinate frame; these are the authored scene origins.
@@ -111,8 +115,8 @@ static func validate() -> PackedStringArray:
         var offsets: Array = CAMP_OFFSETS.get(monster.city, [])
         for camp_index in range(monster.camp_sizes.size()):
             var amount: int = int(monster.camp_sizes[camp_index])
-            if amount < 1:
-                errors.append("Invalid camp population: " + str(monster.id))
+            if amount < 35 or amount > 40:
+                errors.append("Camp population outside 35-40 active budget: " + str(monster.id))
             var offset: Vector3 = offsets[camp_index]
             var camp_local_position: Vector3 = CITY_CENTER_FALLBACKS[monster.city] + offset
             var nearest_gate := INF
@@ -121,7 +125,18 @@ static func validate() -> PackedStringArray:
             var minimum_gate_clearance := 25.0 if String(monster.city) == "BirdIsland" else 45.0
             if nearest_gate < minimum_gate_clearance or nearest_gate > 160.0:
                 errors.append("Camp outside 45-160m gate clearance: " + str(monster.id) + " camp=" + str(camp_index) + " clearance=" + str(nearest_gate))
+    var previous := {"level":0,"hp":0,"damage":0,"defense":0,"exp":0,"gold_min":0,"gold_max":0}
+    for monster in MONSTERS:
+        for key in previous:
+            if int(monster.get(key,0)) <= int(previous[key]):
+                errors.append("Non-monotonic monster progression: " + str(monster.id) + " " + key)
+            previous[key] = int(monster.get(key,0))
+    var major_count := 0
     for boss in WORLD_BOSSES:
-        if int(boss.max_npc) != 1 or float(boss.scale) != 2.5 or float(boss.rest_secs) != 60.0:
+        if int(boss.max_npc) != 1 or float(boss.scale) != 2.5:
             errors.append("Invalid world boss policy: " + str(boss.id))
+        if bool(boss.get("is_major_boss",false)): major_count += 1
+    if major_count != 4: errors.append("Expected exactly four major world bosses")
+    if QUEST_BOSSES.size() != 1 or int(QUEST_BOSSES[0].level) < 130:
+        errors.append("Reborn quest boss must be level 130+")
     return errors
