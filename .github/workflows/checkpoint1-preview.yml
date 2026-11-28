@@ -727,6 +727,55 @@ jobs:
           done
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|MOUNT_AND_EQUIP_TEST_PASS=false|MOUNT_SHOWCASE_CAPTURE_FAILED|MOUNT_SHOWCASE_MOUNT_FAILED" artifacts/mount_showcase.log
 
+      - name: Capture four Phase 5B simulated-player visual proofs
+        env:
+          CI_CAPTURE: "1"
+        run: |
+          set -euo pipefail
+          export LIBGL_ALWAYS_SOFTWARE=1
+          xvfb-run -a -s "-screen 0 1280x720x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 --script res://ci/phase5b_visual_proofs.gd 2>&1 | tee artifacts/phase5b_visual_proofs.log
+          for image in phase5b_twin_city_crowd.png phase5b_auras_and_mounts.png phase5b_sub_cities.png phase5b_wild_hunters.png; do
+            test -s "artifacts/$image" || { echo "::error::Missing Phase 5B visual proof: $image"; exit 1; }
+            size=$(stat -c%s "artifacts/$image")
+            [ "$size" -gt 15000 ] || { echo "::error::Phase 5B visual proof too small: $image ($size bytes)"; exit 1; }
+            signature=$(od -An -tx1 -N8 "artifacts/$image" | tr -d ' \\n')
+            [ "$signature" = "89504e470d0a1a0a" ] || { echo "::error::Invalid PNG signature: $image"; exit 1; }
+          done
+          grep -q "PHASE5B_VISUAL_PROOFS_PASS=true" artifacts/phase5b_visual_proofs.log
+          ! grep -E "SCRIPT ERROR|Parse Error|PHASE5B_VISUAL_PROOFS_FAIL|Failed to load script|Failed loading resource" artifacts/phase5b_visual_proofs.log
+      - name: Upload Phase 5B Twin City crowd PNG
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5b-twin-city-crowd-${{ github.run_number }}
+          path: artifacts/phase5b_twin_city_crowd.png
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Phase 5B auras and mounts PNG
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5b-auras-and-mounts-${{ github.run_number }}
+          path: artifacts/phase5b_auras_and_mounts.png
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Phase 5B sub-cities PNG
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5b-sub-cities-${{ github.run_number }}
+          path: artifacts/phase5b_sub_cities.png
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Phase 5B wilderness hunters PNG
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5b-wild-hunters-${{ github.run_number }}
+          path: artifacts/phase5b_wild_hunters.png
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload three mount showcase PNGs and test logs only
         if: always()
         uses: actions/upload-artifact@v4
