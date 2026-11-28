@@ -733,8 +733,6 @@ jobs:
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|MOUNT_AND_EQUIP_TEST_PASS=false|MOUNT_SHOWCASE_CAPTURE_FAILED|MOUNT_SHOWCASE_MOUNT_FAILED" artifacts/mount_showcase.log
 
       - name: Capture four Phase 5B simulated-player visual proofs
-        env:
-          CI_CAPTURE: "1"
         run: |
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1

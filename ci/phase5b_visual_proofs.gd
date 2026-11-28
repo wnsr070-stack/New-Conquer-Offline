@@ -10,6 +10,8 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	OS.unset_environment("CI_CAPTURE")
+	print("PHASE5B_VISUAL_PROOFS_START=true captures=4 legacy_capture=disabled")
 	DisplayServer.window_set_size(Vector2i(960, 540))
 	_output_dir = ProjectSettings.globalize_path("res://artifacts")
 	DirAccess.make_dir_recursive_absolute(_output_dir)
