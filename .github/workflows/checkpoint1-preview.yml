@@ -632,7 +632,7 @@ jobs:
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --import --quit 2>&1 | tee artifacts/import.log
-      - name: Godot 4.3 GDScript Syntax Gate - every scripts/*.gd file
+      - name: Godot 4.3 GDScript Syntax Gate - scripts/*.gd and ci/*.gd
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/ci_validate_all_scripts.gd 2>&1 | tee artifacts/syntax_gate.log
