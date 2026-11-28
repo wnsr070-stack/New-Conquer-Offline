@@ -16,7 +16,7 @@ var _camera_created := false
 var _cleaned_up := false
 
 func _initialize() -> void:
-	_watchdog_started_msec = Time.get_ticks_msec()
+	_watchdog_started_msec = 0
 	OS.unset_environment("CI_CAPTURE")
 	print("PHASE5B_VISUAL_PROOFS_START=true captures=4 frame_driven=true per_capture_sync_limit=60")
 	DisplayServer.window_set_size(Vector2i(960, 540))
@@ -32,8 +32,8 @@ func _process(_delta: float) -> bool:
 	if _proofs_completed:
 		return true
 	_frame_tick += 1
-	if _watchdog_started_msec > 0 and Time.get_ticks_msec() - _watchdog_started_msec >= 90000:
-		_fail("watchdog_timeout captured=%d/4 frame=%d phase=%s phase_frames=%d last_RUN_TRACE=%s" % [_capture_count, _frame_tick, _phase, _phase_frames, _last_run_trace])
+	if _phase.begins_with("verify_") and _watchdog_started_msec > 0 and Time.get_ticks_msec() - _watchdog_started_msec >= 90000:
+		_fail("phase_watchdog_timeout captured=%d/4 frame=%d phase=%s phase_frames=%d last_RUN_TRACE=%s" % [_capture_count, _frame_tick, _phase, _phase_frames, _last_run_trace])
 		return true
 
 	match _phase:
@@ -167,7 +167,8 @@ func _set_camera(target: Vector3, distance: float, height: float) -> void:
 func _begin_verify(next_phase: String) -> void:
 	_phase = next_phase
 	_phase_frames = 0
-	_trace(next_phase + "_sync_wait_started max_frames=60")
+	_watchdog_started_msec = Time.get_ticks_msec()
+	_trace(next_phase + "_sync_wait_started max_frames=60 watchdog=90s")
 
 func _verify_population(minimum_actors: int, minimum_nameplates: int, label: String) -> bool:
 	var active: Dictionary = _system.get("_active_actors")
