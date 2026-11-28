@@ -738,7 +738,7 @@ jobs:
         run: |
           set -euo pipefail
           export LIBGL_ALWAYS_SOFTWARE=1
-          xvfb-run -a -s "-screen 0 1280x720x24" timeout 900s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 1280x720 --script res://ci/phase5b_visual_proofs.gd 2>&1 | tee artifacts/phase5b_visual_proofs.log
+          xvfb-run -a -s "-screen 0 960x540x24" timeout 240s "$GODOT_BIN" --path "$GITHUB_WORKSPACE" --rendering-driver opengl3 --audio-driver Dummy --resolution 960x540 --script res://ci/phase5b_visual_proofs.gd 2>&1 | tee artifacts/phase5b_visual_proofs.log
           for image in phase5b_twin_city_crowd.png phase5b_auras_and_mounts.png phase5b_sub_cities.png phase5b_wild_hunters.png; do
             test -s "artifacts/$image" || { echo "::error::Missing Phase 5B visual proof: $image"; exit 1; }
             size=$(stat -c%s "artifacts/$image")

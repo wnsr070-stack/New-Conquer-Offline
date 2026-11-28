@@ -10,6 +10,7 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	DisplayServer.window_set_size(Vector2i(960, 540))
 	_output_dir = ProjectSettings.globalize_path("res://artifacts")
 	DirAccess.make_dir_recursive_absolute(_output_dir)
 	var error := change_scene_to_file("res://scenes/TwinCity.tscn")
@@ -44,7 +45,6 @@ func _run() -> void:
 	if not _assert_population(18, 12):
 		return
 	_set_camera(Vector3(0.0, 1.5, -45.0), 42.0, 24.0)
-	await _settle(0.35)
 	if not await _capture("phase5b_twin_city_crowd.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_twin_city_crowd.png")
@@ -80,7 +80,6 @@ func _run() -> void:
 		_fail("three_mounts_or_plus_levels_missing")
 		return
 	_set_camera(Vector3(0.0, 1.5, -45.0), 25.0, 13.0)
-	await _settle(0.35)
 	if not await _capture("phase5b_auras_and_mounts.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_auras_and_mounts.png mounts=3 plus_levels=0,6,12")
@@ -90,7 +89,6 @@ func _run() -> void:
 	if not _assert_population(8, 6):
 		return
 	_set_camera(Vector3(0.0, 1.5, -98.0), 34.0, 20.0)
-	await _settle(0.35)
 	if not await _capture("phase5b_sub_cities.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_sub_cities.png city=PhoenixCastle")
@@ -106,7 +104,6 @@ func _run() -> void:
 		_fail("wilderness_hunters_not_visible")
 		return
 	_set_camera(Vector3(0.0, 1.5, 0.0), 21.0, 13.0)
-	await _settle(0.35)
 	if not await _capture("phase5b_wild_hunters.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_wild_hunters.png hunters=", hunter_count)
@@ -159,8 +156,9 @@ func _assert_population(minimum_actors: int, minimum_nameplates: int) -> bool:
 
 func _capture(filename: String) -> bool:
 	await process_frame
+	await process_frame
 	var image := get_root().get_texture().get_image()
-	if image == null or image.is_empty():
+	if image == null or image.is_empty() or image.get_width() < 960 or image.get_height() < 540:
 		_fail("viewport_image_empty_" + filename)
 		return false
 	var path := _output_dir.path_join(filename)
@@ -168,6 +166,7 @@ func _capture(filename: String) -> bool:
 	if error != OK:
 		_fail("png_save_failed_" + filename + " error=" + str(error))
 		return false
+	print("CAPTURED_OK: " + path)
 	var bytes := FileAccess.get_file_as_bytes(path).size()
 	if bytes < 15000:
 		_fail("png_below_minimum_size_" + filename + " bytes=" + str(bytes))
