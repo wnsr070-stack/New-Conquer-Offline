@@ -52,6 +52,10 @@ func _run() -> void:
 	if target.length() <= 0.01:
 		_fail("city_movement_target_not_generated")
 		return
+	var moved: Vector3 = system.step_towards(Vector3.ZERO, Vector3(5.0, 0.0, 0.0), 2.0, 1.0)
+	if moved.x <= 0.0 or moved.x > 2.01:
+		_fail("movement_step_not_applied")
+		return
 	var recent: String = system.get_recent_chat_text(4)
 	if recent.is_empty() or not recent.contains("trade"):
 		_fail("chat_history_not_updated")
