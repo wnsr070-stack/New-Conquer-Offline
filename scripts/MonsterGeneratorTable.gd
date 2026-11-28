@@ -8,21 +8,21 @@ const CAMP_SIZE_M := Vector2(40.0, 40.0)
 const CITY_ORDER := ["TwinCity", "PhoenixCastle", "ApeMountain", "DesertCity", "BirdIsland"]
 
 const MONSTERS := [
-    {"id":"Chicken","cq_name":"Pheasant","city":"TwinCity","level":1,"hp":33,"damage":8,"defense":2,"exp":15,"gold_min":5,"gold_max":15,"rest_secs":4.0,"camp_sizes":[35,35,35,35]},
-    {"id":"Pigeon","cq_name":"Turtledove","city":"TwinCity","level":7,"hp":81,"damage":18,"defense":5,"exp":35,"gold_min":10,"gold_max":25,"rest_secs":4.0,"camp_sizes":[35,35,35]},
-    {"id":"Birb","cq_name":"Robin","city":"TwinCity","level":12,"hp":183,"damage":32,"defense":9,"exp":65,"gold_min":20,"gold_max":40,"rest_secs":4.0,"camp_sizes":[35,35]},
-    {"id":"Ghost","cq_name":"Apparition","city":"TwinCity","level":17,"hp":303,"damage":50,"defense":14,"exp":110,"gold_min":30,"gold_max":60,"rest_secs":4.5,"camp_sizes":[35,35,35]},
-    {"id":"Blob","cq_name":"Poltergeist","city":"TwinCity","level":22,"hp":548,"damage":78,"defense":20,"exp":180,"gold_min":40,"gold_max":80,"rest_secs":4.5,"camp_sizes":[35,35]},
-    {"id":"Bunny","cq_name":"Bandit","city":"PhoenixCastle","level":27,"hp":850,"damage":115,"defense":30,"exp":270,"gold_min":60,"gold_max":120,"rest_secs":4.5,"camp_sizes":[35,35,35]},
-    {"id":"Dog","cq_name":"Ratling","city":"PhoenixCastle","level":35,"hp":1350,"damage":170,"defense":42,"exp":410,"gold_min":80,"gold_max":160,"rest_secs":4.5,"camp_sizes":[35,35,35]},
-    {"id":"Frog","cq_name":"Fire Spirit","city":"PhoenixCastle","level":50,"hp":2100,"damage":245,"defense":60,"exp":620,"gold_min":100,"gold_max":220,"rest_secs":4.5,"camp_sizes":[35,35]},
-    {"id":"Orc","cq_name":"Macaque","city":"ApeMountain","level":55,"hp":3200,"damage":340,"defense":80,"exp":900,"gold_min":150,"gold_max":300,"rest_secs":5.0,"camp_sizes":[35,35,35]},
-    {"id":"Yeti","cq_name":"Giant Ape","city":"ApeMountain","level":70,"hp":4900,"damage":480,"defense":110,"exp":1350,"gold_min":200,"gold_max":400,"rest_secs":5.0,"camp_sizes":[35,35,35]},
-    {"id":"Cactoro","cq_name":"Sand Monster","city":"DesertCity","level":85,"hp":7200,"damage":650,"defense":145,"exp":1950,"gold_min":300,"gold_max":600,"rest_secs":5.0,"camp_sizes":[35,35,35]},
-    {"id":"Dino","cq_name":"Hill Monster","city":"DesertCity","level":100,"hp":10500,"damage":880,"defense":185,"exp":2800,"gold_min":400,"gold_max":800,"rest_secs":5.0,"camp_sizes":[35,35]},
-    {"id":"Armabee","cq_name":"Birdman","city":"BirdIsland","level":110,"hp":15000,"damage":1180,"defense":230,"exp":3900,"gold_min":500,"gold_max":1000,"rest_secs":5.5,"camp_sizes":[35,35,35]},
-    {"id":"Demon","cq_name":"HawKing","city":"BirdIsland","level":120,"hp":21500,"damage":1550,"defense":290,"exp":5400,"gold_min":700,"gold_max":1300,"rest_secs":5.5,"camp_sizes":[35,35]},
-    {"id":"Alien","cq_name":"Senior Birdman","city":"BirdIsland","level":130,"hp":30000,"damage":2050,"defense":360,"exp":7500,"gold_min":900,"gold_max":1800,"rest_secs":5.5,"camp_sizes":[35,35]}
+    {"id":"Chicken","cq_name":"Pheasant","city":"TwinCity","level":1,"hp":33,"damage":8,"defense":2,"exp":15,"gold_min":5,"gold_max":15,"rest_secs":4.0,"camp_sizes":[40,40,40,40]},
+    {"id":"Pigeon","cq_name":"Turtledove","city":"TwinCity","level":7,"hp":81,"damage":18,"defense":5,"exp":35,"gold_min":10,"gold_max":25,"rest_secs":4.0,"camp_sizes":[40,40,40]},
+    {"id":"Birb","cq_name":"Robin","city":"TwinCity","level":12,"hp":183,"damage":32,"defense":9,"exp":65,"gold_min":20,"gold_max":40,"rest_secs":4.0,"camp_sizes":[40,40]},
+    {"id":"Ghost","cq_name":"Apparition","city":"TwinCity","level":17,"hp":303,"damage":50,"defense":14,"exp":110,"gold_min":30,"gold_max":60,"rest_secs":4.5,"camp_sizes":[40,40,40]},
+    {"id":"Blob","cq_name":"Poltergeist","city":"TwinCity","level":22,"hp":548,"damage":78,"defense":20,"exp":180,"gold_min":40,"gold_max":80,"rest_secs":4.5,"camp_sizes":[40,40]},
+    {"id":"Bunny","cq_name":"Bandit","city":"PhoenixCastle","level":27,"hp":850,"damage":115,"defense":30,"exp":270,"gold_min":60,"gold_max":120,"rest_secs":4.5,"camp_sizes":[40,40,40]},
+    {"id":"Dog","cq_name":"Ratling","city":"PhoenixCastle","level":35,"hp":1350,"damage":170,"defense":42,"exp":410,"gold_min":80,"gold_max":160,"rest_secs":4.5,"camp_sizes":[40,40,40]},
+    {"id":"Frog","cq_name":"Fire Spirit","city":"PhoenixCastle","level":50,"hp":2100,"damage":245,"defense":60,"exp":620,"gold_min":100,"gold_max":220,"rest_secs":4.5,"camp_sizes":[40,40]},
+    {"id":"Orc","cq_name":"Macaque","city":"ApeMountain","level":55,"hp":3200,"damage":340,"defense":80,"exp":900,"gold_min":150,"gold_max":300,"rest_secs":5.0,"camp_sizes":[40,40,40]},
+    {"id":"Yeti","cq_name":"Giant Ape","city":"ApeMountain","level":70,"hp":4900,"damage":480,"defense":110,"exp":1350,"gold_min":200,"gold_max":400,"rest_secs":5.0,"camp_sizes":[40,40,40]},
+    {"id":"Cactoro","cq_name":"Sand Monster","city":"DesertCity","level":85,"hp":7200,"damage":650,"defense":145,"exp":1950,"gold_min":300,"gold_max":600,"rest_secs":5.0,"camp_sizes":[40,40,40]},
+    {"id":"Dino","cq_name":"Hill Monster","city":"DesertCity","level":100,"hp":10500,"damage":880,"defense":185,"exp":2800,"gold_min":400,"gold_max":800,"rest_secs":5.0,"camp_sizes":[40,40]},
+    {"id":"Armabee","cq_name":"Birdman","city":"BirdIsland","level":110,"hp":15000,"damage":1180,"defense":230,"exp":3900,"gold_min":500,"gold_max":1000,"rest_secs":5.5,"camp_sizes":[40,40,40]},
+    {"id":"Demon","cq_name":"HawKing","city":"BirdIsland","level":120,"hp":21500,"damage":1550,"defense":290,"exp":5400,"gold_min":700,"gold_max":1300,"rest_secs":5.5,"camp_sizes":[40,40]},
+    {"id":"Alien","cq_name":"Senior Birdman","city":"BirdIsland","level":130,"hp":30000,"damage":2050,"defense":360,"exp":7500,"gold_min":900,"gold_max":1800,"rest_secs":5.5,"camp_sizes":[40,40]}
 ]
 
 const WORLD_BOSSES := [
