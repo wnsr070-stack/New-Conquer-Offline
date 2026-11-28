@@ -116,6 +116,16 @@ func build_spawn_points() -> void:
 		point.add_to_group("monster_spawn_point")
 		point.set_meta("spawn_kind", "quest_boss")
 		point.set_meta("quest_zone", "RebornQuestZone")
+		var zone_marker := Label3D.new()
+		zone_marker.name = "RebornQuestZoneMarker"
+		zone_marker.text = "REBorn QUEST ZONE  •  Lv.130+"
+		zone_marker.font_size = 48
+		zone_marker.pixel_size = 0.012
+		zone_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		zone_marker.no_depth_test = true
+		zone_marker.modulate = Color(0.25, 0.85, 1.0, 1.0)
+		zone_marker.position = Vector3(0.0, 8.0, 0.0)
+		point.add_child(zone_marker)
 		point.set_meta("monster_id", boss.id)
 		point.set_meta("level", boss.level)
 		point.set_meta("hp", boss.hp)
@@ -211,6 +221,7 @@ func _ensure_point_population(point: Node3D) -> void:
 		push_error("MonsterSpawner: missing definition " + monster_id)
 		return
 	var definition: Dictionary = _definitions[monster_id]
+	point.set_meta("sleeping", false)
 	var center := point.global_position
 	var spawn_kind := String(point.get_meta("spawn_kind", ""))
 	var is_boss := spawn_kind in ["world_boss", "quest_boss"]
