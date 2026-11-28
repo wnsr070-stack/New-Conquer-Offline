@@ -106,6 +106,7 @@ func _add_player(city: String, role: String, spawn: Vector3, index: int, mounted
 	var name_index := _roster.size()
 	var display_name := String(ARABIC_NAMES[name_index % ARABIC_NAMES.size()]) if name_index % 2 == 0 else String(ENGLISH_NAMES[name_index % ENGLISH_NAMES.size()])
 	var mount_type := ["steed", "deer", "wolf"][index % 3] if mounted else ""
+	var plus_level := _rng.randi_range(9, 12) if role == "hub" else _rng.randi_range(1, 12)
 	_roster.append({
 		"id": "sim_%03d" % name_index,
 		"city": city,
@@ -114,7 +115,7 @@ func _add_player(city: String, role: String, spawn: Vector3, index: int, mounted
 		"current_position": spawn,
 		"display_name": display_name,
 		"level": _rng.randi_range(40, 130),
-		"plus_level": _rng.randi_range(1, 12),
+		"plus_level": plus_level,
 		"mounted": mounted,
 		"mount_type": mount_type,
 		"hunter": hunter,
@@ -443,6 +444,16 @@ func validate_phase5b_contract() -> Dictionary:
 			return {"ok": false, "reason": "city_count_" + city, "counts": counts}
 	if int(counts.get("Wilderness", 0)) != HUNTER_COUNT:
 		return {"ok": false, "reason": "hunter_count"}
+	var hub_mounts := 0
+	var hub_high_plus := 0
+	for entry in _roster:
+		if String(entry.city) == "TwinCity" and String(entry.role) == "hub":
+			if bool(entry.mounted):
+				hub_mounts += 1
+			if int(entry.plus_level) >= 9:
+				hub_high_plus += 1
+	if hub_mounts < 4 or hub_high_plus != 15:
+		return {"ok": false, "reason": "twin_city_hub_showcase", "mounted": hub_mounts, "plus_9_12": hub_high_plus}
 	if MAX_ACTIVE_PLAYERS != 30 or ACTIVATION_RADIUS_M != 55.0 or VISIBLE_HUNTERS < 3 or VISIBLE_HUNTERS > 5:
 		return {"ok": false, "reason": "runtime_limits"}
 	var probe := make_wander_target(Vector3.ZERO, 6.0)
