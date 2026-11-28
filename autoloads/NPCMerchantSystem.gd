@@ -89,7 +89,10 @@ const SHOP_STOCK := {
   {"id":"SoulJade","name":"Soul Jade","type":"Gem","price":6500},
   {"id":"ThunderGem","name":"Thunder Gem","type":"Gem","price":7500},
   {"id":"Meteor","name":"Meteor","type":"Orb","price":1000},
-  {"id":"AnimaStone","name":"Anima Stone","type":"Orb","price":8000}
+  {"id":"AnimaStone","name":"Anima Stone","type":"Orb","price":8000},
+  {"id":"wing_sky_feather_p0","name":"جناح الريشة السماوية","type":"Wing","price":25000},
+  {"id":"wing_azure_dragon_p0","name":"جناح التنين الأزرق","type":"Wing","price":85000},
+  {"id":"wing_celestial_phoenix_p0","name":"جناح العنقاء السماوية","type":"Wing","price":240000}
  ]
 }
 var _city_root: Node3D
