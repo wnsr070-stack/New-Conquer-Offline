@@ -873,7 +873,7 @@ func _equip_inventory_item(index: int) -> void:
  if slot.is_empty():
   push_warning("MOBILE_EQUIP_REJECTED_NO_SLOT: " + item_id)
   return
- if slot == "weapon" and not gear.can_equip(item_id,String(state.player_data.get("class","archer")),int(state.player_data.get("level",1))):
+ if slot in ["weapon","wing"] and not gear.can_equip(item_id,String(state.player_data.get("class","archer")),int(state.player_data.get("level",1))):
   push_warning("MOBILE_EQUIP_REJECTED_CLASS_OR_LEVEL: " + item_id)
   return
  var previous: Dictionary = gear.get_equipped(slot)
