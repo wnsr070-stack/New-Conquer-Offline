@@ -6,7 +6,7 @@ const SHOP_PRICES := {
  "HPPotion":80,"MPPotion":80,"Antidote":120,"StaminaPotion":150,
  "bow_lv10_normal_p1":1500,"dual_blades_lv10_normal_p1":1650,"spear_lv10_normal_p1":1450,"magic_staff_lv10_normal_p1":1400,"Plus1Stone":600,
  "body_03_beginner_normal_p1":1800,"body_01_beginner_normal_p1":1900,"helmet_01_beginner_normal_p1":900,"boots_01_beginner_normal_p1":650,
- "DragonGem":12000,"GloryGem":9000,"SoulJade":6500,"ThunderGem":7500,"Meteor":1000,"AnimaStone":8000
+ "DragonGem":12000,"GloryGem":9000,"SoulJade":6500,"ThunderGem":7500,"Meteor":1000,"AnimaStone":8000,"wing_sky_feather_p0":25000,"wing_azure_dragon_p0":85000,"wing_celestial_phoenix_p0":240000
 }
 const WEAPON_FAMILIES := {
  "bow":{"classes":["archer"],"models":["quaternius_bow_wooden","quaternius_bow_golden"]},
@@ -159,7 +159,20 @@ func _initialize_mount_items() -> void:
  print("PHASE5A_MOUNT_EQUIPMENT_FIXTURES_READY: fan=+0..+12 tower=+0..+12 steed=+0..+12 fire_tiger_skin=true wings=true whip=true garment=true")
 
 func _initialize_quest_items() -> void:
- var rows := [["EuxeniteOre","Euxenite Ore"],["RebuildOre","Rebuild Ore"],["PeaceCommandToken","Peace Command Token"],["ChaosCommandToken","Chaos Command Token"],["DesertedCommandToken","Deserted Command Token"],["ProsperousCommandToken","Prosperous Command Token"],["DisturbedCommandToken","Disturbed Command Token"],["CalmedCommandToken","Calmed Command Token"],["SoulJade","Soul Jade"],["MoonBox","Moon Box"],["CleanWater","Clean Water"],["CelestialStone","Celestial Stone"],["HeavenFan","Heaven Fan"],["StarTower","Star Tower"],["ThunderGem","Thunder Gem"],["GloryGem","Glory Gem"]]
+ var rows := [["EuxeniteOre","Euxenite Ore"],["RebuildOre","Rebuild Ore"],["PeaceCommandToken","Peace Command Token"],["ChaosCommandToken","Chaos Command Token"],["DesertedCommandToken","Deserted Command Token"],["ProsperousCommandToken","Prosperous Command Token"],["DisturbedCommandToken","Disturbed Command Token"],["CalmedCommandToken","Calmed Command Token"],["SoulJade","Soul Jade"],["MoonBox","Moon Box"],["CleanWater","Clean Water"],["CelestialStone","Celestial Stone"],["HeavenFan","Heaven Fan"],["StarTower","Star Tower"],["ThunderGem","Thunder Gem"],["GloryGem","Glory Gem"],["DragonGem","Dragon Gem"],["PhoenixGem","Phoenix Gem"],["RainbowGem","Rainbow Gem"],["VioletGem","Violet Gem"],["FuryGem","Fury Gem"],["MoonGem","Moon Gem"],["KylinGem","Kylin Gem"]]
  for row in rows:
   items[String(row[0])] = {"id":String(row[0]),"display_name":String(row[1]),"type":"QuestItem","family":"quest_item","level":1,"quality":"Normal","plus":0,"stackable":true,"classes":EQUIPMENT_CLASSES.duplicate(),"sockets":[],"gem_bonuses":{}}
  print("PHASE4D_CLASSIC_QUEST_ITEMS_READY: count=",rows.size())
+
+func _initialize_wing_items() -> void:
+	var catalog := [
+		{"id":"wing_sky_feather","name":"جناح الريشة السماوية","level":25,"attack":35,"defense":25,"hp":450,"price":25000},
+		{"id":"wing_azure_dragon","name":"جناح التنين الأزرق","level":70,"attack":110,"defense":85,"hp":1400,"price":85000},
+		{"id":"wing_celestial_phoenix","name":"جناح العنقاء السماوية","level":120,"attack":260,"defense":190,"hp":4200,"price":240000}
+	]
+	for entry in catalog:
+		for plus in range(0,PLUS_LEVELS+1):
+			var item_id := String(entry.id) + "_p" + str(plus)
+			var scale := 1.0 + float(plus) * 0.12
+			items[item_id] = {"id":item_id,"display_name":String(entry.name) + " +" + str(plus),"type":"Wing","family":"wing","slot":"wing","level":int(entry.level),"quality":"Super" if plus >= 9 else "Elite" if plus >= 6 else "Unique" if plus >= 3 else "Normal","plus":plus,"classes":EQUIPMENT_CLASSES.duplicate(),"base_attack":int(entry.attack),"base_defense":int(entry.defense),"attack_bonus":int(round(float(entry.attack)*scale)),"defense_bonus":int(round(float(entry.defense)*scale)),"max_hp_bonus":int(round(float(entry.hp)*scale)),"composition_points":0,"sockets":[],"gem_bonuses":{"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}}
+	print("PHASE5A_WING_CATALOG_READY: tiers=3 plus=+0..+12 stats=attack/defense/max_hp visual_attachment=false")
