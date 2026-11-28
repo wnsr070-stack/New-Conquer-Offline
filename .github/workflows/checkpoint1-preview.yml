@@ -638,6 +638,12 @@ jobs:
           "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/ci_validate_all_scripts.gd 2>&1 | tee artifacts/syntax_gate.log
           grep -q "GODOT_GDSCRIPT_SYNTAX_GATE_PASS=true" artifacts/syntax_gate.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|GODOT_GDSCRIPT_SYNTAX_GATE_FAIL" artifacts/syntax_gate.log
+      - name: Functional monster and wing system tests
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://ci/monsters_and_wings_test.gd 2>&1 | tee artifacts/monsters_and_wings_test.log
+          grep -q "MONSTERS_AND_WINGS_SYSTEM_PASS=true" artifacts/monsters_and_wings_test.log
+          ! grep -E "SCRIPT ERROR|Parse Error|MONSTERS_AND_WINGS_SYSTEM_FAIL|Failed to load script|Failed loading resource" artifacts/monsters_and_wings_test.log
       - name: Functional GameSettings integration test in Twin City scene
         env:
           SETTINGS_FUNCTIONAL_TEST: "1"
@@ -730,6 +736,7 @@ jobs:
             artifacts/mobile_hud_character_preview.png
             artifacts/mount_showcase.log
             artifacts/syntax_gate.log
+            artifacts/monsters_and_wings_test.log
       - name: Verify all six captures and checkpoint markers
         if: always()
         run: |
