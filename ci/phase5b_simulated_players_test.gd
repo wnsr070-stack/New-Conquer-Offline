@@ -40,6 +40,17 @@ func _run() -> void:
 	if int(counts.get("TwinCity", 0)) != 30:
 		_fail("twin_city_population_not_30")
 		return
+	var hub_mounts := 0
+	var hub_high_plus := 0
+	for roster_entry in system._roster:
+		if String(roster_entry.get("city", "")) == "TwinCity" and String(roster_entry.get("role", "")) == "hub":
+			if bool(roster_entry.get("mounted", false)):
+				hub_mounts += 1
+			if int(roster_entry.get("plus_level", 0)) >= 9:
+				hub_high_plus += 1
+	if hub_mounts < 4 or hub_high_plus != 15:
+		_fail("twin_city_hub_aura_mount_showcase_invalid")
+		return
 	for city in ["PhoenixCastle", "ApeMountain", "DesertCity", "BirdIsland"]:
 		if int(counts.get(city, 0)) != 10:
 			_fail("subcity_population_not_10: " + city)
