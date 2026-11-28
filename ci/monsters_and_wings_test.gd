@@ -21,7 +21,11 @@ func _run() -> void:
 	if int(database.get_item_price("wing_sky_feather_p0")) <= 0:
 		_fail("wing_shop_price_missing")
 		return
-	var shop_items: Array = get_node_or_null("/root/NPCMerchantSystem").get_shop_inventory("AccessoryMerchant")
+	var merchant := root.get_node_or_null("NPCMerchantSystem")
+	if merchant == null:
+		_fail("merchant_autoload_missing")
+		return
+	var shop_items: Array = merchant.get_shop_inventory("AccessoryMerchant")
 	var wing_for_sale := false
 	for shop_item in shop_items:
 		if String(shop_item.get("id", "")) == "wing_sky_feather_p0":
@@ -117,6 +121,7 @@ func _run() -> void:
 			reborn_quest_found = true
 	if not reborn_quest_found:
 		_fail("level_120_reborn_quest_missing")
+		return
 
 	print("MONSTERS_AND_WINGS_SYSTEM_PASS=true wings=true stats=true equip_unequip=true camps=40 activation=45m active_cap=80 major_bosses=4 reborn_drops=8")
 	quit(0)
