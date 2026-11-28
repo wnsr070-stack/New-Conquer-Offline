@@ -4,7 +4,9 @@ class_name MonsterSpawner
 
 const TABLE = preload("res://scripts/MonsterGeneratorTable.gd")
 const MonsterActorScript = preload("res://scripts/MonsterActor.gd")
-const ACTIVATION_DISTANCE_M := 75.0
+const ACTIVATION_DISTANCE_M := 45.0
+const MAX_ACTIVE_MONSTERS := 80
+const MIN_ACTIVE_CAMP_POPULATION := 35
 const KING_SCALE := 1.3
 const KING_HP_MULTIPLIER := 2.0
 const KING_EXP_MULTIPLIER := 1.5
@@ -55,6 +57,8 @@ func _ready() -> void:
 		_definitions[String(item.id)] = item
 	for item in TABLE.WORLD_BOSSES:
 		_definitions[String(item.id)] = item
+	for item in TABLE.QUEST_BOSSES:
+		_definitions[String(item.id)] = item
 	build_spawn_points()
 	var initial_hero := _find_hero()
 	if initial_hero is Node3D:
@@ -91,6 +95,27 @@ func build_spawn_points() -> void:
 		point.position = boss_position
 		point.add_to_group("monster_spawn_point")
 		point.set_meta("spawn_kind", "world_boss")
+		point.set_meta("monster_id", boss.id)
+		point.set_meta("level", boss.level)
+		point.set_meta("hp", boss.hp)
+		point.set_meta("damage", boss.damage)
+		point.set_meta("exp", boss.exp)
+		point.set_meta("max_npc", boss.max_npc)
+		point.set_meta("scale", boss.scale)
+		point.set_meta("rest_secs", boss.rest_secs)
+		add_child(point)
+		spawn_points.append(point)
+	for boss in TABLE.QUEST_BOSSES:
+		if String(boss.city) != current_city:
+			continue
+		var city: String = boss.city
+		var center: Vector3 = centers[city]
+		var point := Node3D.new()
+		point.name = "QuestZone_" + String(boss.id).replace(" ", "")
+		point.position = center + Vector3(130.0, 0.0, -75.0)
+		point.add_to_group("monster_spawn_point")
+		point.set_meta("spawn_kind", "quest_boss")
+		point.set_meta("quest_zone", "RebornQuestZone")
 		point.set_meta("monster_id", boss.id)
 		point.set_meta("level", boss.level)
 		point.set_meta("hp", boss.hp)
@@ -175,6 +200,8 @@ func _update_distance_activation() -> void:
 		if enabled:
 			active_spawn_points += 1
 			_ensure_point_population(point)
+		else:
+			_release_point_population(point)
 
 func _ensure_point_population(point: Node3D) -> void:
 	if bool(point.get_meta("actors_spawned", false)):
@@ -185,19 +212,47 @@ func _ensure_point_population(point: Node3D) -> void:
 		return
 	var definition: Dictionary = _definitions[monster_id]
 	var center := point.global_position
-	var is_boss := String(point.get_meta("spawn_kind", "")) == "world_boss"
-	var population := 1 if is_boss else int(point.get_meta("max_npc", 1))
+	var spawn_kind := String(point.get_meta("spawn_kind", ""))
+	var is_boss := spawn_kind in ["world_boss", "quest_boss"]
+	var requested_population := 1 if is_boss else int(point.get_meta("max_npc", 1))
+	var remaining_capacity := maxi(0, MAX_ACTIVE_MONSTERS - _count_active_monsters())
+	var population := mini(requested_population, remaining_capacity)
+	if not is_boss and population < MIN_ACTIVE_CAMP_POPULATION:
+		return
 	var regular_count := population if is_boss else maxi(0, population - 1)
 	for i in range(regular_count):
 		if not _spawn_actor(point, definition, false, is_boss, center):
 			return
 	if not is_boss and int(point.get_meta("king_count", 0)) > 0:
 		var king_data := definition.duplicate(true)
-		king_data.hp = int(point.get_meta("king_hp", definition.hp))
-		king_data.exp = int(point.get_meta("king_exp", definition.exp))
+		king_data["hp"] = int(point.get_meta("king_hp", definition.get("hp", 1)))
+		king_data["exp"] = int(point.get_meta("king_exp", definition.get("exp", 0)))
 		if not _spawn_actor(point, king_data, true, false, center):
 			return
+	point.set_meta("active_population", population)
 	point.set_meta("actors_spawned", true)
+	print("MONSTER_CAMP_ACTIVE: id=", monster_id, " population=", population, " radius_m=", ACTIVATION_DISTANCE_M, " cap=", MAX_ACTIVE_MONSTERS)
+
+func _count_active_monsters() -> int:
+	var total := 0
+	for point in spawn_points:
+		if not is_instance_valid(point) or not bool(point.get_meta("distance_active", false)):
+			continue
+		for child in point.get_children():
+			if child is MonsterActor:
+				total += 1
+	return total
+
+func _release_point_population(point: Node3D) -> void:
+	if not bool(point.get_meta("actors_spawned", false)):
+		return
+	for child in point.get_children():
+		if child is MonsterActor:
+			point.remove_child(child)
+			child.queue_free()
+	point.set_meta("actors_spawned", false)
+	point.set_meta("active_population", 0)
+	point.set_meta("sleeping", true)
 
 func _spawn_actor(point: Node3D, definition: Dictionary, king: bool, boss: bool, center: Vector3) -> bool:
 	var monster_id := String(definition.get("id", ""))
@@ -237,7 +292,10 @@ func get_spawn_summary() -> Dictionary:
 		"total_scheduled": TABLE.scheduled_world_count(),
 		"king_count": TABLE.king_count(),
 		"spawn_point_count": spawn_points.size(),
-		"loaded_model_count": _model_cache.size()
+		"loaded_model_count": _model_cache.size(),
+		"active_monsters": _count_active_monsters(),
+		"activation_distance_m": ACTIVATION_DISTANCE_M,
+		"active_monster_cap": MAX_ACTIVE_MONSTERS
 	}
 
 func get_monster_camp_position(monster_id: String) -> Vector3:
@@ -258,6 +316,9 @@ func get_monster_camp_position(monster_id: String) -> Vector3:
 			var center: Vector3 = centers.get(city, Vector3.ZERO)
 			var offset: Vector3 = BOSS_OFFSETS.get(city, Vector3(0.0,0.0,330.0))
 			return center + offset
+	for boss in TABLE.QUEST_BOSSES:
+		if String(boss.id) == monster_id:
+			return centers.get(String(boss.city), Vector3.ZERO) + Vector3(130.0, 0.0, -75.0)
 	return Vector3.ZERO
 
 func get_monster_camp_city(monster_id: String) -> String:
