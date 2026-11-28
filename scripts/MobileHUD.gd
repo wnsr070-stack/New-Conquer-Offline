@@ -1135,7 +1135,7 @@ func _build_character(layout: VBoxContainer) -> void:
  stats_grid.add_theme_constant_override("h_separation",18)
  stats_grid.add_theme_constant_override("v_separation",2)
  stats_panel.add_child(stats_grid)
- for stat_line in ["قوة المعركة: %d" % bp,"الهجوم: %d" % int(stats.get("attack",0)),"الدفاع: %d" % int(stats.get("defense",0)),"الهجوم السحري: %d" % int(stats.get("magic_attack",0)),"سرعة الركوب: %d" % speed,"القطع المجهزة: %d/14" % equipped.size()]:
+ for stat_line in ["قوة المعركة: %d" % int(stats.get("battle_power",bp)),"الهجوم: %d" % int(stats.get("attack",0)),"الدفاع: %d" % int(stats.get("defense",0)),"الحياة القصوى: %d" % int(player.get("max_hp",player.get("base_max_hp",100))),"الهجوم السحري: %d" % int(stats.get("magic_attack",0)),"سرعة الركوب: %d" % speed,"القطع المجهزة: %d/14" % equipped.size()]:
   var stat_label := _label(stat_line)
   stat_label.add_theme_font_size_override("font_size",13)
   stats_grid.add_child(stat_label)
@@ -2041,7 +2041,8 @@ func _seed_mobile_hud_preview_data() -> void:
    "boots":"boots_01_beginner_super_p12",
    "fan":"preview_heaven_fan_p12",
    "tower":"preview_star_tower_p12",
-   "steed":"preview_steed_p12"
+   "steed":"preview_steed_p12",
+   "wing":"wing_sky_feather_p0"
   }
   for slot in fixtures:
    var definition: Dictionary = db.get_item(String(fixtures[slot]))
@@ -2051,7 +2052,8 @@ func _seed_mobile_hud_preview_data() -> void:
     gear.equipped[slot]=definition
   gear.equipped["necklace"]={"id":"preview_necklace_p12","name":"قلادة +12","slot":"necklace","plus":12,"type":"Accessory"}
   gear.equipped["ring"]={"id":"preview_ring_p12","name":"خاتم +12","slot":"ring","plus":12,"type":"Accessory"}
-  gear.equipped["wing"]={"id":"preview_wing","name":"جناح سماوي","slot":"wing","plus":0,"type":"Wing"}
+  var preview_wing: Dictionary = db.get_item("wing_celestial_phoenix_p12") if db != null else {}
+  if not preview_wing.is_empty(): gear.equipped["wing"] = preview_wing
   gear.equipped["mount_whip"]={"id":"preview_mount_whip","name":"سوط ركوب","slot":"mount_whip","plus":0,"type":"MountWhip"}
   gear.equipped["mount_skin"]={"id":"preview_fire_tiger_skin","name":"سكن المطية: النمر الناري","slot":"mount_skin","plus":0,"type":"MountSkin"}
   gear.equipped["garment"]={"id":"preview_garment","name":"لبسة الحارس","slot":"garment","plus":0,"type":"Garment"}
