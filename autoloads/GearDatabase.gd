@@ -73,6 +73,7 @@ func _initialize() -> void:
  _initialize_armor_items()
  _initialize_quest_items()
  _initialize_mount_items()
+ _initialize_wing_items()
  initialized = true
  print("PHASE3B_GEAR_DATABASE_READY: ",items.size()," weapon+armor variants; armor_assets=33 classes=7")
 func _tier_color(level: int) -> Color:
@@ -165,14 +166,14 @@ func _initialize_quest_items() -> void:
  print("PHASE4D_CLASSIC_QUEST_ITEMS_READY: count=",rows.size())
 
 func _initialize_wing_items() -> void:
-	var catalog := [
-		{"id":"wing_sky_feather","name":"جناح الريشة السماوية","level":25,"attack":35,"defense":25,"hp":450,"price":25000},
-		{"id":"wing_azure_dragon","name":"جناح التنين الأزرق","level":70,"attack":110,"defense":85,"hp":1400,"price":85000},
-		{"id":"wing_celestial_phoenix","name":"جناح العنقاء السماوية","level":120,"attack":260,"defense":190,"hp":4200,"price":240000}
-	]
-	for entry in catalog:
-		for plus in range(0,PLUS_LEVELS+1):
-			var item_id := String(entry.id) + "_p" + str(plus)
-			var scale := 1.0 + float(plus) * 0.12
-			items[item_id] = {"id":item_id,"display_name":String(entry.name) + " +" + str(plus),"type":"Wing","family":"wing","slot":"wing","level":int(entry.level),"quality":"Super" if plus >= 9 else "Elite" if plus >= 6 else "Unique" if plus >= 3 else "Normal","plus":plus,"classes":EQUIPMENT_CLASSES.duplicate(),"base_attack":int(entry.attack),"base_defense":int(entry.defense),"attack_bonus":int(round(float(entry.attack)*scale)),"defense_bonus":int(round(float(entry.defense)*scale)),"max_hp_bonus":int(round(float(entry.hp)*scale)),"composition_points":0,"sockets":[],"gem_bonuses":{"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}}
-	print("PHASE5A_WING_CATALOG_READY: tiers=3 plus=+0..+12 stats=attack/defense/max_hp visual_attachment=false")
+ var catalog := [
+  {"id":"wing_sky_feather","name":"جناح الريشة السماوية","level":25,"attack":35,"defense":25,"hp":450,"price":25000},
+  {"id":"wing_azure_dragon","name":"جناح التنين الأزرق","level":70,"attack":110,"defense":85,"hp":1400,"price":85000},
+  {"id":"wing_celestial_phoenix","name":"جناح العنقاء السماوية","level":120,"attack":260,"defense":190,"hp":4200,"price":240000}
+ ]
+ for entry in catalog:
+  for plus in range(0,PLUS_LEVELS+1):
+   var item_id := String(entry.id) + "_p" + str(plus)
+   var stat_scale := 1.0 + float(plus) * 0.12
+   items[item_id] = {"id":item_id,"display_name":String(entry.name) + " +" + str(plus),"type":"Wing","equipment_type":"Wing","family":"wing","slot":"wing","level":int(entry.level),"quality":"Super" if plus >= 9 else "Elite" if plus >= 6 else "Unique" if plus >= 3 else "Normal","plus":plus,"classes":EQUIPMENT_CLASSES.duplicate(),"base_attack":int(entry.attack),"base_defense":int(entry.defense),"attack_bonus":int(round(float(entry.attack)*stat_scale)),"defense_bonus":int(round(float(entry.defense)*stat_scale)),"max_hp_bonus":int(round(float(entry.hp)*stat_scale)),"composition_points":0,"sockets":[],"gem_bonuses":{"attack":0,"magic_attack":0,"damage_reduction":0.0,"exp_bonus":0.0}}
+ print("PHASE5A_WING_CATALOG_READY: tiers=3 plus=+0..+12 stats=attack/defense/max_hp visual_attachment=false")
