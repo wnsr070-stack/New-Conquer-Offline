@@ -295,8 +295,8 @@ func _cleanup_runtime() -> void:
 	if _camera_created and is_instance_valid(_camera):
 		_camera.free()
 		_camera = null
-	var scene := root.get_child(0) if root.get_child_count() > 0 else null
-	if scene != null and is_instance_valid(scene):
+	var scene: Node = current_scene
+	if is_instance_valid(scene):
 		scene.free()
 
 func _fail(reason: String, code: int = 1) -> void:
