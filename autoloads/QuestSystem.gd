@@ -282,7 +282,7 @@ func _has_property(o: Object,k: String) -> bool:
  return false
 
 func _quest_monster_id(quest_id: String) -> String:
- var mapping := {"novice_2":"Chicken","novice_4":"Pigeon","daily_kill_competition":"Ghost","daily_exterminate":"Blob","daily_assassinate":"Mushroom King","daily_demons":"Demon","daily_dis_city":"Alpaking Evolved","side_meteor":"Chicken","side_bandits":"Bunny","side_ape":"Orc","side_desert":"Cactoro","side_bird":"Armabee"}
+ var mapping := {"novice_2":"Chicken","novice_4":"Pigeon","daily_kill_competition":"Ghost","daily_exterminate":"Blob","daily_assassinate":"Mushroom King","daily_demons":"Demon","daily_dis_city":"Alpaking Evolved","side_meteor":"Chicken","side_bandits":"Bunny","side_ape":"Orc","side_desert":"Cactoro","side_bird":"Armabee","end_celestial":"Reborn Guardian"}
  return String(mapping.get(quest_id,""))
 func create_soul_jade() -> Dictionary:
  var s := _state()
