@@ -360,7 +360,7 @@ func _update_city_player(entry: Dictionary, actor: Node3D, delta: float) -> void
 		actor.look_at(actor.global_position + Vector3(movement.x, 0.0, movement.z), Vector3.UP)
 
 func _update_hunter(entry: Dictionary, actor: Node3D, delta: float, hero: Node3D) -> void:
-	var hunter_index := int(String(entry.id).trim_prefix("sim_"))
+	var hunter_index := int(String(entry.id).trim_prefix("sim_")) - (_roster.size() - HUNTER_COUNT)
 	var angle := float(hunter_index % HUNTER_COUNT) * TAU / float(HUNTER_COUNT) + _simulation_clock * 0.045
 	var target := hero.global_position + Vector3(cos(angle) * (10.0 + float(hunter_index % 4) * 2.3), 0.0, sin(angle) * (10.0 + float(hunter_index % 4) * 2.3))
 	actor.global_position = step_towards(actor.global_position, target, 2.0, delta)
