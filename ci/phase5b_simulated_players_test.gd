@@ -22,6 +22,17 @@ func _run() -> void:
 		_fail("contract_validation: " + str(report))
 		return
 	var summary: Dictionary = system.get_population_summary()
+	var selected: Array = system.select_active_entries("TwinCity", Vector3(0.0, 0.0, -49.0))
+	if selected.size() > 30:
+		_fail("active_player_cap_exceeded")
+		return
+	var visible_hunters := 0
+	for selected_entry in selected:
+		if bool(selected_entry.get("hunter", false)):
+			visible_hunters += 1
+	if visible_hunters != 4:
+		_fail("nearby_hunter_visibility_not_guaranteed")
+		return
 	var counts: Dictionary = summary.get("counts", {})
 	if int(summary.get("total", 0)) != 85:
 		_fail("expected_85_total_players")
