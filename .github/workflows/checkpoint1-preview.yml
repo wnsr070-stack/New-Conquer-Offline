@@ -635,7 +635,12 @@ jobs:
       - name: Godot 4.3 GDScript Syntax Gate - scripts/*.gd and ci/*.gd
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/ci_validate_all_scripts.gd 2>&1 | tee artifacts/syntax_gate.log
+          "$GODOT_BIN" --headless --path "$GITHUB_WORKSPACE" --script res://scripts/ci_validate_all_scripts.gd 2>&1 | tee artifacts/syntax_gate.log | while IFS= read -r line; do
+            if [[ "$line" == *"Parse Error"* || "$line" == *"SCRIPT ERROR"* ]]; then
+              echo "::error::Godot syntax gate detected a script error: $line"
+              exit 1
+            fi
+          done
           grep -q "GODOT_GDSCRIPT_SYNTAX_GATE_PASS=true" artifacts/syntax_gate.log
           ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed loading resource|GODOT_GDSCRIPT_SYNTAX_GATE_FAIL" artifacts/syntax_gate.log
       - name: Functional monster and wing system tests

@@ -45,7 +45,7 @@ func _run() -> void:
 		return
 	_set_camera(Vector3(0.0, 1.5, -45.0), 42.0, 24.0)
 	await _settle(0.35)
-	if not _capture("phase5b_twin_city_crowd.png"):
+	if not await _capture("phase5b_twin_city_crowd.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_twin_city_crowd.png")
 
@@ -81,7 +81,7 @@ func _run() -> void:
 		return
 	_set_camera(Vector3(0.0, 1.5, -45.0), 25.0, 13.0)
 	await _settle(0.35)
-	if not _capture("phase5b_auras_and_mounts.png"):
+	if not await _capture("phase5b_auras_and_mounts.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_auras_and_mounts.png mounts=3 plus_levels=0,6,12")
 
@@ -91,7 +91,7 @@ func _run() -> void:
 		return
 	_set_camera(Vector3(0.0, 1.5, -98.0), 34.0, 20.0)
 	await _settle(0.35)
-	if not _capture("phase5b_sub_cities.png"):
+	if not await _capture("phase5b_sub_cities.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_sub_cities.png city=PhoenixCastle")
 
@@ -107,7 +107,7 @@ func _run() -> void:
 		return
 	_set_camera(Vector3(0.0, 1.5, 0.0), 21.0, 13.0)
 	await _settle(0.35)
-	if not _capture("phase5b_wild_hunters.png"):
+	if not await _capture("phase5b_wild_hunters.png"):
 		return
 	print("PHASE5B_VISUAL_CAPTURE_OK: phase5b_wild_hunters.png hunters=", hunter_count)
 
