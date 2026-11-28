@@ -616,7 +616,7 @@ func _send_chat_message(entry: LineEdit,log: Label) -> void:
   if simulated_players != null and simulated_players.has_method("send_player_chat"):
    simulated_players.send_player_chat(entry.text, "world")
   else:
-   log.text+="\\n[You] "+entry.text
+   log.text+="\n[You] "+entry.text
   entry.clear()
 
 func _on_simulated_chat_message(channel: String, speaker: String, message: String) -> void:
@@ -624,7 +624,7 @@ func _on_simulated_chat_message(channel: String, speaker: String, message: Strin
  while _simulated_chat_lines.size() > 4:
   _simulated_chat_lines.pop_front()
  if _chat_log_label != null:
-  _chat_log_label.text = "\\n".join(_simulated_chat_lines)
+  _chat_log_label.text = "\n".join(_simulated_chat_lines)
 
 func _set_combat_mode(mode: String) -> void:
  var state:=_root_autoload("GameState")
