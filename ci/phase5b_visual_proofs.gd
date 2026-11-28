@@ -15,12 +15,16 @@ func _initialize() -> void:
 	_watchdog_started_msec = Time.get_ticks_msec()
 	call_deferred("_run")
 
-func _process(_delta: float) -> void:
+func _process(_delta: float) -> bool:
 	if _proofs_completed or _watchdog_started_msec <= 0:
-		return
+		return false
+
 	if Time.get_ticks_msec() - _watchdog_started_msec >= 45000:
 		push_error("PHASE5B_VISUAL_PROOFS_WATCHDOG: timeout=45000ms captured=%d/4 last_RUN_TRACE=%s" % [_capture_count, _last_run_trace])
-		get_tree().quit(1)
+		quit(1)
+		return true
+
+	return false
 
 func _trace(step: String) -> void:
 	_last_run_trace = step
