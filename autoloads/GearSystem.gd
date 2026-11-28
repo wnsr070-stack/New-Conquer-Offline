@@ -32,6 +32,9 @@ func equip_weapon(item_id: String,class_id: String) -> bool:
 func equip_item(slot: String,item: Dictionary) -> bool:
  var normalized_slot := "helmet" if slot == "headgear" else slot
  if normalized_slot.is_empty() or item.is_empty(): return false
+ var item_slot := String(item.get("slot",item.get("equipment_slot",""))).to_lower()
+ if item_slot == "headgear": item_slot = "helmet"
+ if not item_slot.is_empty() and item_slot != normalized_slot: return false
  equipped[normalized_slot] = item.duplicate(true)
  _persist_equipment()
  equipment_changed.emit(normalized_slot,equipped[normalized_slot])
@@ -59,7 +62,8 @@ func get_equipped(slot: String = "weapon") -> Dictionary:
 func can_equip(item_id: String,class_id: String,level: int) -> bool:
  if database == null: return false
  var item: Dictionary = database.get_item(item_id)
- return not item.is_empty() and class_id in item.classes and level >= int(item.level)
+ var item_slot := String(item.get("slot",item.get("equipment_slot","weapon"))).to_lower()
+ return not item.is_empty() and class_id in item.get("classes",[]) and level >= int(item.get("level",item.get("level_min",1))) and item_slot in ["weapon","wing","armor","helmet","boots","necklace","ring","fan","tower","steed","mount_skin","mount_whip","garment","weapon_accessory"]
 func get_combat_bonuses() -> Dictionary:
  var attack := 0
  var defense := 0
@@ -94,13 +98,23 @@ func get_combat_bonuses() -> Dictionary:
   weapon_exp_bonus += float(gems.get("weapon_exp_bonus",0.0))
   magic_exp_bonus += float(gems.get("magic_exp_bonus",0.0))
   durability_bonus += float(gems.get("durability_bonus",0.0))
- return {"attack":attack,"defense":defense,"max_hp":max_hp,"critical":critical,"movement_speed":movement_speed,"magic_attack":magic_attack,"attack_pct":attack_pct,"magic_attack_pct":magic_attack_pct,"damage_reduction":damage_reduction,"exp_bonus":exp_bonus,"hit_accuracy_pct":hit_accuracy_pct,"weapon_exp_bonus":weapon_exp_bonus,"magic_exp_bonus":magic_exp_bonus,"durability_bonus":durability_bonus}
+ return {"attack":attack,"defense":defense,"max_hp":max_hp,"critical":critical,"movement_speed":movement_speed,"magic_attack":magic_attack,"attack_pct":attack_pct,"magic_attack_pct":magic_attack_pct,"damage_reduction":damage_reduction,"exp_bonus":exp_bonus,"hit_accuracy_pct":hit_accuracy_pct,"weapon_exp_bonus":weapon_exp_bonus,"magic_exp_bonus":magic_exp_bonus,"durability_bonus":durability_bonus,"battle_power":attack + defense + int(round(float(max_hp)/10.0))}
 func _persist_equipment() -> void:
  var state := get_node_or_null("/root/GameState")
  if state != null:
   state.player_data["equipped"] = equipped.duplicate(true)
   state.player_data["equipment_bonuses"] = get_combat_bonuses()
   state.player_data["max_hp_bonus"] = int(state.player_data["equipment_bonuses"].get("max_hp",0))
+  var base_max_hp := int(state.player_data.get("base_max_hp",state.player_data.get("max_hp",100)))
+  state.player_data["base_max_hp"] = base_max_hp
+  var old_max_hp := int(state.player_data.get("max_hp",base_max_hp))
+  var new_max_hp := maxi(1,base_max_hp + int(state.player_data["max_hp_bonus"]))
+  if state.player_data.has("hp"):
+   state.player_data["hp"] = clampi(int(state.player_data["hp"]) + new_max_hp - old_max_hp,0,new_max_hp)
+  state.player_data["max_hp"] = new_max_hp
+  state.player_data["effective_attack"] = int(state.player_data.get("attack",100)) + int(state.player_data["equipment_bonuses"].get("attack",0))
+  state.player_data["effective_defense"] = int(state.player_data.get("base_defense",0)) + int(state.player_data["equipment_bonuses"].get("defense",0))
+  state.player_data["battle_power"] = int(state.player_data["effective_attack"]) + int(state.player_data["effective_defense"]) + int(round(float(new_max_hp)/10.0))
   state.save_game()
 func _apply_runtime_aura() -> void:
  var hero := get_tree().root.find_child("PlayableHero",true,false)
